@@ -1,4 +1,3 @@
-from setuptools_scm import get_version
 
 # `name` is the name of the package as used for `pip install package`
 name = "eodal"
@@ -8,11 +7,11 @@ path = name.lower().replace("-", "_").replace(" ", "_")
 # https://semver.org
 # version = "0.1.dev0"
 author = (
-    "Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;"
+    "Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;\n"
     "Remote Sensing Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland"
 )
 author_email = ""
-description = ""  # One-liner
+description = "Earth Observation Data Analysis Library"  # One-liner
 url = "https://github.com/remote-sensing-team/eodal"  # your project home-page
 license = "GNU General Public License version 3"  # See https://choosealicense.com
 version = "0.0"
