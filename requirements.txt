@@ -18,4 +18,4 @@ zarr
 numba
 pystac-client
 sentinelsat
-
+pydantic[dotenv]

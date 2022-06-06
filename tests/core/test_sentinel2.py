@@ -145,7 +145,7 @@ def test_read_from_safe_with_mask_l2a(datadir, get_s2_safe_l2a, get_polygons, ge
 
     # read using polygons outside of the tile extent -> should fail
     with pytest.raises(Exception):
-        handler = Sentineel2().from_safe(
+        handler = Sentinel2().from_safe(
             in_dir=in_dir,
             vector_features=in_file_aoi
         )

@@ -38,7 +38,14 @@ def datadir(tmppath, request):
     return tmppath
 
 @pytest.fixture()
-def get_s2_safe_l2a():
+def get_project_root_path() -> Path:
+    """
+    returns the project root path
+    """
+    return Path(os.path.dirname(os.path.abspath(__file__))).parent
+
+@pytest.fixture()
+def get_s2_safe_l2a(get_project_root_path):
     """
     Get Sentinel-2 testing data in L2A processing level. If not available yet
     download the data from the Menedely dataset link provided (might take a while
@@ -46,7 +53,7 @@ def get_s2_safe_l2a():
     """
     def _get_s2_safe_l2a():
 
-        testdata_dir = Path('../../data')
+        testdata_dir = get_project_root_path.joinpath('data')
         testdata_fname = testdata_dir.joinpath(
             'S2A_MSIL2A_20190524T101031_N0212_R022_T32UPU_20190524T130304.SAFE'
         )
@@ -72,7 +79,7 @@ def get_s2_safe_l2a():
     return _get_s2_safe_l2a
 
 @pytest.fixture()
-def get_s2_safe_l1c():
+def get_s2_safe_l1c(get_project_root_path):
     """
     Get Sentinel-2 testing data in L1C processing level. If not available yet
     download the data from the Menedely dataset link provided (might take a while
@@ -80,7 +87,7 @@ def get_s2_safe_l1c():
     """
     def _get_s2_safe_l1c():
 
-        testdata_dir = Path('../../data')
+        testdata_dir = get_project_root_path.joinpath('data')
         testdata_fname = testdata_dir.joinpath(
             'S2B_MSIL1C_20190725T100039_N0208_R122_T33UWP_20190725T123957.SAFE'
         )
@@ -106,14 +113,14 @@ def get_s2_safe_l1c():
     return _get_s2_safe_l1c
 
 @pytest.fixture()
-def get_bandstack():
+def get_bandstack(get_project_root_path):
     """
     Returns path to multi-band tiff file (bandstack)
     """
 
     def _get_bandstack():
 
-        testdata_dir = Path('../../data')
+        testdata_dir = get_project_root_path.joinpath('data')
         testdata_fname = testdata_dir.joinpath(
             '20190530_T32TMT_MSIL2A_S2A_pixel_division_10m.tiff'
         )
@@ -121,14 +128,14 @@ def get_bandstack():
     return _get_bandstack
 
 @pytest.fixture()
-def get_points():
+def get_points(get_project_root_path):
     """
     Returns path to test points to be used for pixel extraction
     """
     
     def _get_points():
         
-        testdata_dir = Path('../../data')
+        testdata_dir = get_project_root_path.joinpath('data')
         testdata_points = testdata_dir.joinpath(
             Path('sample_points').joinpath('ZH_Points_2019_EPSG32632_random.shp')
         )
@@ -136,14 +143,14 @@ def get_points():
     return _get_points
 
 @pytest.fixture()
-def get_points2():
+def get_points2(get_project_root_path):
     """
     Returns path to test points to be used for pixel extraction
     """
     
     def _get_points():
         
-        testdata_dir = Path('../../data')
+        testdata_dir = get_project_root_path.joinpath('data')
         testdata_points = testdata_dir.joinpath(
             Path('sample_points').joinpath('sampling_test_points.shp')
         )
@@ -151,14 +158,14 @@ def get_points2():
     return _get_points
 
 @pytest.fixture()
-def get_points3():
+def get_points3(get_project_root_path):
     """
     Returns path to test points to be used for pixel extraction
     """
     
     def _get_points():
         
-        testdata_dir = Path('../../data')
+        testdata_dir = get_project_root_path.joinpath('data')
         testdata_points = testdata_dir.joinpath(
             Path('sample_points').joinpath('BY_Points_2019_EPSG32633.shp')
         )
@@ -166,14 +173,14 @@ def get_points3():
     return _get_points
 
 @pytest.fixture()
-def get_polygons():
+def get_polygons(get_project_root_path):
     """
     Returns path to agricultural field polygons to use for masking
     """
     
     def _get_polygons():
         
-        testdata_dir = Path('../../data')
+        testdata_dir = get_project_root_path.joinpath('data')
         testdata_polys = testdata_dir.joinpath(
             Path('sample_polygons').joinpath('ZH_Polygons_2020_ESCH_EPSG32632.shp')
         )
@@ -181,14 +188,14 @@ def get_polygons():
     return _get_polygons
 
 @pytest.fixture()
-def get_polygons_2():
+def get_polygons_2(get_project_root_path):
     """
     Returns path to agricultural field polygons to use for masking
     """
     
     def _get_polygons():
         
-        testdata_dir = Path('../../data')
+        testdata_dir = get_project_root_path.joinpath('data')
         testdata_polys = testdata_dir.joinpath(
             Path('sample_polygons').joinpath('BY_AOI_2019_CLOUDS_EPSG32632.shp')
         )
@@ -196,14 +203,14 @@ def get_polygons_2():
     return _get_polygons
 
 @pytest.fixture()
-def get_polygons_3():
+def get_polygons_3(get_project_root_path):
     """
     Returns path to agricultural field polygons to use for masking
     """
     
     def _get_polygons():
         
-        testdata_dir = Path('../../data')
+        testdata_dir = get_project_root_path.joinpath('data')
         testdata_polys = testdata_dir.joinpath(
             Path('sample_polygons').joinpath('western_switzerland.gpkg')
         )
