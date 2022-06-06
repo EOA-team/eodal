@@ -144,6 +144,7 @@ setup(
     long_description_content_type='text/markdown',
     author=meta['author'],
     author_email='NA',
+    install_requires=install_requires,
     url='NA',
     python_requires=">=3.8",
     packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
