@@ -184,7 +184,7 @@ class RasterOperator(Operator):
             if band_selection is None:
                 band_selection = a.band_names()
             for idx, band_name in enumerate(band_selection):
-                object.__setattr__(self.collection[band_name], "values", res[idx, :, :])
+                object.__setattr__(cls.collection[band_name], "values", res[idx, :, :])
         else:
             # TODO: return a new RasterCollection instance
             # TODO: think about multiple slices
