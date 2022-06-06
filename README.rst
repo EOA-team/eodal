@@ -1,181 +1,112 @@
 |GHA tests| |Codecov report| |pre-commit| |black|
 
-Python Template Repository
-==========================
+EODAL Earth Observation Data Analysis Library
+=============================================
 
-This repository gives a fully-featured template or skeleton for new Python repositories.
+
+The `eodal` Python library to load, modify, analyze, modify and write Earth Observation data within an unified framework.
+
+**eodal enables open-source, reproducible geo-spatial data science while lowering the burden of data handling on the user-side**
 
 
 Quick start
 -----------
 
-.. highlight:: bash
+coming soon ...
 
-When creating a new repository from this template, these are the steps to follow:
+Why eodal
+---------
 
-#. *Don't click the fork button.*
-   The fork button is for making a new template based in this one, not for using the template to make a new repository.
+**eodal enables open-source, reproducible geo-spatial data science while lowering the burden of data handling on the user-side**
 
-#.
-    #.  **New GitHub repository**.
+*eodal* is a lightweight ``Python3`` package to **organize**,
+**explore** and **process** **Earth Observation data** in
+an easy and intuitive manner. It supports the processing of **gridded datasets**,
+**vector files** and the **spatial intersection** of these.
 
-        You can create a new repository on GitHub from this template by clicking the `Use this template <https://github.com/scottclowe/python-template-repo/generate>`_ button.
+The roots of *eodal* lay in **agricultural remote sensing applications** with **Sentinel-2**.
+However, due to its **modular and object-oriented programming structure**, it allows the
+**processing of (nearly) any type of Earth Observation data** and can be **adapted** to
+**other remote sensing platforms** or **Earth Observation data sources** (e.g., Digital Elevation
+Models, Soil Maps, Land Cover Maps etc.).
 
-        *Need to support Python 2.7?*
-        Make sure to check the "Include all branches" option while creating the new repository.
+*eodal* supports working in **cloud-environments** using [STAC catalogs](https://stacspec.org/) ("online" mode) and
+on **local premises** using a spatial PostgreSQL/PostGIS database to organize metadata ("offline" mode).
 
-        Then clone your new repository to your local system [pseudocode]::
+Examples
+--------
 
-          git clone git@github.com:your-org/your-repo.git
-          cd your-repo
+The following code snippet reads spectral bands from a Sentinel-2 scene
+organized in .SAFE folder structure acquired over Southern Germany in
+Level2A (bottom-of-atmosphere reflectance). The Sentinel-2 scene can be
+downloaded `here <https://data.mendeley.com/datasets/ckcxh6jskz/1>`__ (
+S2A_MSIL2A_20190524T101031_N0212_R022_T32UPU_20190524T130304.zip):
 
-        *If you need to support Python 2.7*, now move the reference for your default branch (master/main) to point to the python2.7 branch head::
+.. code:: python
 
-          git reset --hard origin/python2.7
-          git push -f
+   import geopandas as gpd
+   from pathlib import Path
+   from shapely.geometry import Polygon
+   from agrisatpy.core.sensors import Sentinel2
 
-        You can now delete the python2.7 branch from your remote.
+   # file-path to the .SAFE dataset
+   dot_safe_dir = Path('../data/S2A_MSIL2A_20190524T101031_N0212_R022_T32UPU_20190524T130304.SAFE')
 
-    #.  **New repository not on GitHub**.
+   # construct a bounding box for reading a spatial subset of the scene (geographic coordinates)
+   ymin, ymax = 47.949, 48.027
+   xmin, xmax = 11.295, 11.385
+   bbox = Polygon([(xmin, ymin), (xmax, ymin), (xmax, ymax), (xmin, ymax)])
 
-        Alternatively, if your new repository is not going to be on GitHub, you can download `this repo as a zip <https://github.com/scottclowe/python-template-repo/archive/master.zip>`_ and work from there.
+   # AgriSatPy expects a vector file or a GeoDataFrame for spatial sub-setting
+   bbox_gdf = gpd.GeoDataFrame(geometry=[bbox], crs=4326)
 
-        *Need to support Python 2.7?*
-        Download the `python2.7 branch as a zip <https://github.com/scottclowe/python-template-repo/archive/refs/heads/python2.7.zip>`_ instead.
+   # read data from .SAFE (all 10 and 20m bands + scene classification layer)
+   s2_ds = Sentinel2().from_safe(
+       in_dir=dot_safe_dir,
+       vector_features=bbox_gdf
+   )
 
-        Either way, you should note that this zip does not include the .gitignore and .gitattributes files (because GitHub automatically omits them, which is usually helpful but is not for our purposes).
-        Thus you will also need to download the `.gitignore <https://raw.githubusercontent.com/scottclowe/python-template-repo/master/.gitignore>`__ and `.gitattributes <https://raw.githubusercontent.com/scottclowe/python-template-repo/master/.gitattributes>`__ files.
+   # AgriSatPy support band aliasing. Thus, you can access the bands by their name ...
+   s2_ds.band_names
 
-        The following shell commands can be used for this purpose on \*nix systems::
+Output
 
-          git init your_repo_name
-          cd your_repo_name
-          wget https://github.com/scottclowe/python-template-repo/archive/master.zip
-          unzip master.zip
-          mv -n python-template-repo-master/* python-template-repo-master/.[!.]* .
-          rm -r python-template-repo-master/
-          rm master.zip
-          wget https://raw.githubusercontent.com/scottclowe/python-template-repo/master/.gitignore
-          wget https://raw.githubusercontent.com/scottclowe/python-template-repo/master/.gitattributes
-          git add .
-          git commit -m "Initial commit"
-          git rm LICENSE
+.. code:: shell
 
-        Note that we are doing the move with ``mv -n``, which will prevent the template repository from clobbering your own files (in case you already made a README.rst file, for instance).
+   >>> ['B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B11', 'B12', 'SCL']
 
-        You'll need to instruct your new local repository to synchronise with the remote ``your_repo_url``::
+.. code:: python
 
-          git remote set-url origin your_repo_url
-          git push -u origin master
+   # ... or by their alias, i.e., their color name
+   s2_ds.band_aliases
 
-#.  Remove the dummy files ``package_name/module.py`` and ``package_name/tests/test_module.py``::
+.. code:: shell
 
-        rm package_name/module.py
-        rm package_name/tests/test_module.py
+   >>> ['blue', 'green', 'red', 'red_edge_1', 'red_edge_2', 'red_edge_3', 'nir_1', 'nir_2', 'swir_1', 'swir_2', 'scl']
 
-    If you prefer, you can keep them around as samples, but should note that they require numpy.
+.. code:: python
 
-#.  Depending on your needs, some of the files may be superfluous to you.
-    You can remove any superfluous files, as follows.
+   # plot false-color infrared preview
+   s2_ds.plot_multiple_bands(band_selection=['nir_1','red','green'])
 
-    - *No GitHub Actions!*
-      Delete the .github directory::
+.. image:: img/eodal_Sentinel-2_NIR.png
+  :width: 400
+  :alt: Sentinel-2 False-Color NIR
 
-        rm -r .github/
+.. code:: python
 
-    - *No unit testing!*
-      Run the following commands to delete unit testing files::
+   # plot scene classification layer
+   s2_ds.plot_scl()
 
-        rm -rf package_name/tests/
-        rm -f .github/workflows/test*.yaml
-        rm -f .codecov.yml
-        rm -f .coveragerc
-        rm -f requirements-test.txt
-
-#.  Delete the LICENSE file and replace it with a LICENSE file of your own choosing.
-    If the code is intended to be freely available for anyone to use, use an `open source license <https://choosealicense.com/>`_, such as `MIT License <https://choosealicense.com/licenses/mit/>`__ or `GPLv3 <https://choosealicense.com/licenses/gpl-3.0/>`__.
-    If you don't want your code to be used by anyone else, add a LICENSE file which just says:
-
-    .. code-block:: none
-
-        Copyright (c) YEAR, YOUR NAME
-
-        All right reserved.
-
-    Note that if you don't include a LICENSE file, you will still have copyright over your own code (this copyright is automatically granted), and your code will be private source (technically nobody else will be permitted to use it, even if you make your code publicly available).
-
-#.  Edit the file ``package_name/__meta__.py`` to contain your author and repo details.
-
-    name
-        The name as it will/would be on PyPI (users will do ``pip install new_name_here``).
-        It is `recommended <PEP-8_>`__ to use a name all lowercase, runtogetherwords but if separators are needed hyphens are preferred over underscores.
-
-    path
-        The path to the package. What you will rename the directory ``package_name``.
-        `Should be <PEP-8_>`__ the same as ``name``, but now hyphens are disallowed and should be swapped for underscores.
-        By default, this is automatically inferred from ``name``.
-
-    license
-        Should be the name of the license you just picked and put in the LICENSE file (e.g. ``MIT`` or ``GPLv3``).
-
-    Other fields to enter should be self-explanatory.
-
-#. Rename the directory ``package_name`` to be the ``path`` variable you just added to ``__meta__.py``.::
-
-      PACKAGE_NAME=your_actual_package_name
-      mv package_name "$PACKAGE_NAME"
-
-#.  Change references to ``package_name`` to your path variable:
-
-    This can be done with the sed command::
-
-        PACKAGE_NAME=your_actual_package_name
-        sed -i "s/package_name/$PACKAGE_NAME/" setup.py \
-            docs/conf.py \
-            docs/index.rst \
-            CHANGELOG.rst \
-            .github/workflows/test*.yaml
-
-    Which will make changes in the following places.
-
-    .. highlight:: python
-
-    - In ``setup.py``, `L69 <https://github.com/scottclowe/python-template-repo/blob/master/setup.py#L69>`__::
-
-        exec(read('package_name/__meta__.py'), meta)
-
-    - In ``docs/conf.py``, `L23 <https://github.com/scottclowe/python-template-repo/blob/master/docs/conf.py#L23>`__::
-
-        from package_name import __meta__ as meta  # noqa: E402
-
-    - In ``docs/index.rst``, `L1 <https://github.com/scottclowe/python-template-repo/blob/master/docs/index.rst#L1>`__::
-
-        package_name documentation
-
-    - In ``.github/workflows/test.yaml``, `L78 <https://github.com/scottclowe/python-template-repo/blob/master/.github/workflows/test.yaml#L78>`__, and ``.github/workflows/test-release-candidate.yaml``, `L90 <https://github.com/scottclowe/python-template-repo/blob/master/.github/workflows/test-release-candidate.yaml#L90>`__::
-
-        python -m pytest --cov=package_name --cov-report term --cov-report xml --cov-config .coveragerc --junitxml=testresults.xml
-
-    .. highlight:: bash
-
-#.  Swap out the contents of ``requirements.txt`` for your project's current requirements.
-    If you don't have any requirements yet, delete the contents of ``requirements.txt``.
-
-#.  Swap out the contents of ``README.rst`` with an inital description of your project.
-    If you are keeping all the badges, make sure to change the URLs from ``scottclowe/python-template-repo`` to ``your_username/your_repo``.
-    If you prefer, you can use markdown instead of rST.
-
-#.  Commit and push your changes::
-
-      git commit -am "Initialise project from template repository"
-      git push
-
-When it comes time to make your first release, make sure you update the placeholder entry in CHANGELOG.rst to contain the correct details.
-You'll need to change ``YYYY-MM-DD`` to the actual release date, and change the URL to point to your release.
+.. image:: img/eodal_Sentinel-2_SCL-2_NIR.png
+  :width: 400
+  :alt: Sentinel-2 Scene classification layer
 
 
 Features
 --------
+
+Taken from [this great Python template](https://github.com/scottclowe/python-template-repo).
 
 .gitignore
 ~~~~~~~~~~
@@ -446,10 +377,7 @@ Our template setup.py file is based on the `example from setuptools documentatio
 Unit tests
 ~~~~~~~~~~
 
-The file ``package_name/tests/base_test.py`` provides a class for unit testing which provides easy access to all the numpy testing in one place (so you don't need to import a stack of testing functions in every test file, just import the ``BaseTestClass`` instead).
-
-If you aren't using doing numeric tests, you can delete this from the ``package_name/tests/base_test.py`` file.
-
+coming soon
 
 GitHub Actions Workflows
 ~~~~~~~~~~~~~~~~~~~~~~~~
