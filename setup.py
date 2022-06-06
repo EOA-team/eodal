@@ -135,37 +135,27 @@ class UploadCommand(Command):
 
         sys.exit()
 
-
-setup(
-    # Essential details on the package and its dependencies
-    name=meta["name"],
-    version=meta["version"],
-    packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
-    package_dir={meta["name"]: os.path.join(".", meta["path"])},
-    # If any package contains *.txt or *.rst files, include them:
-    # package_data={"": ["*.txt", "*.rst"],}
-    python_requires=">=3.6",
-    install_requires=install_requires,
-    extras_require=extras_require,
-    # Metadata to display on PyPI
-    author=meta["author"],
-    author_email=meta["author_email"],
-    description=meta["description"],
+setuptools.setup(
+    name=meta['name'],
+    setup_requires=['setuptools_scm'],
+    use_scm_version={'version_scheme': 'post-release'},
+    description=meta['description'],
     long_description=long_description,
-    long_description_content_type=long_description_content_type,
-    license=meta["license"],
-    url=meta["url"],
-    classifiers=[
-        # Trove classifiers
-        # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
-        "Natural Language :: English",
-        "Programming Language :: Python",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
+    long_description_content_type='text/markdown',
+    author=meta['author'],
+    author_email='NA',
+    url='NA',
+    python_requires=">=3.8",
+    packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
+    include_package_data=True,
+    package_data={'': []},
+    classifiers = [
+     "Natural Language :: English"
+     "Programming Language :: Python :: 3",
+     "Operating System :: OS Independent",
+     "Programming Language :: Python :: 3.8",
+     "Programming Language :: Python :: 3.9",
+     "Programming Language :: Python :: 3.10"
     ],
     # Could also include keywords, download_url, project_urls, etc.
     # Custom commands
@@ -174,3 +164,42 @@ setup(
         "upload": UploadCommand,
     },
 )
+
+# setup(
+#     # Essential details on the package and its dependencies
+#     name=meta["name"],
+#     version=meta["version"],
+#     packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
+#     package_dir={meta["name"]: os.path.join(".", meta["path"])},
+#     # If any package contains *.txt or *.rst files, include them:
+#     # package_data={"": ["*.txt", "*.rst"],}
+#     python_requires=">=3.6",
+#     install_requires=install_requires,
+#     extras_require=extras_require,
+#     # Metadata to display on PyPI
+#     author=meta["author"],
+#     author_email=meta["author_email"],
+#     description=meta["description"],
+#     long_description=long_description,
+#     long_description_content_type=long_description_content_type,
+#     license=meta["license"],
+#     url=meta["url"],
+#     classifiers=[
+#         # Trove classifiers
+#         # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
+#         "Natural Language :: English",
+#         "Programming Language :: Python",
+#         "Programming Language :: Python :: 3",
+#         "Programming Language :: Python :: 3.6",
+#         "Programming Language :: Python :: 3.7",
+#         "Programming Language :: Python :: 3.8",
+#         "Programming Language :: Python :: 3.9",
+#         "Programming Language :: Python :: 3.10",
+#     ],
+#     # Could also include keywords, download_url, project_urls, etc.
+#     # Custom commands
+#     cmdclass={
+#         "test": PyTest,
+#         "upload": UploadCommand,
+#     },
+# )
