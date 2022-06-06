@@ -5,8 +5,10 @@ path = name.lower().replace("-", "_").replace(" ", "_")
 # Your version number should follow https://python.org/dev/peps/pep-0440 and
 # https://semver.org
 # version = "0.1.dev0"
-author = "Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;" \
-        "Remote Sensing Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland"
+author = (
+    "Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;"
+    "Remote Sensing Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland"
+)
 author_email = ""
 description = ""  # One-liner
 url = "https://github.com/remote-sensing-team/eodal"  # your project home-page

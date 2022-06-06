@@ -1,4 +1,4 @@
-'''
+"""
 REST-API based downloading of Copernicus datasets from CREODIAS.
 
 Make sure to have a valid CREODIAS account and provide your username and password
@@ -26,7 +26,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import os
 import requests
@@ -46,18 +46,20 @@ from eodal.utils.exceptions import DataNotFoundError
 Settings = get_settings()
 logger = Settings.logger
 
-CREODIAS_FINDER_URL = 'https://finder.creodias.eu/resto/api/collections/Sentinel2/search.json?'
+CREODIAS_FINDER_URL = (
+    "https://finder.creodias.eu/resto/api/collections/Sentinel2/search.json?"
+)
 CHUNK_SIZE = 2096
 
 
 def query_creodias(
-        start_date: date,
-        end_date: date,
-        max_records: int,
-        processing_level: ProcessingLevels,
-        bounding_box: Polygon,
-        cloud_cover_threshold: Optional[int]=100
-    ) -> pd.DataFrame:
+    start_date: date,
+    end_date: date,
+    max_records: int,
+    processing_level: ProcessingLevels,
+    bounding_box: Polygon,
+    cloud_cover_threshold: Optional[int] = 100,
+) -> pd.DataFrame:
     """
     queries the CREODIAS Finder API to obtain available
     datasets for a given geographic region, date range and
@@ -88,27 +90,27 @@ def query_creodias(
     """
 
     # convert dates to strings in the required format
-    start_date_str = start_date.strftime('%Y-%m-%d')
-    end_date_str = end_date.strftime('%Y-%m-%d')
+    start_date_str = start_date.strftime("%Y-%m-%d")
+    end_date_str = end_date.strftime("%Y-%m-%d")
 
     # convert polygon to required format
     coords = bounding_box.exterior.coords.xy
-    coord_str = ''
+    coord_str = ""
     n_points = len(coords[0])
     for n_point in range(n_points):
         x = coords[0][n_point]
         y = coords[1][n_point]
-        coord_str += f'{x}+{y}%2C'
+        coord_str += f"{x}+{y}%2C"
 
     # get rid of the last %2C
     coord_str = coord_str[:-3]
     # construct the REST query
-    query = CREODIAS_FINDER_URL + f'maxRecords={max_records}&'
-    query += f'startDate={start_date_str}T00%3A00%3A00Z&completionDate={end_date_str}T23%3A59%3A59Z&'
-    query += f'cloudCover=%5B0%2C{cloud_cover_threshold}%5D&'
-    query += f'processingLevel={processing_level.value}&'
-    query += f'geometry=Polygon(({coord_str}))&'
-    query += 'sortParam=startDate&sortOrder=descending&status=all&dataset=ESA-DATASET'
+    query = CREODIAS_FINDER_URL + f"maxRecords={max_records}&"
+    query += f"startDate={start_date_str}T00%3A00%3A00Z&completionDate={end_date_str}T23%3A59%3A59Z&"
+    query += f"cloudCover=%5B0%2C{cloud_cover_threshold}%5D&"
+    query += f"processingLevel={processing_level.value}&"
+    query += f"geometry=Polygon(({coord_str}))&"
+    query += "sortParam=startDate&sortOrder=descending&status=all&dataset=ESA-DATASET"
 
     # GET to CREODIAS Finder API
     res = requests.get(query)
@@ -116,16 +118,16 @@ def query_creodias(
     res_json = res.json()
 
     # extract features (=available datasets)
-    features = res_json['features']
+    features = res_json["features"]
     datasets = pd.DataFrame(features)
 
     # make sure datasets is not empty otherwise return
     if datasets.empty:
-        raise DataNotFoundError(f'CREODIAS query returned empty set')
+        raise DataNotFoundError(f"CREODIAS query returned empty set")
 
     # get *.SAFE dataset names
-    datasets['dataset_name'] = datasets.properties.apply(
-        lambda x: x['productIdentifier'].split('/')[-1]
+    datasets["dataset_name"] = datasets.properties.apply(
+        lambda x: x["productIdentifier"].split("/")[-1]
     )
 
     return datasets
@@ -166,10 +168,10 @@ def get_keycloak() -> str:
 
 
 def download_datasets(
-        datasets: pd.DataFrame,
-        download_dir: Union[Path,str],
-        overwrite_existing_zips: Optional[bool] = False
-    ) -> None:
+    datasets: pd.DataFrame,
+    download_dir: Union[Path, str],
+    overwrite_existing_zips: Optional[bool] = False,
+) -> None:
     """
     Function for actual dataset download from CREODIAS.
     Requires valid CREODIAS username and password (to be
@@ -198,32 +200,36 @@ def download_datasets(
     scene_counter = 1
     for _, dataset in datasets.iterrows():
         try:
-            dataset_url = dataset.properties['services']['download']['url']
+            dataset_url = dataset.properties["services"]["download"]["url"]
             response = requests.get(
                 dataset_url,
-                headers={'Authorization': f'Bearer {keycloak_token}'},
-                stream=True
+                headers={"Authorization": f"Bearer {keycloak_token}"},
+                stream=True,
             )
             response.raise_for_status()
         except Exception as e:
-            logger.error(f'Could not download {dataset.product_uri}: {e}')
+            logger.error(f"Could not download {dataset.product_uri}: {e}")
             continue
 
         # download the data using the iter_content method (writes chunks to disk)
         # check if the dataset exists already and overwrite it only if defined by the user
-        fname = dataset.dataset_name.replace('SAFE', 'zip')
+        fname = dataset.dataset_name.replace("SAFE", "zip")
         if Path(fname).exists():
             if not overwrite_existing_zips:
                 logger.info(
-                    f'{dataset.dataset_name} already downloaded - continue with next dataset'
+                    f"{dataset.dataset_name} already downloaded - continue with next dataset"
                 )
                 continue
             else:
-                logger.warning(f'Overwriting {dataset.dataset_name}')
+                logger.warning(f"Overwriting {dataset.dataset_name}")
 
-        logger.info(f'Starting downloading {fname} ({scene_counter}/{datasets.shape[0]})')
-        with open(fname, 'wb') as fd:
+        logger.info(
+            f"Starting downloading {fname} ({scene_counter}/{datasets.shape[0]})"
+        )
+        with open(fname, "wb") as fd:
             for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
                 fd.write(chunk)
-        logger.info(f'Finished downloading {fname} ({scene_counter}/{datasets.shape[0]})')
+        logger.info(
+            f"Finished downloading {fname} ({scene_counter}/{datasets.shape[0]})"
+        )
         scene_counter += 1

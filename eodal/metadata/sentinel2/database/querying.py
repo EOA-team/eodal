@@ -1,4 +1,4 @@
-'''
+"""
 Functions to query Sentinel-2 specific metadata from the metadata DB.
 
 Query criteria include
@@ -22,7 +22,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import pandas as pd
 
@@ -46,18 +46,18 @@ from eodal.utils.exceptions import DataNotFoundError
 Settings = get_settings()
 logger = Settings.logger
 
-DB_URL = f'postgresql://{Settings.DB_USER}:{Settings.DB_PW}@{Settings.DB_HOST}:{Settings.DB_PORT}/{Settings.DB_NAME}'
+DB_URL = f"postgresql://{Settings.DB_USER}:{Settings.DB_PW}@{Settings.DB_HOST}:{Settings.DB_PORT}/{Settings.DB_NAME}"
 engine = create_engine(DB_URL, echo=Settings.ECHO_DB)
 session = sessionmaker(bind=engine)()
 
 
 def find_raw_data_by_bbox(
-        date_start: date,
-        date_end: date,
-        processing_level: ProcessingLevels,
-        bounding_box: Union[Polygon,str],
-        cloud_cover_threshold: Optional[Union[int,float]] = 100
-    ) -> pd.DataFrame:
+    date_start: date,
+    date_end: date,
+    processing_level: ProcessingLevels,
+    bounding_box: Union[Polygon, str],
+    cloud_cover_threshold: Optional[Union[int, float]] = 100,
+) -> pd.DataFrame:
     """
     Queries the metadata DB by Sentinel-2 bounding box, time period and processing
     level (and cloud cover). The returned data is ordered by sensing time in
@@ -87,52 +87,51 @@ def find_raw_data_by_bbox(
 
     # convert shapely geometry into extended well-known text representation
     if isinstance(bounding_box, Polygon):
-        bounding_box = f'SRID=4326;{bounding_box.wkt}'
+        bounding_box = f"SRID=4326;{bounding_box.wkt}"
 
     # formulate the query statement using the spatial and time period filter
-    query_statement = session.query(
-        S2_Raw_Metadata.product_uri,
-        S2_Raw_Metadata.scene_id,
-        S2_Raw_Metadata.tile_id,
-        S2_Raw_Metadata.spacecraft_name,
-        S2_Raw_Metadata.storage_share,
-        S2_Raw_Metadata.storage_device_ip_alias,
-        S2_Raw_Metadata.storage_device_ip,
-        S2_Raw_Metadata.sensing_date,
-        S2_Raw_Metadata.cloudy_pixel_percentage,
-        S2_Raw_Metadata.sensing_orbit_number,
-        S2_Raw_Metadata.sensing_time,
-        S2_Raw_Metadata.epsg
-    ).filter(
-         ST_Intersects(S2_Raw_Metadata.geom, ST_GeomFromText(bounding_box))
-    ).filter(
-        and_(
-            S2_Raw_Metadata.sensing_date <= date_end,
-            S2_Raw_Metadata.sensing_date >= date_start
+    query_statement = (
+        session.query(
+            S2_Raw_Metadata.product_uri,
+            S2_Raw_Metadata.scene_id,
+            S2_Raw_Metadata.tile_id,
+            S2_Raw_Metadata.spacecraft_name,
+            S2_Raw_Metadata.storage_share,
+            S2_Raw_Metadata.storage_device_ip_alias,
+            S2_Raw_Metadata.storage_device_ip,
+            S2_Raw_Metadata.sensing_date,
+            S2_Raw_Metadata.cloudy_pixel_percentage,
+            S2_Raw_Metadata.sensing_orbit_number,
+            S2_Raw_Metadata.sensing_time,
+            S2_Raw_Metadata.epsg,
         )
-    ).filter(
-        S2_Raw_Metadata.processing_level == processing_level_db
-    ).filter(
-        S2_Raw_Metadata.cloudy_pixel_percentage <= cloud_cover_threshold
-    ).order_by(
-        S2_Raw_Metadata.sensing_date.asc()
-    ).statement
+        .filter(ST_Intersects(S2_Raw_Metadata.geom, ST_GeomFromText(bounding_box)))
+        .filter(
+            and_(
+                S2_Raw_Metadata.sensing_date <= date_end,
+                S2_Raw_Metadata.sensing_date >= date_start,
+            )
+        )
+        .filter(S2_Raw_Metadata.processing_level == processing_level_db)
+        .filter(S2_Raw_Metadata.cloudy_pixel_percentage <= cloud_cover_threshold)
+        .order_by(S2_Raw_Metadata.sensing_date.asc())
+        .statement
+    )
 
     # read returned records in DataFrame and return
     try:
         return pd.read_sql(query_statement, session.bind)
     except Exception as e:
-        raise DataNotFoundError(
-            f'Could not find Sentinel-2 data by bounding box: {e}'
-        )
+        raise DataNotFoundError(f"Could not find Sentinel-2 data by bounding box: {e}")
+
 
 def find_raw_data_by_tile(
-        date_start: date,
-        date_end: date,
-        processing_level: ProcessingLevels,
-        tile: str,
-        cloud_cover_threshold: Optional[Union[int,float]] = 100
-    ) -> pd.DataFrame:
+    date_start: date,
+    date_end: date,
+    processing_level: ProcessingLevels,
+    tile: str,
+    cloud_cover_threshold: Optional[Union[int, float]] = 100,
+) -> pd.DataFrame:
     """
     Queries the metadata DB by Sentinel-2 tile, time period and processing
     level.
@@ -154,45 +153,42 @@ def find_raw_data_by_tile(
 
     # translate processing level
     processing_level_db = ProcessingLevelsDB[processing_level.name]
-    
-    query_statement = session.query(
-        S2_Raw_Metadata.product_uri,
-        S2_Raw_Metadata.scene_id,
-        S2_Raw_Metadata.spacecraft_name,
-        S2_Raw_Metadata.storage_share,
-        S2_Raw_Metadata.storage_device_ip_alias,
-        S2_Raw_Metadata.storage_device_ip,
-        S2_Raw_Metadata.sensing_date,
-        S2_Raw_Metadata.cloudy_pixel_percentage,
-        S2_Raw_Metadata.sensing_orbit_number,
-        S2_Raw_Metadata.sensing_time,
-        S2_Raw_Metadata.cloudy_pixel_percentage,
-        S2_Raw_Metadata.epsg
-    ).filter(
-        S2_Raw_Metadata.tile_id == tile
-    ).filter(
-        and_(
-            S2_Raw_Metadata.sensing_date <= date_end,
-            S2_Raw_Metadata.sensing_date >= date_start
+
+    query_statement = (
+        session.query(
+            S2_Raw_Metadata.product_uri,
+            S2_Raw_Metadata.scene_id,
+            S2_Raw_Metadata.spacecraft_name,
+            S2_Raw_Metadata.storage_share,
+            S2_Raw_Metadata.storage_device_ip_alias,
+            S2_Raw_Metadata.storage_device_ip,
+            S2_Raw_Metadata.sensing_date,
+            S2_Raw_Metadata.cloudy_pixel_percentage,
+            S2_Raw_Metadata.sensing_orbit_number,
+            S2_Raw_Metadata.sensing_time,
+            S2_Raw_Metadata.cloudy_pixel_percentage,
+            S2_Raw_Metadata.epsg,
         )
-    ).filter(
-        S2_Raw_Metadata.processing_level == processing_level_db
-    ).filter(
-        S2_Raw_Metadata.cloudy_pixel_percentage <= cloud_cover_threshold
-    ).order_by(
-        S2_Raw_Metadata.sensing_date.desc()
-    ).statement
+        .filter(S2_Raw_Metadata.tile_id == tile)
+        .filter(
+            and_(
+                S2_Raw_Metadata.sensing_date <= date_end,
+                S2_Raw_Metadata.sensing_date >= date_start,
+            )
+        )
+        .filter(S2_Raw_Metadata.processing_level == processing_level_db)
+        .filter(S2_Raw_Metadata.cloudy_pixel_percentage <= cloud_cover_threshold)
+        .order_by(S2_Raw_Metadata.sensing_date.desc())
+        .statement
+    )
 
     try:
         return pd.read_sql(query_statement, session.bind)
     except Exception as e:
-        raise DataNotFoundError(
-            f'Could not find Sentinel-2 data by tile: {e}'
-        )
+        raise DataNotFoundError(f"Could not find Sentinel-2 data by tile: {e}")
 
-def get_scene_metadata(
-        product_uri: str
-    ) -> pd.DataFrame:
+
+def get_scene_metadata(product_uri: str) -> pd.DataFrame:
     """
     Returns the complete metadata record of a Sentinel-2 scene
 
@@ -202,16 +198,15 @@ def get_scene_metadata(
     :returns:
         ``DataFrame`` with complete scene metadata
     """
-    query_statement = session.query(
-        S2_Raw_Metadata
-    ).filter(
-        S2_Raw_Metadata.product_uri == product_uri
-    ).statement
+    query_statement = (
+        session.query(S2_Raw_Metadata)
+        .filter(S2_Raw_Metadata.product_uri == product_uri)
+        .statement
+    )
 
     try:
         return pd.read_sql(query_statement, session.bind)
     except Exception as e:
         raise DataNotFoundError(
-            'Could not find Sentinel-2 scene with product_uri '\
-            f'{product_uri}: {e}'
+            "Could not find Sentinel-2 scene with product_uri " f"{product_uri}: {e}"
         )

@@ -1,4 +1,4 @@
-'''
+"""
 Generic mapping module
 
 Copyright (C) 2022 Lukas Valentin Graf
@@ -15,7 +15,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import cv2
 from datetime import date
@@ -47,13 +47,14 @@ class Feature(object):
         (e.g., its name or other attributes spoken in terms of an
         ESRI shapefile's table of attributes)
     """
+
     def __init__(
-            self,
-            identifier: Any,
-            geom: Union[Point, Polygon, MultiPolygon],
-            epsg: int,
-            properties: Optional[Dict[str, Any]]
-        ):
+        self,
+        identifier: Any,
+        geom: Union[Point, Polygon, MultiPolygon],
+        epsg: int,
+        properties: Optional[Dict[str, Any]],
+    ):
         """
         Initializes a new ``Feature`` instance.
 
@@ -70,24 +71,22 @@ class Feature(object):
         """
         # some checks
         if epsg <= 0:
-            raise TypeError('EPSG codes must be >= 0')
-        if not hasattr(geom, '__geo_interface__'):
-            raise TypeError(
-                'Geometries must implement the __geo_interface__'
-            )
+            raise TypeError("EPSG codes must be >= 0")
+        if not hasattr(geom, "__geo_interface__"):
+            raise TypeError("Geometries must implement the __geo_interface__")
         if not isinstance(properties, dict):
-            raise TypeError('Only dictionary are accepted')
+            raise TypeError("Only dictionary are accepted")
 
-        object.__setattr__(self, 'identifier', identifier)
-        object.__setattr__(self, 'geom', geom)
-        object.__setattr__(self, 'epsg', epsg)
-        object.__setattr__(self, 'properties', properties)
+        object.__setattr__(self, "identifier", identifier)
+        object.__setattr__(self, "geom", geom)
+        object.__setattr__(self, "epsg", epsg)
+        object.__setattr__(self, "properties", properties)
 
     def __setattr__(self, *args):
-        raise TypeError('Feature attributes are immutable')
+        raise TypeError("Feature attributes are immutable")
 
     def __delattr__(self, *args):
-        raise TypeError('Feature attributes are immutable')
+        raise TypeError("Feature attributes are immutable")
 
     def __repr__(self):
         return str(self.__dict__)
@@ -99,13 +98,14 @@ class Feature(object):
         :returns:
             ``Feature`` instance as ``GeoDataFrame``
         """
-        self.properties.update({'epsg': self.epsg})
+        self.properties.update({"epsg": self.epsg})
         return GeoDataFrame(
             self.properties,
             index=[self.identifier],
-            crs=f'epsg:{self.epsg}',
+            crs=f"epsg:{self.epsg}",
             geometry=[self.geom],
         )
+
 
 class MapperConfigs(object):
     """
@@ -126,14 +126,15 @@ class MapperConfigs(object):
         optional selection of tile ids for sensors following a tiling scheme
         (e.g., S2 tiles, or Landsat PathRows).
     """
+
     def __init__(
-            self,
-            band_names: Optional[List[str]] = None,
-            resampling_method: Optional[int] = cv2.INTER_NEAREST_EXACT,
-            spatial_resolution: Optional[Union[int, float]] = 10.,
-            reducers: Optional[List[str]] = None,
-            tile_selection: Optional[List[str]] = None
-        ):
+        self,
+        band_names: Optional[List[str]] = None,
+        resampling_method: Optional[int] = cv2.INTER_NEAREST_EXACT,
+        spatial_resolution: Optional[Union[int, float]] = 10.0,
+        reducers: Optional[List[str]] = None,
+        tile_selection: Optional[List[str]] = None,
+    ):
         """
         Constructs a new ``MapperConfig`` instance.
 
@@ -149,20 +150,21 @@ class MapperConfigs(object):
             optional list of spatial reducers (e.g., 'mean') converting all
             raster observations from 2d arrays to scalars.
         """
-        object.__setattr__(self, 'band_names', band_names)
-        object.__setattr__(self, 'resampling_method', resampling_method)
-        object.__setattr__(self, 'spatial_resolution', spatial_resolution)
-        object.__setattr__(self, 'reducers', reducers)
-        object.__setattr__(self, 'tile_selection', tile_selection)
+        object.__setattr__(self, "band_names", band_names)
+        object.__setattr__(self, "resampling_method", resampling_method)
+        object.__setattr__(self, "spatial_resolution", spatial_resolution)
+        object.__setattr__(self, "reducers", reducers)
+        object.__setattr__(self, "tile_selection", tile_selection)
 
     def __setattr__(self, *args):
-        raise TypeError('MapperConfigs attributes are immutable')
+        raise TypeError("MapperConfigs attributes are immutable")
 
     def __delattr__(self, *args):
-        raise TypeError('MapperConfigs attributes are immutable')
+        raise TypeError("MapperConfigs attributes are immutable")
 
     def __repr__(self):
         return str(self.__dict__)
+
 
 class Mapper(object):
     """
@@ -189,14 +191,15 @@ class Mapper(object):
     :attrib observations:
         data structure for storing DB query results per AOI.
     """
+
     def __init__(
-            self,
-            date_start: date,
-            date_end: date,
-            feature_collection: Union[Path, GeoDataFrame],
-            unique_id_attribute: Optional[str] = None,
-            mapper_configs: MapperConfigs = MapperConfigs()
-        ):
+        self,
+        date_start: date,
+        date_end: date,
+        feature_collection: Union[Path, GeoDataFrame],
+        unique_id_attribute: Optional[str] = None,
+        mapper_configs: MapperConfigs = MapperConfigs(),
+    ):
         """
         Constructs a new ``Mapper`` instance.
 
@@ -218,23 +221,23 @@ class Mapper(object):
             Mapping configurations specified by `~eodal.operational.mapping.MapperConfigs`.
             Uses default configurations if not provided.
         """
-        object.__setattr__(self, 'date_start', date_start)
-        object.__setattr__(self, 'date_end', date_end)
-        object.__setattr__(self, 'feature_collection', feature_collection)
-        object.__setattr__(self, 'unique_id_attribute', unique_id_attribute)
-        object.__setattr__(self, 'mapper_configs', mapper_configs)
+        object.__setattr__(self, "date_start", date_start)
+        object.__setattr__(self, "date_end", date_end)
+        object.__setattr__(self, "feature_collection", feature_collection)
+        object.__setattr__(self, "unique_id_attribute", unique_id_attribute)
+        object.__setattr__(self, "mapper_configs", mapper_configs)
 
         observations: Dict[str, DataFrame] = None
-        object.__setattr__(self, 'observations', observations)
+        object.__setattr__(self, "observations", observations)
 
         features: Dict[str, Feature] = None
-        object.__setattr__(self, 'features', features)
+        object.__setattr__(self, "features", features)
 
     def __setattr__(self, *args):
-        raise TypeError('Mapper attributes are immutable')
+        raise TypeError("Mapper attributes are immutable")
 
     def __delattr__(self, *args):
-        raise TypeError('Mapper attributes are immutable')
+        raise TypeError("Mapper attributes are immutable")
 
     def get_feature_ids(self) -> List:
         """
@@ -245,12 +248,9 @@ class Mapper(object):
         """
         if isinstance(self.feature_collection, Path):
             return []
-        return [x['id'] for x in self.feature_collection['features']]
+        return [x["id"] for x in self.feature_collection["features"]]
 
-    def get_feature(
-            self,
-            feature_id: Any
-        ) -> Dict[str, Any]:
+    def get_feature(self, feature_id: Any) -> Dict[str, Any]:
         """
         Returns a feature in its ``__geo_interface__`` representation
         out of the feature collection
@@ -270,11 +270,12 @@ class Mapper(object):
             ]
             return {} if gdf.empty else gdf.__geo_interface__
         else:
-            res = [x for x in self.feature_collection['features'] \
-                   if x['id'] == feature_id]
+            res = [
+                x for x in self.feature_collection["features"] if x["id"] == feature_id
+            ]
             if len(res) == 0:
                 raise KeyError(f'No feature found with ID "{feature_id}"')
-            return {'type': 'FeatureCollection', 'features': res}
+            return {"type": "FeatureCollection", "features": res}
 
     def get_scenes(self):
         """
@@ -283,10 +284,7 @@ class Mapper(object):
         """
         pass
 
-    def get_feature_scenes(
-            self,
-            feature_identifier: Any
-        ) -> DataFrame:
+    def get_feature_scenes(self, feature_identifier: Any) -> DataFrame:
         """
         Returns a ``DataFrame`` with all scenes found for a
         feature in the feature collection
@@ -306,6 +304,4 @@ class Mapper(object):
         try:
             return self.observations[feature_identifier].copy()
         except Exception as e:
-            raise KeyError(
-                f'{feature_identifier} did not return any results: {e}'
-            )
+            raise KeyError(f"{feature_identifier} did not return any results: {e}")

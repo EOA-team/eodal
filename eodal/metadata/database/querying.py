@@ -1,4 +1,4 @@
-'''
+"""
 Functions to query remote sensing platform independent metadata from the metadata DB.
 
 Copyright (C) 2022 Lukas Valentin Graf
@@ -15,7 +15,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import geopandas as gpd
 
@@ -30,14 +30,12 @@ from sqlalchemy.orm.session import sessionmaker
 Settings = get_settings()
 logger = Settings.logger
 
-DB_URL = f'postgresql://{Settings.DB_USER}:{Settings.DB_PW}@{Settings.DB_HOST}:{Settings.DB_PORT}/{Settings.DB_NAME}'
+DB_URL = f"postgresql://{Settings.DB_USER}:{Settings.DB_PW}@{Settings.DB_HOST}:{Settings.DB_PORT}/{Settings.DB_NAME}"
 engine = create_engine(DB_URL, echo=Settings.ECHO_DB)
 session = sessionmaker(bind=engine)()
 
 
-def get_region(
-        region: str
-    ) -> gpd.GeoDataFrame:
+def get_region(region: str) -> gpd.GeoDataFrame:
     """
     Queries the metadata DB for a specific region and its geographic
     extent.
@@ -49,15 +47,14 @@ def get_region(
         geodataframe with the geometry of the queried region
     """
 
-    query_statement = session.query(
-        Regions.geom,
-        Regions.region_uid
-    ).filter(
-        Regions.region_uid == region
-    ).statement
+    query_statement = (
+        session.query(Regions.geom, Regions.region_uid)
+        .filter(Regions.region_uid == region)
+        .statement
+    )
 
     try:
         return gpd.read_postgis(query_statement, session.bind)
 
     except Exception as e:
-        raise RegionNotFoundError(f'{region} not found: {e}')
+        raise RegionNotFoundError(f"{region} not found: {e}")

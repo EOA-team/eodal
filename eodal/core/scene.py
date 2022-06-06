@@ -1,4 +1,4 @@
-'''
+"""
 A scene is a collection of raster bands with an acquisition date, an unique identifier
 and a (remote sensing) platform that acquired the raster data.
 
@@ -16,11 +16,12 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import datetime
 
 from eodal.utils.constants import ProcessingLevels
+
 
 class SceneProperties(object):
     """
@@ -40,13 +41,13 @@ class SceneProperties(object):
     """
 
     def __init__(
-            self, 
-            acquisition_time: datetime.datetime = datetime.datetime(2999,1,1),
-            platform: str = '',
-            sensor: str = '',
-            processing_level: ProcessingLevels = ProcessingLevels.UNKNOWN,
-            product_uri: str = ''
-        ):
+        self,
+        acquisition_time: datetime.datetime = datetime.datetime(2999, 1, 1),
+        platform: str = "",
+        sensor: str = "",
+        processing_level: ProcessingLevels = ProcessingLevels.UNKNOWN,
+        product_uri: str = "",
+    ):
         """
         Class constructor
 
@@ -65,14 +66,14 @@ class SceneProperties(object):
         # type checking first
         if not isinstance(acquisition_time, datetime.datetime):
             raise TypeError(
-                f'A datetime.datetime object is required: {acquisition_time}'
+                f"A datetime.datetime object is required: {acquisition_time}"
             )
         if not isinstance(platform, str):
-            raise TypeError(f'A str object is required: {platform}')
+            raise TypeError(f"A str object is required: {platform}")
         if not isinstance(sensor, str):
-            raise TypeError(f'A str object is required: {sensor}')
+            raise TypeError(f"A str object is required: {sensor}")
         if not isinstance(product_uri, str):
-            raise TypeError(f'A str object is required: {product_uri}')
+            raise TypeError(f"A str object is required: {product_uri}")
 
         self.acquisition_time = acquisition_time
         self.platform = platform
@@ -92,7 +93,7 @@ class SceneProperties(object):
     def acquisition_time(self, time: datetime.datetime) -> None:
         """acquisition time of the scene"""
         if not isinstance(time, datetime.datetime):
-            raise TypeError('Expected a datetime.datetime object')
+            raise TypeError("Expected a datetime.datetime object")
         self._acquisition_time = time
 
     @property
@@ -104,7 +105,7 @@ class SceneProperties(object):
     def platform(self, value: str) -> None:
         """name of the imaging plaform"""
         if not isinstance(value, str):
-            raise TypeError('Expected a str object')
+            raise TypeError("Expected a str object")
         self._platform = value
 
     @property
@@ -116,7 +117,7 @@ class SceneProperties(object):
     def sensor(self, value: str) -> None:
         """name of the sensor"""
         if not isinstance(value, str):
-            raise TypeError('Expected a str object')
+            raise TypeError("Expected a str object")
         self._sensor = value
 
     @property
@@ -138,5 +139,5 @@ class SceneProperties(object):
     def product_uri(self, value: str) -> None:
         """unique product (scene) identifier"""
         if not isinstance(value, str):
-            raise TypeError('Expected a str object')
+            raise TypeError("Expected a str object")
         self._product_uri = value

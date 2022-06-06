@@ -1,4 +1,4 @@
-'''
+"""
 Stacking of `pandas.DataFrame` objects.
 
 Copyright (C) 2022 Lukas Valentin Graf
@@ -15,7 +15,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import os
 import glob
@@ -24,12 +24,13 @@ from pathlib import Path
 from typing import Optional
 
 
-def stack_dataframes(in_dir: Path,
-                     search_pattern: str,
-                     start_date: Optional[int]=None,
-                     end_date: Optional[int]=None,
-                     **kwargs
-                     ) -> pd.DataFrame:
+def stack_dataframes(
+    in_dir: Path,
+    search_pattern: str,
+    start_date: Optional[int] = None,
+    end_date: Optional[int] = None,
+    **kwargs
+) -> pd.DataFrame:
     """
     stacks a list of pandas dataframes into a single big one
     to allow for calculating multitemporal statistics and more

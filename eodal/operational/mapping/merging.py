@@ -1,4 +1,4 @@
-'''
+"""
 Module for merging raster datasets.
 
 Copyright (C) 2022 Lukas Valentin Graf
@@ -15,7 +15,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import os
 import geopandas as gpd
@@ -34,10 +34,10 @@ from eodal.core.scene import SceneProperties
 
 Settings = get_settings()
 
+
 def _get_crs_and_attribs(
-        in_file: Path,
-        **kwargs
-    ) -> Tuple[GeoInfo, List[Dict[str, Any]]]:
+    in_file: Path, **kwargs
+) -> Tuple[GeoInfo, List[Dict[str, Any]]]:
     """
     Returns the ``GeoInfo`` from a multi-band raster dataset
 
@@ -51,27 +51,25 @@ def _get_crs_and_attribs(
         ``GeoInfo`` and metadata attributes of the raster dataset
     """
 
-    ds = RasterCollection.from_multi_band_raster(
-        fpath_raster=in_file,
-        **kwargs
-    )
+    ds = RasterCollection.from_multi_band_raster(fpath_raster=in_file, **kwargs)
     geo_info = ds[ds.band_names[0]].geo_info
     attrs = [ds[x].get_attributes() for x in ds.band_names]
     return geo_info, attrs
 
+
 def merge_datasets(
-        datasets: List[Path],
-        out_file: Optional[Path] = None,
-        target_crs: Optional[Union[int,CRS]] = None,
-        vector_features: Optional[Union[Path, gpd.GeoDataFrame]] = None,
-        scene_properties: Optional[SceneProperties] = None,
-        band_options: Optional[Dict[str,Any]] = None,
-        sensor: Optional[str] = None,
-        **kwargs
-    ) -> Union[None, RasterCollection]:
+    datasets: List[Path],
+    out_file: Optional[Path] = None,
+    target_crs: Optional[Union[int, CRS]] = None,
+    vector_features: Optional[Union[Path, gpd.GeoDataFrame]] = None,
+    scene_properties: Optional[SceneProperties] = None,
+    band_options: Optional[Dict[str, Any]] = None,
+    sensor: Optional[str] = None,
+    **kwargs,
+) -> Union[None, RasterCollection]:
     """
     Merges a list of raster datasets using the ``rasterio.merge`` module.
-    
+
     The function can handle datasets in different coordinate systems by resampling
     the data into a common spatial reference system either provided in the function
     call or infered from the first dataset in the list.
@@ -113,7 +111,7 @@ def merge_datasets(
         geo_info, attrs = _get_crs_and_attribs(in_file=dataset)
         crs_list.append(geo_info.epsg)
         attrs_list.append(attrs)
-        
+
     if target_crs is None:
         # use CRS from first dataset
         target_crs = crs_list[0]
@@ -128,21 +126,13 @@ def merge_datasets(
                 pass
 
     # use rasterio merge to get a new raster dataset
-    dst_kwds = {
-        'QUALITY': '100',
-        'REVERSIBLE': 'YES'
-    }
+    dst_kwds = {"QUALITY": "100", "REVERSIBLE": "YES"}
     try:
-        res = merge(
-            datasets=datasets,
-            dst_path=out_file,
-            dst_kwds=dst_kwds,
-            **kwargs
-        )
+        res = merge(datasets=datasets, dst_path=out_file, dst_kwds=dst_kwds, **kwargs)
         if res is not None:
             out_ds, out_transform = res[0], res[1]
     except Exception as e:
-        raise Exception(f'Could not merge datasets: {e}')
+        raise Exception(f"Could not merge datasets: {e}")
 
     # when out_file was provided the merged data is written to file directly
     if out_file is not None:
@@ -158,55 +148,57 @@ def merge_datasets(
         ulx=out_transform.c,
         uly=out_transform.f,
         pixres_x=out_transform.a,
-        pixres_y=out_transform.e
+        pixres_y=out_transform.e,
     )
     for idx in range(n_bands):
         band_attrs = attrs[idx]
-        nodata = band_attrs.get('nodatavals')
+        nodata = band_attrs.get("nodatavals")
         if isinstance(nodata, tuple):
             nodata = nodata[0]
-        is_tiled = band_attrs.get('is_tiled')
-        scale = band_attrs.get('scales')
+        is_tiled = band_attrs.get("is_tiled")
+        scale = band_attrs.get("scales")
         if isinstance(scale, tuple):
             scale = scale[0]
-        offset = band_attrs.get('offsets')
+        offset = band_attrs.get("offsets")
         if isinstance(offset, tuple):
             offset = offset[0]
-        description = band_attrs.get('descriptions')
+        description = band_attrs.get("descriptions")
         if isinstance(description, tuple):
             description = description[0]
-        unit = band_attrs.get('units')
+        unit = band_attrs.get("units")
         if isinstance(unit, tuple):
             unit = unit[0]
         raster.add_band(
             band_constructor=Band,
-            band_name=f'B{idx+1}',
-            values=out_ds[idx,:,:],
+            band_name=f"B{idx+1}",
+            values=out_ds[idx, :, :],
             geo_info=geo_info,
             is_tiled=is_tiled,
             scale=scale,
             offset=offset,
             band_alias=description,
-            unit=unit
+            unit=unit,
         )
 
     # clip raster collection if required to vector_features
     if vector_features is not None:
         tmp_dir = Settings.TEMP_WORKING_DIR
-        fname_tmp = tmp_dir.joinpath(f'{uuid.uuid4()}.tif')
+        fname_tmp = tmp_dir.joinpath(f"{uuid.uuid4()}.tif")
         raster.to_rasterio(fname_tmp)
         if sensor is None:
-            expr = 'RasterCollection'
+            expr = "RasterCollection"
         else:
-            expr = f'eodal.core.sensors.{sensor.lower()}.{sensor[0].upper() + sensor[1::]}()'
+            expr = f"eodal.core.sensors.{sensor.lower()}.{sensor[0].upper() + sensor[1::]}()"
         if band_options is None:
             band_options = {}
-        raster = eval(f'''{expr}.from_multi_band_raster(
+        raster = eval(
+            f"""{expr}.from_multi_band_raster(
             fpath_raster=fname_tmp,
             vector_features=vector_features,
             full_bounding_box_only=False,
             **band_options
-        )''')
+        )"""
+        )
         # set scene properties if available
         if scene_properties is not None:
             raster.scene_properties = scene_properties

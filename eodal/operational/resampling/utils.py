@@ -1,4 +1,4 @@
-'''
+"""
 Some auxiliary functions for spatial resampling of raster data
 
 Copyright (C) 2022 Lukas Valentin Graf
@@ -15,14 +15,14 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import pandas as pd
 
 
 def identify_split_scenes(
-        metadata_df: pd.DataFrame,
-    ) -> pd.DataFrame:
+    metadata_df: pd.DataFrame,
+) -> pd.DataFrame:
     """
     Returns entries in a pandas ``DataFrame`` retrieved from a query in eodal's
     metadata base that have the same sensing date. This could indicate, e.g.,

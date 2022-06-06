@@ -1,4 +1,4 @@
-'''
+"""
 Functions for reprojecting vector and raster data from one spatial
 coordinate reference system into another one.
 
@@ -16,7 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import numpy as np
 import rasterio as rio
@@ -35,11 +35,11 @@ from eodal.core.utils.geometry import read_geometries
 
 
 def check_aoi_geoms(
-        in_dataset: Union[Path, gpd.GeoDataFrame],
-        full_bounding_box_only: bool,
-        fname_raster: Optional[Path] = None,
-        raster_crs: Optional[Union[int, CRS]] = None
-    ) -> GeoDataFrame:
+    in_dataset: Union[Path, gpd.GeoDataFrame],
+    full_bounding_box_only: bool,
+    fname_raster: Optional[Path] = None,
+    raster_crs: Optional[Union[int, CRS]] = None,
+) -> GeoDataFrame:
     """
     Checks the provided vector file. If necessary it reprojects
     the vector data in the reference system of the provided raster
@@ -66,7 +66,7 @@ def check_aoi_geoms(
     :return:
         GeoDataFrame with one up to many vector geometries
     """
-    
+
     # check for vector features defining AOI
     gdf = read_geometries(in_dataset)
 
@@ -76,7 +76,7 @@ def check_aoi_geoms(
         sat_crs = rio.open(fname_raster).crs
     if raster_crs is not None and sat_crs is None:
         sat_crs = raster_crs
-    
+
     # reproject vector data if necessary
     if gdf.crs != sat_crs:
         gdf.to_crs(sat_crs, inplace=True)
@@ -85,15 +85,14 @@ def check_aoi_geoms(
     # we need the hull encompassing all geometries in gdf
     if full_bounding_box_only:
         bbox = box(*gdf.total_bounds)
-        gdf= gpd.GeoDataFrame(geometry=gpd.GeoSeries(bbox))
+        gdf = gpd.GeoDataFrame(geometry=gpd.GeoSeries(bbox))
 
     return gdf
 
 
 def reproject_raster_dataset(
-        raster: Union[Path, np.ndarray],
-        **kwargs
-    ) -> Tuple[Union[Path,np.ndarray], Affine]:
+    raster: Union[Path, np.ndarray], **kwargs
+) -> Tuple[Union[Path, np.ndarray], Affine]:
     """
     Re-projects a raster dataset into another spatial coordinate reference
     system by calling ``rasterio.warp.reproject``.
@@ -110,10 +109,7 @@ def reproject_raster_dataset(
     """
 
     try:
-        dst, transform = rio.warp.reproject(
-            source=raster,
-            **kwargs
-        )
+        dst, transform = rio.warp.reproject(source=raster, **kwargs)
     except Exception as e:
         raise Exception from e
 

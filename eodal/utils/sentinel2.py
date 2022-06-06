@@ -1,4 +1,4 @@
-'''
+"""
 Sentinel-2 specific helper functions to interact with datasets organized
 in .SAFE structure.
 
@@ -16,7 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import os
 import glob
@@ -39,9 +39,8 @@ from eodal.utils.constants.sentinel2 import ProcessingLevels
 s2 = Sentinel2()
 Settings = get_settings()
 
-def get_S2_processing_level(
-        dot_safe_name: Union[str,Path]
-    ) -> ProcessingLevels:
+
+def get_S2_processing_level(dot_safe_name: Union[str, Path]) -> ProcessingLevels:
     """
     Determines the processing level of a dataset in .SAFE format
     based on the file naming
@@ -54,18 +53,15 @@ def get_S2_processing_level(
     if isinstance(dot_safe_name, Path):
         dot_safe_name = dot_safe_name.name
 
-    if dot_safe_name.find('MSIL1C') >= 0 or dot_safe_name.find('l1c') >= 0:
+    if dot_safe_name.find("MSIL1C") >= 0 or dot_safe_name.find("l1c") >= 0:
         return ProcessingLevels.L1C
-    elif dot_safe_name.find('MSIL2A') >= 0 or dot_safe_name.find('l2a') >= 0:
+    elif dot_safe_name.find("MSIL2A") >= 0 or dot_safe_name.find("l2a") >= 0:
         return ProcessingLevels.L2A
     else:
-        raise ValueError(
-            f'Could not determine processing level for {dot_safe_name}'
-        )
+        raise ValueError(f"Could not determine processing level for {dot_safe_name}")
 
-def get_S2_acquistion_time_from_safe(
-        dot_safe_name: Union[str, Path]
-    ) -> date:
+
+def get_S2_acquistion_time_from_safe(dot_safe_name: Union[str, Path]) -> date:
     """
     Determines the image acquisition time of a dataset in .SAFE format
     based on the file naming
@@ -77,11 +73,10 @@ def get_S2_acquistion_time_from_safe(
     """
     if isinstance(dot_safe_name, Path):
         dot_safe_name = dot_safe_name.name
-    return datetime.strptime(dot_safe_name.split('_')[2], '%Y%m%dT%H%M%S')
+    return datetime.strptime(dot_safe_name.split("_")[2], "%Y%m%dT%H%M%S")
 
-def get_S2_acquistion_date_from_safe(
-        dot_safe_name: Union[str, Path]
-    ) -> date:
+
+def get_S2_acquistion_date_from_safe(dot_safe_name: Union[str, Path]) -> date:
     """
     Determines the image acquisition date of a dataset in .SAFE format
     based on the file naming
@@ -93,9 +88,8 @@ def get_S2_acquistion_date_from_safe(
     """
     return get_S2_acquistion_time_from_safe(dot_safe_name).date()
 
-def get_S2_processing_baseline_from_safe(
-        dot_safe_name: Union[str, Path]
-    ) -> int:
+
+def get_S2_processing_baseline_from_safe(dot_safe_name: Union[str, Path]) -> int:
     """
     Determines the PDGS processing baseline of a dataset in .SAFE format
     based on the file naming
@@ -107,11 +101,10 @@ def get_S2_processing_baseline_from_safe(
     """
     if isinstance(dot_safe_name, Path):
         dot_safe_name = dot_safe_name.name
-    return int(dot_safe_name.split('_')[3].replace('N',''))
+    return int(dot_safe_name.split("_")[3].replace("N", ""))
 
-def get_S2_platform_from_safe(
-        dot_safe_name: Union[str, Path]
-    ) -> str:
+
+def get_S2_platform_from_safe(dot_safe_name: Union[str, Path]) -> str:
     """
     Determines the platform (e.g., S2A) from the dataset in .SAFE format
     based on the file naming
@@ -123,14 +116,13 @@ def get_S2_platform_from_safe(
     """
     if isinstance(dot_safe_name, Path):
         dot_safe_name = dot_safe_name.name
-    return dot_safe_name.split('_')[0]
+    return dot_safe_name.split("_")[0]
+
 
 def get_S2_bandfiles(
-        in_dir: Path,
-        resolution: Optional[int]=None,
-        is_L2A: Optional[bool]=True
-    ) -> List[Path]:
-    '''
+    in_dir: Path, resolution: Optional[int] = None, is_L2A: Optional[bool] = True
+) -> List[Path]:
+    """
     returns all JPEG-2000 files (*.jp2) found in a dataset directory
     (.SAFE).
 
@@ -144,27 +136,28 @@ def get_S2_bandfiles(
         Works currently on Sentinel-2 Level-2A data, only.
     :return files:
         list of Sentinel-2 single band files
-    '''
+    """
     if resolution is None:
-        search_pattern = 'GRANULE/*/IM*/*/*B*.jp2'
+        search_pattern = "GRANULE/*/IM*/*/*B*.jp2"
     else:
         if is_L2A:
-            search_pattern = f'GRANULE/*/IM*/R{int(resolution)}m/*B*.jp2'
+            search_pattern = f"GRANULE/*/IM*/R{int(resolution)}m/*B*.jp2"
         else:
-            search_pattern = f'GRANULE/*/IM*/*B*.jp2'
+            search_pattern = f"GRANULE/*/IM*/*B*.jp2"
     files = glob.glob(str(in_dir.joinpath(search_pattern)))
     return [Path(x) for x in files]
 
+
 def get_S2_sclfile(
-        in_dir: Path,
-        from_bandstack: Optional[bool]=False,
-        in_file_bandstack: Optional[Path]=None
-    ) -> Path:
-    '''
+    in_dir: Path,
+    from_bandstack: Optional[bool] = False,
+    in_file_bandstack: Optional[Path] = None,
+) -> Path:
+    """
     return the path to the S2 SCL (scene classification file). The method
     either searches for the SCL file in .SAFE structure (default, returning
     SCL file in 20m spatial resolution) or the resampled SCL file in case
-    a ``eodal.operational.resampling`` derived band-stack was passed. 
+    a ``eodal.operational.resampling`` derived band-stack was passed.
 
     :param in_dir:
         either .SAFE directory (default use case) or the the directory
@@ -179,24 +172,26 @@ def get_S2_sclfile(
         passed if ``from_bandstack=True``
     :returns scl_file:
         SCL file-path
-    '''
+    """
     if not from_bandstack:
         # take SCL file in 20m spatial resolution
-        search_pattern = str(in_dir.joinpath('GRANULE/*/IM*/*/*_SCL_20m.jp2'))
+        search_pattern = str(in_dir.joinpath("GRANULE/*/IM*/*/*_SCL_20m.jp2"))
 
     else:
         # check if bandstack file was passed correctly
         if in_file_bandstack is None:
             raise ValueError(
-                'If from_banstack then `in_file_bandstack` must not be None'
+                "If from_banstack then `in_file_bandstack` must not be None"
             )
-        fname_splitted = in_file_bandstack.name.split('_')
+        fname_splitted = in_file_bandstack.name.split("_")
         file_pattern_date = fname_splitted[0]
         file_pattern_tile = fname_splitted[1]
         # platform_level = fname_splitted[2]
         sensor = fname_splitted[3]
-        file_pattern = f'{file_pattern_date}_{file_pattern_tile}*{sensor}*SCL*tiff'
-        search_pattern = str(in_dir.joinpath(Settings.SUBDIR_SCL_FILES).joinpath(file_pattern))
+        file_pattern = f"{file_pattern_date}_{file_pattern_tile}*{sensor}*SCL*tiff"
+        search_pattern = str(
+            in_dir.joinpath(Settings.SUBDIR_SCL_FILES).joinpath(file_pattern)
+        )
     try:
         scl_file = glob.glob(search_pattern)[0]
     except Exception as e:
@@ -205,12 +200,13 @@ def get_S2_sclfile(
         )
     return Path(scl_file)
 
+
 def get_S2_bandfiles_with_res(
-        in_dir: Path,
-        band_selection: List[Tuple[str, Union[int,float]]],
-        is_l2a: Optional[bool]=True
-    ) -> pd.DataFrame:
-    '''
+    in_dir: Path,
+    band_selection: List[Tuple[str, Union[int, float]]],
+    is_l2a: Optional[bool] = True,
+) -> pd.DataFrame:
+    """
     Returns the file-paths to the jp2 files with the spectral band data
     from a .SAFE Sentinel-2 dataset. Supports .SAFE datasets in L1C and
     L2A processing level.
@@ -226,7 +222,7 @@ def get_S2_bandfiles_with_res(
         level. If False, assumes L1C processing level.
     :returns:
         pandas dataframe of jp2 files
-    '''
+    """
     # L1C and L2A data are organized in a slightly different manner
     # by looping over the list of tuples provided the file-paths can be extracted
     band_list = []
@@ -237,33 +233,34 @@ def get_S2_bandfiles_with_res(
         band_props = {}
         if Settings.USE_STAC:
             # extract URL from asset
-            band_fpath = in_dir[band_name]['href']
+            band_fpath = in_dir[band_name]["href"]
         else:
             # search expression for the file depends on the processing level
             if is_l2a:
-                search_expr = f'GRANULE/*/IMG_DATA/R{int(band_res)}m/*_{band_name.upper()}_{int(band_res)}m.jp2'
+                search_expr = f"GRANULE/*/IMG_DATA/R{int(band_res)}m/*_{band_name.upper()}_{int(band_res)}m.jp2"
             else:
-                search_expr = f'GRANULE/*/IMG_DATA/T*_{band_name.upper()}.jp2'
+                search_expr = f"GRANULE/*/IMG_DATA/T*_{band_name.upper()}.jp2"
             try:
                 band_fpath = next(in_dir.glob(search_expr))
             except Exception as e:
                 raise BandNotFoundError(
-                    f'Could not determine file-path of {band_name} from {in_dir.name}: {e}'
+                    f"Could not determine file-path of {band_name} from {in_dir.name}: {e}"
                 )
-        band_props['band_name'] = band_name
-        band_props['band_path'] = band_fpath
-        band_props['band_resolution'] = band_res
+        band_props["band_name"] = band_name
+        band_props["band_path"] = band_fpath
+        band_props["band_resolution"] = band_res
         band_list.append(band_props)
 
     # construct pandas DataFrame with all band entries and return
     band_df = pd.DataFrame(band_list)
     return band_df
 
+
 def get_S2_tci(
-        in_dir: Path,
-        is_L2A: Optional[bool]=True,
-    ) -> Path:
-    '''
+    in_dir: Path,
+    is_L2A: Optional[bool] = True,
+) -> Path:
+    """
     Returns path to S2 TCI (quicklook) img (10m resolution). Works for both
     Sentinel-2 processing levels ('L2A' and 'L1C').
 
@@ -274,10 +271,10 @@ def get_S2_tci(
         structure. The default is True.
     :returns file_tci:
         file path to the quicklook image
-    '''
-    file_tci = ''
+    """
+    file_tci = ""
     if is_L2A:
-        file_tci = glob.glob(str(in_dir.joinpath('GRANULE/*/IM*/*10*/*TCI*')))[0]
+        file_tci = glob.glob(str(in_dir.joinpath("GRANULE/*/IM*/*10*/*TCI*")))[0]
     else:
-        file_tci = glob.glob(str(in_dir.joinpath('GRANULE/*/IM*/*TCI*')))[0]
+        file_tci = glob.glob(str(in_dir.joinpath("GRANULE/*/IM*/*TCI*")))[0]
     return Path(file_tci)

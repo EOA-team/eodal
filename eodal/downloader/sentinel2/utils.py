@@ -1,4 +1,4 @@
-'''
+"""
 Helper functions for the downloader package.
 
 Copyright (C) 2022 Lukas Valentin Graf
@@ -15,7 +15,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import os
 import glob
@@ -29,10 +29,7 @@ Settings = get_settings()
 logger = Settings.logger
 
 
-def unzip_datasets(
-        download_dir: Path,
-        remove_zips: Optional[bool]=True
-    ) -> None:
+def unzip_datasets(download_dir: Path, remove_zips: Optional[bool] = True) -> None:
     """
     Helper function to unzip downloaded Sentinel-2 L1C scenes
     once they are downloaded from CREODIAS. Works currently on
@@ -47,7 +44,7 @@ def unzip_datasets(
     """
 
     # find zipped .SAFE archives
-    dot_safe_zips = glob.glob(download_dir.joinpath('S2*.zip').as_posix())
+    dot_safe_zips = glob.glob(download_dir.joinpath("S2*.zip").as_posix())
     n_zips = len(dot_safe_zips)
 
     # change into the donwload directory
@@ -57,15 +54,13 @@ def unzip_datasets(
     for idx, dot_safe_zip in enumerate(dot_safe_zips):
 
         os.chdir(download_dir)
-        arg_list = ['unzip', '-n', Path(dot_safe_zip).name]
+        arg_list = ["unzip", "-n", Path(dot_safe_zip).name]
         process = subprocess.Popen(
-            arg_list,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            arg_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
         _, _ = process.communicate()
 
-        logger.info(f'Unzipped {dot_safe_zip} ({idx+1}/{n_zips})')
+        logger.info(f"Unzipped {dot_safe_zip} ({idx+1}/{n_zips})")
 
         os.chdir(current_dir)
         if remove_zips:

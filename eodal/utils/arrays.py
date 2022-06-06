@@ -1,4 +1,4 @@
-'''
+"""
 Utilities to interact with 2d arrays
 
 Copyright (C) 2022 Lukas Valentin Graf
@@ -15,7 +15,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import itertools
 import geopandas as gpd
@@ -30,9 +30,9 @@ from eodal.core.utils.geometry import check_geometry_types
 
 
 def count_valid(
-        in_array: Union[np.array, MaskedArray],
-        no_data_value: Optional[Union[int, float]] = 0.
-    ) -> int:
+    in_array: Union[np.array, MaskedArray],
+    no_data_value: Optional[Union[int, float]] = 0.0,
+) -> int:
     """
     Counts the number of valid (i.e., non no-data) elements in a 2-d
     array. If a masked array is provided, the number of valid elements is
@@ -50,7 +50,7 @@ def count_valid(
 
     if len(in_array.shape) > 2:
         raise InputError(
-            f'Expected a two-dimensional array, got {len(in_array.shape)} instead.'
+            f"Expected a two-dimensional array, got {len(in_array.shape)} instead."
         )
 
     # masked array already has a count method
@@ -60,10 +60,11 @@ def count_valid(
     # check if array is np.array or np.ndarray
     return (in_array != no_data_value).sum()
 
+
 def upsample_array(
-        in_array: np.array,
-        scaling_factor: int,
-    ) -> np.array:
+    in_array: np.array,
+    scaling_factor: int,
+) -> np.array:
     """
     takes a 2-dimensional input array (i.e., image matrix) and splits every
     array cell (i.e., pixel) into X smaller ones having all the same value
@@ -86,33 +87,35 @@ def upsample_array(
 
     # check inputs
     if scaling_factor < 1:
-        raise ValueError('scaling_factor must be greater/equal 1')
+        raise ValueError("scaling_factor must be greater/equal 1")
 
     # define output image matrix array bounds
-    shape_out = (in_array.shape[0]*scaling_factor,
-                 in_array.shape[1]*scaling_factor)
-    out_array = np.zeros(shape_out, dtype = in_array.dtype)
+    shape_out = (in_array.shape[0] * scaling_factor, in_array.shape[1] * scaling_factor)
+    out_array = np.zeros(shape_out, dtype=in_array.dtype)
 
     # increase resolution using itertools by repeating pixel values
     # scaling_factor times
     counter = 0
     for row in range(in_array.shape[0]):
         column = in_array[row, :]
-        out_array[counter:counter+scaling_factor,:] = list(
+        out_array[counter : counter + scaling_factor, :] = list(
             itertools.chain.from_iterable(
-                itertools.repeat(x, scaling_factor) for x in column))
+                itertools.repeat(x, scaling_factor) for x in column
+            )
+        )
         counter += scaling_factor
     return out_array
 
+
 # @njit(cache=True, parallel=True)
 def _fill_array(
-        img_arr: np.ndarray,
-        vals: np.ndarray,
-        x_indices: np.ndarray,
-        x_coords: np.ndarray,
-        y_indices: np.ndarray,
-        y_coords: np.ndarray
-    ) -> np.ndarray:
+    img_arr: np.ndarray,
+    vals: np.ndarray,
+    x_indices: np.ndarray,
+    x_coords: np.ndarray,
+    y_indices: np.ndarray,
+    y_coords: np.ndarray,
+) -> np.ndarray:
     """
     `numba` accelerated back-end for fast rasterization of POINT
     vector features (`GeoDataFrame` attribute column to 2d-array).
@@ -149,14 +152,15 @@ def _fill_array(
             continue
     return _img_arr
 
+
 def array_from_points(
-        gdf: gpd.GeoDataFrame,
-        band_name_src: str,
-        pixres_x: Union[int,float],
-        pixres_y: Union[int, float],
-        nodata_dst: Optional[Union[int,float]] = 0,
-        dtype_src: Optional[str] = 'float32'
-    ) -> np.array:
+    gdf: gpd.GeoDataFrame,
+    band_name_src: str,
+    pixres_x: Union[int, float],
+    pixres_y: Union[int, float],
+    nodata_dst: Optional[Union[int, float]] = 0,
+    dtype_src: Optional[str] = "float32",
+) -> np.array:
     """
     Converts a `GeoDataFrame` with POINT features into a 2-d `np.ndarray`
     using the full spatial extent of the input features
@@ -183,9 +187,7 @@ def array_from_points(
     """
     # check input geometries, must be Point
     gdf = check_geometry_types(
-        in_dataset=gdf,
-        allowed_geometry_types=['Point'],
-        remove_empty_geoms=True
+        in_dataset=gdf, allowed_geometry_types=["Point"], remove_empty_geoms=True
     )
 
     bounds = gdf.total_bounds
@@ -199,9 +201,9 @@ def array_from_points(
     max_x_coord = int(np.ceil(abs((lrx - ulx) / pixres_x))) + 1
     max_y_coord = int(np.ceil(abs((uly - lry) / pixres_y))) + 1
     # create index lists for coordinates
-    x_indices = np.arange(ulx, lrx+pixres_x, step=pixres_x)
-    y_indices = np.arange(uly, lry+pixres_y, step=pixres_y)
-    
+    x_indices = np.arange(ulx, lrx + pixres_x, step=pixres_x)
+    y_indices = np.arange(uly, lry + pixres_y, step=pixres_y)
+
     # un-flatten the DataFrame along the selected columns (e.g. loop over columns)
     img_arr = np.ones(shape=(max_y_coord, max_x_coord), dtype=dtype_src) * nodata_dst
     x_coords = gdf.geometry.x.values

@@ -1,4 +1,4 @@
-'''
+"""
 Utils for working with ``shapely.geometry`` and ``geopandas.GeoDataFrame`` like objects.
 
 Copyright (C) 2022 Lukas Valentin Graf
@@ -15,7 +15,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import geopandas as gpd
 import warnings
@@ -27,9 +27,8 @@ from typing import Union
 from typing import List
 from typing import Optional
 
-def read_geometries(
-        in_dataset: Union[Path, gpd.GeoDataFrame]
-        ) -> gpd.GeoDataFrame:
+
+def read_geometries(in_dataset: Union[Path, gpd.GeoDataFrame]) -> gpd.GeoDataFrame:
     """
     Returns a geodataframe containing vector features
 
@@ -46,14 +45,15 @@ def read_geometries(
             raise Exception from e
     else:
         raise NotImplementedError(
-            f'Could not read geometries of input type {type(in_dataset)}'
+            f"Could not read geometries of input type {type(in_dataset)}"
         )
 
+
 def check_geometry_types(
-        in_dataset: Union[Path, gpd.GeoDataFrame],
-        allowed_geometry_types: List[str],
-        remove_empty_geoms: Optional[bool] = True
-    ) -> gpd.GeoDataFrame:
+    in_dataset: Union[Path, gpd.GeoDataFrame],
+    allowed_geometry_types: List[str],
+    remove_empty_geoms: Optional[bool] = True,
+) -> gpd.GeoDataFrame:
     """
     Checks if a ``GeoDataFrame`` contains allowed ``shapely.geometry``
     types, only. Raises an error if geometry types other than those allowed are
@@ -79,23 +79,26 @@ def check_geometry_types(
         num_none_type_geoms = gdf[gdf.geometry == None].shape[0]
         if num_none_type_geoms > 0:
             warnings.warn(
-                f'Ignoring {num_none_type_geoms} records where ' \
-                f'geometries are of type None'
+                f"Ignoring {num_none_type_geoms} records where "
+                f"geometries are of type None"
             )
             gdf = gdf.drop(gdf[gdf.geometry == None].index)
 
     # check for allowed geometry types
     gdf_aoi_geoms_types = list(gdf.geom_type.unique())
-    not_allowed_types = [x for x in gdf_aoi_geoms_types if x not in allowed_geometry_types]
+    not_allowed_types = [
+        x for x in gdf_aoi_geoms_types if x not in allowed_geometry_types
+    ]
 
     if len(not_allowed_types) > 0:
         raise ValueError(
-            f'Encounter geometry types not allowed for reading band data: ({not_allowed_types})'
+            f"Encounter geometry types not allowed for reading band data: ({not_allowed_types})"
         )
     return gdf
 
+
 def convert_3D_2D(geometry: gpd.GeoSeries) -> gpd.GeoSeries:
-    '''
+    """
     Takes a GeoSeries of 3D Multi/Polygons (has_z) and returns a list of 2D Multi/Polygons.
     Snippet taken from https://gist.github.com/rmania/8c88377a5c902dfbc134795a7af538d8
     (accessed latest Jan 18th 2021)
@@ -104,16 +107,16 @@ def convert_3D_2D(geometry: gpd.GeoSeries) -> gpd.GeoSeries:
         ``GeoSeries`` from ``GeoDataFrame``
     :returns:
         updated ``GeoSeries`` without third dimension (z)
-    '''
+    """
 
     new_geo = []
     for p in geometry:
         if p.has_z:
-            if p.geom_type == 'Polygon':
+            if p.geom_type == "Polygon":
                 lines = [xy[:2] for xy in list(p.exterior.coords)]
                 new_p = Polygon(lines)
                 new_geo.append(new_p)
-            elif p.geom_type == 'MultiPolygon':
+            elif p.geom_type == "MultiPolygon":
                 new_multi_p = []
                 for ap in p:
                     lines = [xy[:2] for xy in list(ap.exterior.coords)]

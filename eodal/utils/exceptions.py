@@ -1,4 +1,4 @@
-'''
+"""
 Collection of exceptions raised by eodal's modules
 
 Copyright (C) 2022 Lukas Valentin Graf
@@ -15,46 +15,60 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
+
 
 class NotProjectedError(Exception):
     pass
 
+
 class ResamplingFailedError(Exception):
     pass
+
 
 class BandNotFoundError(Exception):
     pass
 
+
 class UnknownProcessingLevel(Exception):
     pass
+
 
 class InputError(Exception):
     pass
 
+
 class DataNotFoundError(Exception):
     pass
+
 
 class ArchiveNotFoundError(Exception):
     pass
 
+
 class MetadataNotFoundError(Exception):
     pass
+
 
 class RegionNotFoundError(Exception):
     pass
 
+
 class ArchiveCreationError(Exception):
     pass
+
 
 class BlackFillOnlyError(Exception):
     pass
 
+
 class ReprojectionError(Exception):
     pass
 
+
 class DataExtractionError(Exception):
     pass
+
 
 class STACError(Exception):
     pass

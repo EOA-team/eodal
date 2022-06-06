@@ -1,4 +1,4 @@
-'''
+"""
 Metadata filtering utilities for Sentinel-2 data
 
 Copyright (C) 2022 Lukas Valentin Graf
@@ -15,16 +15,15 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import pandas as pd
 from typing import Optional
 
 
 def identify_updated_scenes(
-        metadata_df: pd.DataFrame,
-        return_highest_baseline: Optional[bool] = True
-    ) -> pd.DataFrame:
+    metadata_df: pd.DataFrame, return_highest_baseline: Optional[bool] = True
+) -> pd.DataFrame:
     """
     Returns those S2 entries in a pandas ``DataFrame`` retrieved from a query in
     eodal's metadata base that originate from the same orbit and data take
@@ -46,8 +45,8 @@ def identify_updated_scenes(
     metadata = metadata_df.copy()
 
     # check product uri and extract the processing baseline
-    metadata['baseline'] = metadata.product_uri.apply(
-        lambda x: int(x.split('_')[3][1:4])
+    metadata["baseline"] = metadata.product_uri.apply(
+        lambda x: int(x.split("_")[3][1:4])
     )
 
     # get either the highest baseline version or the baseline most datasets

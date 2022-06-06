@@ -1,4 +1,4 @@
-'''
+"""
 Custom types for *eodal*
 
 Copyright (C) 2022 Lukas Valentin Graf
@@ -15,7 +15,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 from pandas import DataFrame
 from typing import Any
@@ -23,4 +23,4 @@ from typing import Dict
 from typing import NewType
 
 
-S2Scenes = NewType('S2Scenes', Dict[Any, DataFrame])
+S2Scenes = NewType("S2Scenes", Dict[Any, DataFrame])

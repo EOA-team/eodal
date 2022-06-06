@@ -1,4 +1,4 @@
-'''
+"""
 This module contains the ``Sentinel2`` class that inherits from
 eodal's core ``RasterCollection`` class.
 
@@ -21,7 +21,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import cv2
 import numpy as np
@@ -35,19 +35,9 @@ from numbers import Number
 from pathlib import Path
 from rasterio.mask import raster_geometry_mask
 from shapely.geometry import box
-from typing import (
-    Dict,
-    Optional,
-    List,
-    Tuple,
-    Union
-)
+from typing import Dict, Optional, List, Tuple, Union
 
-from eodal.core.band import (
-    Band,
-    WavelengthInfo,
-    GeoInfo
-)
+from eodal.core.band import Band, WavelengthInfo, GeoInfo
 from eodal.core.raster import RasterCollection
 from eodal.core.scene import SceneProperties
 from eodal.utils.constants.sentinel2 import (
@@ -57,20 +47,22 @@ from eodal.utils.constants.sentinel2 import (
     ProcessingLevels,
     s2_band_mapping,
     s2_gain_factor,
-    SCL_Classes
+    SCL_Classes,
 )
 from eodal.utils.exceptions import BandNotFoundError
 from eodal.utils.sentinel2 import (
     get_S2_bandfiles_with_res,
     get_S2_platform_from_safe,
     get_S2_processing_level,
-    get_S2_acquistion_time_from_safe, get_S2_processing_baseline_from_safe
+    get_S2_acquistion_time_from_safe,
+    get_S2_processing_baseline_from_safe,
 )
 from copy import deepcopy
 from eodal.core.utils.geometry import convert_3D_2D
 from eodal.config import get_settings
 
 Settings = get_settings()
+
 
 class Sentinel2(RasterCollection):
     """
@@ -83,12 +75,12 @@ class Sentinel2(RasterCollection):
     def is_blackfilled(self) -> bool:
         """Checks if the scene is black-filled (nodata only)"""
         # if SCL is available use this layer
-        if 'SCL' in self.band_names:
+        if "SCL" in self.band_names:
             scl_stats = self.get_scl_stats()
-            no_data_count = scl_stats[
-                scl_stats.Class_Value.isin([0])
-            ]['Class_Abs_Count'].sum()
-            all_pixels = scl_stats['Class_Abs_Count'].sum()
+            no_data_count = scl_stats[scl_stats.Class_Value.isin([0])][
+                "Class_Abs_Count"
+            ].sum()
+            all_pixels = scl_stats["Class_Abs_Count"].sum()
             return no_data_count == all_pixels
         # otherwise check the reflectance values from the first
         # band in the collection. If all values are zero then
@@ -126,10 +118,8 @@ class Sentinel2(RasterCollection):
 
     @staticmethod
     def _get_band_files(
-            in_dir: Union[Path,Dict[str,str]],
-            band_selection: List[str],
-            read_scl: bool
-        ) -> pd.DataFrame:
+        in_dir: Union[Path, Dict[str, str]], band_selection: List[str], read_scl: bool
+    ) -> pd.DataFrame:
         """
         Returns the paths to the single Sentinel-2 bands.
 
@@ -153,7 +143,7 @@ class Sentinel2(RasterCollection):
         # check processing level (use B01 for STAC)
         if Settings.USE_STAC:
             processing_level = get_S2_processing_level(
-                dot_safe_name=in_dir['B01']['href']
+                dot_safe_name=in_dir["B01"]["href"]
             )
         else:
             processing_level = get_S2_processing_level(dot_safe_name=in_dir)
@@ -166,34 +156,34 @@ class Sentinel2(RasterCollection):
 
         # check if SCL should e read (L2A)
         if is_l2a and read_scl:
-            scl_in_selection = 'scl' in band_selection or 'SCL' in band_selection
+            scl_in_selection = "scl" in band_selection or "SCL" in band_selection
             if not scl_in_selection:
-                band_selection.append('SCL')
+                band_selection.append("SCL")
         if not read_scl:
-            if 'scl' in band_selection:
-                band_selection.remove('scl')
-            if 'SCL' in band_selection:
-                band_selection.remove('SCL')
+            if "scl" in band_selection:
+                band_selection.remove("scl")
+            if "SCL" in band_selection:
+                band_selection.remove("SCL")
 
         # determine native spatial resolution of Sentinel-2 bands
         band_res = band_resolution[processing_level]
-        band_selection_spatial_res = [x for x in band_res.items() if x[0] in band_selection]
+        band_selection_spatial_res = [
+            x for x in band_res.items() if x[0] in band_selection
+        ]
 
         # search band files depending on processing level and spatial resolution(s)
         band_df_safe = get_S2_bandfiles_with_res(
-            in_dir=in_dir,
-            band_selection=band_selection_spatial_res,
-            is_l2a=is_l2a
+            in_dir=in_dir, band_selection=band_selection_spatial_res, is_l2a=is_l2a
         )
 
         return band_df_safe
 
     def _process_band_selection(
-            self,
-            in_dir: Path,
-            band_selection: Optional[List[str]] = None,
-            read_scl: Optional[bool] = True
-        ) -> pd.DataFrame:
+        self,
+        in_dir: Path,
+        band_selection: Optional[List[str]] = None,
+        read_scl: Optional[bool] = True,
+    ) -> pd.DataFrame:
         """
         Adopts the selection of Sentinel-2 spectral bands to ensure
         that default bands are read if not specified otherwise.
@@ -212,47 +202,43 @@ class Sentinel2(RasterCollection):
         # load 10 and 20 bands by default
         if band_selection is None:
             band_selection = list(s2_band_mapping.keys())
-            bands_to_exclude = ['B01', 'B09']
+            bands_to_exclude = ["B01", "B09"]
             for band in bands_to_exclude:
                 band_selection.remove(band)
 
         # determine which spatial resolutions are selected and check processing level
         band_df_safe = self._get_band_files(
-            in_dir=in_dir,
-            band_selection=band_selection,
-            read_scl=read_scl
+            in_dir=in_dir, band_selection=band_selection, read_scl=read_scl
         )
         # check if a band in the band_selection was not found
         if band_selection is not None:
             if len(band_selection) != len(band_df_safe.band_name):
                 bands_not_found = [
-                    x for x in band_selection if x not in \
-                    list(band_df_safe.band_name)
+                    x for x in band_selection if x not in list(band_df_safe.band_name)
                 ]
                 # SCL might be "missing"
                 if len(bands_not_found) == 1:
-                    if bands_not_found[0] == 'SCL':
+                    if bands_not_found[0] == "SCL":
                         return band_df_safe
                 raise BandNotFoundError(
-                    f'Couldnot find bands {bands_not_found} ' \
-                    'provided in selection'
+                    f"Couldnot find bands {bands_not_found} " "provided in selection"
                 )
         return band_df_safe
 
     @classmethod
     def from_safe(
-            cls,
-            in_dir: Union[Path,Dict[str,str]],
-            band_selection: Optional[List[str]] = None,
-            read_scl: Optional[bool] = True,
-            apply_scaling: Optional[bool] = True,
-            **kwargs
-        ):
+        cls,
+        in_dir: Union[Path, Dict[str, str]],
+        band_selection: Optional[List[str]] = None,
+        read_scl: Optional[bool] = True,
+        apply_scaling: Optional[bool] = True,
+        **kwargs,
+    ):
         """
         Loads Sentinel-2 data into a `RasterCollection`.
-        
+
         There are two options:
-        
+
         * Read data from a .SAFE archive which is ESA's standard format for
           distributing Sentinel-2 data (L1C and L2A processing levels).
         * Read data from a Asset-List returned from a STAC query
@@ -290,10 +276,7 @@ class Sentinel2(RasterCollection):
         """
         # load 10 and 20 bands by default
         band_df_safe = cls._process_band_selection(
-            cls,
-            in_dir=in_dir,
-            band_selection=band_selection,
-            read_scl=read_scl
+            cls, in_dir=in_dir, band_selection=band_selection, read_scl=read_scl
         )
 
         # check the clipping extent of the raster with the lowest (coarsest) spatial
@@ -305,32 +288,36 @@ class Sentinel2(RasterCollection):
         align_shapes = False
         masking_after_read_required = False
 
-        if kwargs.get('vector_features') is not None:
-            lowest_resolution = band_df_safe['band_resolution'].max()
-            if band_df_safe['band_resolution'].unique().shape[0] > 1:
+        if kwargs.get("vector_features") is not None:
+            lowest_resolution = band_df_safe["band_resolution"].max()
+            if band_df_safe["band_resolution"].unique().shape[0] > 1:
                 align_shapes = True
-                if kwargs.get('vector_features') is not None:
+                if kwargs.get("vector_features") is not None:
                     low_res_band = band_df_safe[
-                        band_df_safe['band_resolution'] == lowest_resolution
+                        band_df_safe["band_resolution"] == lowest_resolution
                     ].iloc[0]
                     # get vector feature(s) for spatial subsetting
-                    vector_features = kwargs.get('vector_features')
+                    vector_features = kwargs.get("vector_features")
                     if isinstance(vector_features, Path):
                         vector_features_df = gpd.read_file(vector_features)
                     elif isinstance(vector_features, gpd.GeoDataFrame):
                         vector_features_df = vector_features.copy()
-    
+
                     # drop Nones in geometry column
-                    none_idx = vector_features_df[vector_features_df.geometry == None].index
+                    none_idx = vector_features_df[
+                        vector_features_df.geometry == None
+                    ].index
                     vector_features_df.drop(index=none_idx, inplace=True)
-    
-                    with rio.open(low_res_band.band_path, 'r') as src:
+
+                    with rio.open(low_res_band.band_path, "r") as src:
                         # convert to raster CRS
                         raster_crs = src.crs
                         vector_features_df.to_crs(crs=raster_crs, inplace=True)
                         # check if the geometry contains the z (3rd) dimension. If yes
                         # convert it to 2d to avoid an error poping up from rasterio
-                        vector_features_geom = convert_3D_2D(vector_features_df.geometry)
+                        vector_features_geom = convert_3D_2D(
+                            vector_features_df.geometry
+                        )
                         shape_mask, transform, window = raster_geometry_mask(
                             dataset=src,
                             shapes=vector_features_geom,
@@ -343,14 +330,14 @@ class Sentinel2(RasterCollection):
                     # reconstruct the lower right corner
                     llx_low_res = ulx_low_res + window.width * transform.a
                     lly_low_res = uly_low_res + window.height * transform.e
-    
+
                     # overwrite original vector features' bounds in the S2 scene
                     # geometry of the lowest spatial resolution
                     low_res_feature_bounds_s2_grid = box(
                         minx=ulx_low_res,
                         miny=lly_low_res,
                         maxx=llx_low_res,
-                        maxy=uly_low_res
+                        maxy=uly_low_res,
                     )
                     # update bounds and pass them on to the kwargs
                     bounds_df = gpd.GeoDataFrame(
@@ -358,7 +345,7 @@ class Sentinel2(RasterCollection):
                     )
                     bounds_df.set_crs(crs=raster_crs, inplace=True)
                     # remember to mask the feature after clipping the data
-                    if not kwargs.get('full_bounding_box_only', False):
+                    if not kwargs.get("full_bounding_box_only", False):
                         masking_after_read_required = True
 
         # determine platform (S2A or S2B)
@@ -368,18 +355,18 @@ class Sentinel2(RasterCollection):
         processing_level = get_S2_processing_level(dot_safe_name=in_dir)
 
         scene_properties = SceneProperties(
-            acquisition_time = acqui_time,
-            platform = platform,
-            sensor = 'MSI',
-            processing_level = processing_level,
-            product_uri = in_dir.name
+            acquisition_time=acqui_time,
+            platform=platform,
+            sensor="MSI",
+            processing_level=processing_level,
+            product_uri=in_dir.name,
         )
 
         # set AREA_OR_POINT to Point (see here: https://gis.stackexchange.com/a/263329)
         # TODO: make sure this is really true
-        kwargs.update({'area_or_point': 'Area'})
+        kwargs.update({"area_or_point": "Area"})
         # set nodata to zero (unfortunately the S2 img metadata is incorrect here)
-        kwargs.update({'nodata': 0})
+        kwargs.update({"nodata": 0})
         # set correct scale factor (unfortunately not correct in S2 JP2 header but specified in
         # the MTD_MSIL1C and MTD_MSIL2A.xml metadata document)
         gain, offset = cls._get_gain_and_offset(in_dir=in_dir)
@@ -395,25 +382,25 @@ class Sentinel2(RasterCollection):
 
             # get color name and set it as alias
             color_name = s2_band_mapping[band_name]
-            kwargs.update({'scale': 1})
-            kwargs.update({'offset': 0})
+            kwargs.update({"scale": 1})
+            kwargs.update({"offset": 0})
 
             # store wavelength information per spectral band
-            if band_name != 'SCL':
+            if band_name != "SCL":
                 central_wvl = central_wavelengths[platform][band_name]
-                wavelength_unit = central_wavelengths['unit']
+                wavelength_unit = central_wavelengths["unit"]
                 band_width = band_widths[platform][band_name]
                 wvl_info = WavelengthInfo(
                     central_wavelength=central_wvl,
                     wavelength_unit=wavelength_unit,
-                    band_width=band_width
+                    band_width=band_width,
                 )
-                kwargs.update({'wavelength_info': wvl_info})
+                kwargs.update({"wavelength_info": wvl_info})
                 # do not apply the gain and offset factors from the spectral bands
                 # to the SCL file
-                kwargs.update({'scale': gain})
-                kwargs.update({'offset': offset})
-                
+                kwargs.update({"scale": gain})
+                kwargs.update({"offset": offset})
+
             # read band
             try:
                 if align_shapes:
@@ -422,22 +409,22 @@ class Sentinel2(RasterCollection):
                     # the bounding of the coarsest resolution and apply the masking
                     # later
                     if band_safe.band_resolution.values != lowest_resolution:
-                        kwargs.update({'vector_features': bounds_df})
+                        kwargs.update({"vector_features": bounds_df})
                     else:
-                        kwargs.update({
-                            'vector_features': kwargs_orig.get('vector_features')
-                        })
+                        kwargs.update(
+                            {"vector_features": kwargs_orig.get("vector_features")}
+                        )
                 sentinel2.add_band(
                     Band.from_rasterio,
                     fpath_raster=band_fpath,
                     band_idx=1,
                     band_name_dst=band_name,
                     band_alias=color_name,
-                    **kwargs
+                    **kwargs,
                 )
             except Exception as e:
                 raise Exception(
-                    f'Could not add band {band_name} from {in_dir.name}: {e}'
+                    f"Could not add band {band_name} from {in_dir.name}: {e}"
                 )
             # apply actual vector features if masking is required
             if masking_after_read_required:
@@ -446,41 +433,35 @@ class Sentinel2(RasterCollection):
                     continue
                 # otherwise resample the mask of the lowest resolution to the
                 # current resolution using nearest neighbor interpolation
-                tmp = shape_mask.astype('uint8')
+                tmp = shape_mask.astype("uint8")
                 dim_resampled = (sentinel2[band_name].ncols, sentinel2[band_name].nrows)
                 res = cv2.resize(
-                    tmp,
-                    dim_resampled,
-                    interpolation=cv2.INTER_NEAREST_EXACT
+                    tmp, dim_resampled, interpolation=cv2.INTER_NEAREST_EXACT
                 )
                 # cast back to boolean
-                mask = res.astype('bool')
-                sentinel2.mask(
-                    mask=mask,
-                    bands_to_mask=[band_name],
-                    inplace=True
-                )
+                mask = res.astype("bool")
+                sentinel2.mask(mask=mask, bands_to_mask=[band_name], inplace=True)
         # scaling of reflectance values (i.e., do not scale SCL)
         if apply_scaling:
             sel_bands = sentinel2.band_names
-            if 'SCL' in sel_bands:
-                sel_bands.remove('SCL')
+            if "SCL" in sel_bands:
+                sel_bands.remove("SCL")
             sentinel2.scale(
                 inplace=True,
                 band_selection=sel_bands,
-                pixel_values_to_ignore=[sentinel2[sentinel2.band_names[0]].nodata]
+                pixel_values_to_ignore=[sentinel2[sentinel2.band_names[0]].nodata],
             )
         return sentinel2
 
     @classmethod
     def read_pixels_from_safe(
-            cls,
-            vector_features: Union[Path, gpd.GeoDataFrame],
-            in_dir: Path,
-            band_selection: Optional[List[str]] = None,
-            read_scl: Optional[bool] = True,
-            apply_scaling: Optional[bool] = True
-        ) -> gpd.GeoDataFrame:
+        cls,
+        vector_features: Union[Path, gpd.GeoDataFrame],
+        in_dir: Path,
+        band_selection: Optional[List[str]] = None,
+        read_scl: Optional[bool] = True,
+        apply_scaling: Optional[bool] = True,
+    ) -> gpd.GeoDataFrame:
         """
         Extracts Sentinel-2 raster values at locations defined by one or many
         vector geometry features read from a vector file (e.g., ESRI shapefile) or
@@ -528,10 +509,7 @@ class Sentinel2(RasterCollection):
         """
         # load 10 and 20 bands by default
         band_df_safe = cls._process_band_selection(
-            cls,
-            in_dir=in_dir,
-            band_selection=band_selection,
-            read_scl=read_scl
+            cls, in_dir=in_dir, band_selection=band_selection, read_scl=read_scl
         )
         # get gain and offset values depending on the processing baseline
         gain, offset = cls._get_gain_and_offset(in_dir=in_dir)
@@ -549,29 +527,30 @@ class Sentinel2(RasterCollection):
                 gdf_band = cls.read_pixels(
                     vector_features=vector_features,
                     fpath_raster=band_fpath,
-                    band_idxs=[1]
+                    band_idxs=[1],
                 )
                 # rename the spectral band (always "B1" by default to its
                 # actual name)
-                gdf_band = gdf_band.rename(columns={'B1': band_name})
+                gdf_band = gdf_band.rename(columns={"B1": band_name})
 
                 # remove the geometry column from all GeoDataFrames but the first
                 # since geopandas does not support multiple geometry columns
                 # (they are the same for each band, anyways)
                 if idx > 0:
-                    gdf_band.drop('geometry', axis=1, inplace=True)
+                    gdf_band.drop("geometry", axis=1, inplace=True)
             except Exception as e:
                 raise Exception(
-                    f'Could not extract pixels values from {band_name}: {e}'
+                    f"Could not extract pixels values from {band_name}: {e}"
                 )
             # scale values by applying gain and offset factors (recommended),
             # ignore the scl layer
-            if band_name != 'SCL':
+            if band_name != "SCL":
                 if apply_scaling:
                     gdf_scaled = gdf_band.copy()
-                    gdf_scaled[band_name] = 0.
-                    gdf_scaled[band_name] = \
-                        (offset + gdf_band[band_name].loc[gdf_band[band_name] != 0]) * gain
+                    gdf_scaled[band_name] = 0.0
+                    gdf_scaled[band_name] = (
+                        offset + gdf_band[band_name].loc[gdf_band[band_name] != 0]
+                    ) * gain
                     band_gdfs.append(gdf_scaled)
                     continue
             band_gdfs.append(gdf_band)
@@ -580,20 +559,17 @@ class Sentinel2(RasterCollection):
         gdf = pd.concat(band_gdfs, axis=1)
         # clean the dataframe and remove duplicate column names after merging
         # to avoid (large) redundancies
-        gdf = gdf.loc[:,~gdf.columns.duplicated()]
+        gdf = gdf.loc[:, ~gdf.columns.duplicated()]
         # skip all pixels with zero reflectance (either blackfilled or outside of the
         # scene extent); in case of dtype float check for NaNs
-        if (gdf.dtypes[gdf.columns.str.startswith('B')] == 'float64').all():
+        if (gdf.dtypes[gdf.columns.str.startswith("B")] == "float64").all():
             gdf.dropna(axis=0, inplace=True)
-        elif (gdf.dtypes[gdf.columns.str.startswith('B')] == 'int16').all():
+        elif (gdf.dtypes[gdf.columns.str.startswith("B")] == "int16").all():
             gdf = gdf.loc[~(gdf[band_df_safe.band_name] == 0).all(axis=1)]
 
         return gdf
 
-    def plot_scl(
-            self,
-            colormap: Optional[str]=''
-        ) -> Figure:
+    def plot_scl(self, colormap: Optional[str] = "") -> Figure:
         """
         Wrapper around `plot_band` method to plot the Scene Classification
         Layer available from the L2A processing level. Raises an error if
@@ -610,21 +586,23 @@ class Sentinel2(RasterCollection):
         # check if SCL is a masked array. If so, fill masked values with no-data
         # class (for plotting we need to manipulate the data directly),
         #  therefore we work on a copy of SCL
-        scl = self['SCL'].copy()
+        scl = self["SCL"].copy()
         if scl.is_masked_array:
             new_values = scl.values.filled(
-                [k for k, v in SCL_Classes.values().items() if v == 'no_data']
+                [k for k, v in SCL_Classes.values().items() if v == "no_data"]
             )
-            object.__setattr__(scl, 'values', new_values)
+            object.__setattr__(scl, "values", new_values)
 
         # make a color map of fixed colors
-        if colormap == '':
+        if colormap == "":
             # get only those colors required (classes in the layer)
             # FIXME: plotting cannot really handle when values are missing in between, e.g., [0,2,3,4]
             scl_colors = SCL_Classes.colors()
             scl_dict = SCL_Classes.values()
             scl_classes = list(np.unique(scl.values))
-            selected_colors = [x for idx,x in enumerate(scl_colors) if idx in scl_classes]
+            selected_colors = [
+                x for idx, x in enumerate(scl_colors) if idx in scl_classes
+            ]
             scl_cmap = colors.ListedColormap(selected_colors)
             scl_ticks = [x[1] for x in scl_dict.items() if x[0] in scl_classes]
         try:
@@ -632,17 +610,17 @@ class Sentinel2(RasterCollection):
                 colormap=colormap,
                 discrete_values=True,
                 user_defined_colors=scl_cmap,
-                user_defined_ticks=scl_ticks
+                user_defined_ticks=scl_ticks,
             )
         except Exception as e:
-            raise BandNotFoundError(f'Could not plot SCL: {e}')
+            raise BandNotFoundError(f"Could not plot SCL: {e}")
 
     def mask_clouds_and_shadows(
-            self,
-            bands_to_mask: List[str],
-            cloud_classes: Optional[List[int]] = [2, 3, 7, 8, 9, 10],
-            **kwargs
-        ):
+        self,
+        bands_to_mask: List[str],
+        cloud_classes: Optional[List[int]] = [2, 3, 7, 8, 9, 10],
+        **kwargs,
+    ):
         """
         A Wrapper around the inherited ``mask`` method to mask clouds,
         shadows, water and snow based on the SCL band. Works therefore on L2A data,
@@ -666,16 +644,16 @@ class Sentinel2(RasterCollection):
             depending on `inplace` (passed in the kwargs) a new `Sentinel2` instance
             or None
         """
-        mask_band = 'SCL'
+        mask_band = "SCL"
         try:
             return self.mask(
                 mask=mask_band,
                 mask_values=cloud_classes,
                 bands_to_mask=bands_to_mask,
-                **kwargs
+                **kwargs,
             )
         except Exception as e:
-            raise Exception(f'Could not apply cloud mask: {e}')
+            raise Exception(f"Could not apply cloud mask: {e}")
 
     def get_scl_stats(self) -> pd.DataFrame:
         """
@@ -690,12 +668,12 @@ class Sentinel2(RasterCollection):
             class occurences.
         """
         # check if SCL is available
-        if not 'SCL' in self.band_names:
+        if not "SCL" in self.band_names:
             raise BandNotFoundError(
-                'Could not find scene classification layer. Is scene L2A?'
+                "Could not find scene classification layer. Is scene L2A?"
             )
 
-        scl = self.get_band('SCL')
+        scl = self.get_band("SCL")
         # if the scl array is a masked array consider only those pixels
         # not masked out
         if scl.is_masked_array:
@@ -719,11 +697,11 @@ class Sentinel2(RasterCollection):
             class_code, class_count = class_occurence
 
             scl_stats_dict = {}
-            scl_stats_dict['Class_Value'] = class_code
-            scl_stats_dict['Class_Name'] = scl_class_mapping[class_code]
-            scl_stats_dict['Class_Abs_Count'] = class_count
+            scl_stats_dict["Class_Value"] = class_code
+            scl_stats_dict["Class_Name"] = scl_class_mapping[class_code]
+            scl_stats_dict["Class_Abs_Count"] = class_count
             # calculate percentage of the class count to overall number of pixels in %
-            scl_stats_dict['Class_Rel_Count'] = class_count / n_pixels * 100
+            scl_stats_dict["Class_Rel_Count"] = class_count / n_pixels * 100
 
             scl_stats_list.append(scl_stats_dict)
 
@@ -738,22 +716,21 @@ class Sentinel2(RasterCollection):
             for scl_class in scl_class_mapping:
                 if scl_class not in scl_stats_df.Class_Value.values:
                     scl_stats_dict = {}
-                    scl_stats_dict['Class_Value'] = scl_class
-                    scl_stats_dict['Class_Name'] = scl_class_mapping[scl_class]
-                    scl_stats_dict['Class_Abs_Count'] = 0
-                    scl_stats_dict['Class_Rel_Count'] = 0
+                    scl_stats_dict["Class_Value"] = scl_class
+                    scl_stats_dict["Class_Name"] = scl_class_mapping[scl_class]
+                    scl_stats_dict["Class_Abs_Count"] = 0
+                    scl_stats_dict["Class_Rel_Count"] = 0
 
                     scl_stats_df = scl_stats_df.append(
-                        other=scl_stats_dict,
-                        ignore_index=True
+                        other=scl_stats_dict, ignore_index=True
                     )
 
         return scl_stats_df
 
     def get_cloudy_pixel_percentage(
-            self,
-            cloud_classes: Optional[List[int]] = [2, 3, 7, 8, 9, 10, 11],
-        ) -> float:
+        self,
+        cloud_classes: Optional[List[int]] = [2, 3, 7, 8, 9, 10, 11],
+    ) -> float:
         """
         Calculates the cloudy pixel percentage [0-100] for the current AOI
         (L2A processing level, only) considering all SCL classes that are
@@ -773,49 +750,50 @@ class Sentinel2(RasterCollection):
         scl_stats_df = self.get_scl_stats()
 
         # sum up pixels labeled as clouds or cloud shadows
-        num_cloudy_pixels = scl_stats_df[
-            scl_stats_df.Class_Value.isin(cloud_classes)
-        ]['Class_Abs_Count'].sum()
+        num_cloudy_pixels = scl_stats_df[scl_stats_df.Class_Value.isin(cloud_classes)][
+            "Class_Abs_Count"
+        ].sum()
         # check for nodata (e.g., due to blackfill)
-        nodata_pixels = scl_stats_df[
-            scl_stats_df.Class_Value.isin([0])
-        ]['Class_Abs_Count'].sum()
-        
+        nodata_pixels = scl_stats_df[scl_stats_df.Class_Value.isin([0])][
+            "Class_Abs_Count"
+        ].sum()
+
         # and relate it to the overall number of pixels
-        all_pixels = scl_stats_df['Class_Abs_Count'].sum()
-        cloudy_pixel_percentage = num_cloudy_pixels / \
-            (all_pixels - nodata_pixels) * 100
+        all_pixels = scl_stats_df["Class_Abs_Count"].sum()
+        cloudy_pixel_percentage = num_cloudy_pixels / (all_pixels - nodata_pixels) * 100
         return cloudy_pixel_percentage
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
-    in_dir = Path('/mnt/ides/Lukas/03_Debug/Sentinel2/S2A_MSIL2A_20171213T102431_N0206_R065_T32TMT_20171213T140708.SAFE')
+    in_dir = Path(
+        "/mnt/ides/Lukas/03_Debug/Sentinel2/S2A_MSIL2A_20171213T102431_N0206_R065_T32TMT_20171213T140708.SAFE"
+    )
     vector_features = Path(
-        '/mnt/ides/Lukas/02_Research/PhenomEn/01_Data/01_ReferenceData/Strickhof/WW_2022/Bramenwies.shp'
+        "/mnt/ides/Lukas/02_Research/PhenomEn/01_Data/01_ReferenceData/Strickhof/WW_2022/Bramenwies.shp"
     )
     full_bounding_box_only = True
     s2 = Sentinel2.from_safe(
         in_dir=in_dir,
         vector_features=vector_features,
-        full_bounding_box_only=full_bounding_box_only
+        full_bounding_box_only=full_bounding_box_only,
     )
     resampled = s2.resample(target_resolution=10)
-    assert resampled.is_bandstack(), 'raster extents still differ'
-    assert not s2.is_bandstack(), 'original data must still differ in spatial resolution'
+    assert resampled.is_bandstack(), "raster extents still differ"
+    assert (
+        not s2.is_bandstack()
+    ), "original data must still differ in spatial resolution"
 
-    fpath_raster = in_dir.parent.joinpath('test_10m_full_bbox.jp2')
-    resampled.to_rasterio(fpath_raster, band_selection=['B03','B12'])
-    
+    fpath_raster = in_dir.parent.joinpath("test_10m_full_bbox.jp2")
+    resampled.to_rasterio(fpath_raster, band_selection=["B03", "B12"])
 
     full_bounding_box_only = False
     s2 = Sentinel2.from_safe(
         in_dir=in_dir,
         vector_features=vector_features,
-        full_bounding_box_only=full_bounding_box_only
+        full_bounding_box_only=full_bounding_box_only,
     )
     resampled = s2.resample(target_resolution=10)
-    assert resampled.is_bandstack(), 'raster extents still differ'
-    fpath_raster = in_dir.parent.joinpath('test_10m_mask.jp2')
-    resampled.to_rasterio(fpath_raster, band_selection=['B03','B12'])
-
+    assert resampled.is_bandstack(), "raster extents still differ"
+    fpath_raster = in_dir.parent.joinpath("test_10m_mask.jp2")
+    resampled.to_rasterio(fpath_raster, band_selection=["B03", "B12"])

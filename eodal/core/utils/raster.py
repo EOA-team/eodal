@@ -1,4 +1,4 @@
-'''
+"""
 Raster utilities to extract raster band attributes
 
 Copyright (C) 2022 Lukas Valentin Graf
@@ -15,7 +15,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import numpy as np
 import rasterio as rio
@@ -24,9 +24,7 @@ from typing import Dict
 from typing import Any
 
 
-def get_raster_attributes(
-        riods: rio.io.DatasetReader
-    ) -> Dict[str,Any]:
+def get_raster_attributes(riods: rio.io.DatasetReader) -> Dict[str, Any]:
     """
     extracts immutable raster attributes (not changed by reprojections,
     resampling) and returns them as a dictionary.

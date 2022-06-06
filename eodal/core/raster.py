@@ -1,4 +1,4 @@
-'''
+"""
 This module defines the ``RasterCollection`` class which is the basic class for reading, plotting,
 transforming, manipulating and writing (geo-referenced) raster data in an intuitive, object-oriented
 way (in terms of software philosophy).
@@ -69,7 +69,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -101,6 +101,7 @@ from eodal.core.scene import SceneProperties
 from eodal.core.spectral_indices import SpectralIndices
 from eodal.utils.decorators import check_band_names
 
+
 class RasterOperator(Operator):
     """
     Band operator supporting basic algebraic operations on
@@ -109,20 +110,20 @@ class RasterOperator(Operator):
 
     @classmethod
     def calc(
-            cls,
-            a,
-            other: Union[Band, Number,np.ndarray],
-            operator: str,
-            inplace: Optional[bool] = False,
-            band_selection: Optional[List[str]] = None
-        ) -> Union[None,np.ndarray]:
+        cls,
+        a,
+        other: Union[Band, Number, np.ndarray],
+        operator: str,
+        inplace: Optional[bool] = False,
+        band_selection: Optional[List[str]] = None,
+    ) -> Union[None, np.ndarray]:
         """
         executes a custom algebraic operator on `RasterCollection` objects
 
         :param a:
             `RasterCollection` object with values (non-empty)
         :param other:
-            `Band` object, scalar,  or 3-dimensional `numpy.array` to use on the 
+            `Band` object, scalar,  or 3-dimensional `numpy.array` to use on the
             right-hand side of the operator. If a `numpy.array` is passed the array
             must have either shape `(1,nrows,ncols)` or `(nband,nrows,ncols)`
             where `nrows` is the number of rows in `a`, ncols the number of columns
@@ -145,27 +146,27 @@ class RasterOperator(Operator):
         if isinstance(other, Band):
             _other = other.copy()
             _other = _other.values()
-        # check if `other` matches the shape 
+        # check if `other` matches the shape
         if isinstance(other, np.ndarray) or isinstance(other, np.ma.MaskedArray):
             # check if passed array is 2-d
             if len(other.shape) == 2:
                 if other.shape != a.get_values(band_selection).shape[1::]:
                     raise ValueError(
-                        f'Passed array has wrong number of rows and columns. ' \
-                        + f'Expected {a.values.shape[1::]} - Got {other.shape}'
+                        f"Passed array has wrong number of rows and columns. "
+                        + f"Expected {a.values.shape[1::]} - Got {other.shape}"
                     )
             # or 3-d
             elif len(other.shape) == 3:
                 if other.shape != a.get_values(band_selection):
                     raise ValueError(
-                        f'Passed array has wrong dimensions. Expected {a.values.shape}' \
-                        + f' - Got {other.shape}'
+                        f"Passed array has wrong dimensions. Expected {a.values.shape}"
+                        + f" - Got {other.shape}"
                     )
             # other dimensions are not allowed
             else:
                 raise ValueError(
-                    'Passed array must 2 or 3-dimensional. '\
-                    f'Got {len(other.shape)} dimensions instead'
+                    "Passed array must 2 or 3-dimensional. "
+                    f"Got {len(other.shape)} dimensions instead"
                 )
             _other = other.copy()
         elif isinstance(other, RasterCollection):
@@ -174,16 +175,16 @@ class RasterOperator(Operator):
             # other_is_raster = True
         # perform the operation
         try:
-            expr = f'a.get_values(band_selection) {operator} other'
+            expr = f"a.get_values(band_selection) {operator} other"
             res = eval(expr)
         except Exception as e:
-            raise cls.BandMathError(f'Could not execute {expr}: {e}')
+            raise cls.BandMathError(f"Could not execute {expr}: {e}")
         # return result or overwrite band data
         if inplace:
             if band_selection is None:
                 band_selection = a.band_names()
             for idx, band_name in enumerate(band_selection):
-                object.__setattr__(self.collection[band_name], 'values', res[idx,:,:])
+                object.__setattr__(self.collection[band_name], "values", res[idx, :, :])
         else:
             # TODO: return a new RasterCollection instance
             # TODO: think about multiple slices
@@ -217,12 +218,12 @@ class RasterCollection(MutableMapping):
     """
 
     def __init__(
-            self,
-            band_constructor: Optional[Callable[..., Band]] = None,
-            scene_properties: Optional[SceneProperties] = None,
-            *args,
-            **kwargs
-        ):
+        self,
+        band_constructor: Optional[Callable[..., Band]] = None,
+        scene_properties: Optional[SceneProperties] = None,
+        *args,
+        **kwargs,
+    ):
         """
         Initializes a new `RasterCollection` with 0 up to n bands
 
@@ -243,8 +244,9 @@ class RasterCollection(MutableMapping):
         if scene_properties is None:
             scene_properties = SceneProperties()
         if not isinstance(scene_properties, SceneProperties):
-            raise TypeError('scene_properties takes only objects ' \
-                            'of type SceneProperties')
+            raise TypeError(
+                "scene_properties takes only objects " "of type SceneProperties"
+            )
         self.scene_properties = scene_properties
 
         # bands are stored in a dictionary like collection
@@ -256,7 +258,7 @@ class RasterCollection(MutableMapping):
         if band_constructor is not None:
             band = band_constructor.__call__(*args, **kwargs)
             if not isinstance(band, Band):
-                raise TypeError('Only Band objects can be passed')
+                raise TypeError("Only Band objects can be passed")
             self._band_aliases.append(band.band_alias)
             self.__setitem__(band)
 
@@ -271,10 +273,10 @@ class RasterCollection(MutableMapping):
 
     def __setitem__(self, item: Band):
         if not isinstance(item, Band):
-            raise TypeError('Only Band objects can be passed')
+            raise TypeError("Only Band objects can be passed")
         key = item.band_name
         if key in self.collection.keys():
-            raise KeyError('Duplicate band names not permitted')
+            raise KeyError("Duplicate band names not permitted")
         value = item.copy()
         self.collection[key] = value
 
@@ -283,39 +285,39 @@ class RasterCollection(MutableMapping):
 
     def __iter__(self):
         return iter(self.collection)
-    
+
     def __len__(self) -> int:
         return len(self.collection)
 
     def __add__(self, other):
-        return RasterOperator.calc(a=self, other=other, operator='+')
+        return RasterOperator.calc(a=self, other=other, operator="+")
 
     def __sub__(self, other):
-        return RasterOperator.calc(a=self, other=other, operator='-')
+        return RasterOperator.calc(a=self, other=other, operator="-")
 
     def __pow__(self, other):
-        return RasterOperator.calc(a=self, other=other, operator='**')
+        return RasterOperator.calc(a=self, other=other, operator="**")
 
     def __le__(self, other):
-        return RasterOperator.calc(a=self, other=other, operator='<=')
+        return RasterOperator.calc(a=self, other=other, operator="<=")
 
     def __ge__(self, other):
-        return RasterOperator.calc(a=self, other=other, operator='>=')
+        return RasterOperator.calc(a=self, other=other, operator=">=")
 
     def __truediv__(self, other):
-        return RasterOperator.calc(a=self, other=other, operator='/')
+        return RasterOperator.calc(a=self, other=other, operator="/")
 
     def __mul__(self, other):
-        return RasterOperator.calc(a=self, other=other, operator='*')
+        return RasterOperator.calc(a=self, other=other, operator="*")
 
     def __eq__(self, other):
-        return RasterOperator.calc(a=self, other=other, operator='==')
+        return RasterOperator.calc(a=self, other=other, operator="==")
 
     def __gt__(self, other):
-        return RasterOperator.calc(a=self, other=other, operator='>')
+        return RasterOperator.calc(a=self, other=other, operator=">")
 
     def __lt__(self, other):
-        return RasterOperator.calc(a=self, other=other, operator='<')
+        return RasterOperator.calc(a=self, other=other, operator="<")
 
     @property
     def band_names(self) -> List[str]:
@@ -346,21 +348,14 @@ class RasterCollection(MutableMapping):
     def collection(self, value):
         """collection of the bands currently loaded"""
         if not isinstance(value, dict):
-            raise TypeError(
-                'Only dictionaries can be passed'
-            )
+            raise TypeError("Only dictionaries can be passed")
         if self._frozen:
-            raise ValueError(
-                'Existing collections cannot be overwritten'
-            )
+            raise ValueError("Existing collections cannot be overwritten")
         if not self._frozen:
             self._collection = value
 
     @check_band_names
-    def get_band_alias(
-            self,
-            band_name: str
-        ) -> Union[Dict[str, str], None]:
+    def get_band_alias(self, band_name: str) -> Union[Dict[str, str], None]:
         """
         Retuns the band_name-alias mapping of a given band
         in collection if the band has an alias, None instead
@@ -379,11 +374,11 @@ class RasterCollection(MutableMapping):
 
     @staticmethod
     def _bands_from_selection(
-            fpath_raster: Path,
-            band_idxs: Optional[List[int]] = None,
-            band_names_src: Optional[List[str]] = None,
-            band_names_dst: Optional[List[str]] = None
-            ) -> Dict[str, Union[str,int]]:
+        fpath_raster: Path,
+        band_idxs: Optional[List[int]] = None,
+        band_names_src: Optional[List[str]] = None,
+        band_names_dst: Optional[List[str]] = None,
+    ) -> Dict[str, Union[str, int]]:
         """
         Selects bands in a multi-band raster dataset based on a custom
         selection of band indices or band names
@@ -412,14 +407,14 @@ class RasterCollection(MutableMapping):
         band_names, band_count = None, None
         if band_idxs is None:
             try:
-                with rio.open(fpath_raster, 'r') as src:
+                with rio.open(fpath_raster, "r") as src:
                     band_names = list(src.descriptions)
                     band_count = src.count
             except Exception as e:
-                raise IOError(f'Could not read {fpath_raster}: {e}')
+                raise IOError(f"Could not read {fpath_raster}: {e}")
             # use default band names if not provided in data set
             if len(band_names) == 0:
-                band_names_src = [f'B{idx+1}' for idx in range(band_count)]
+                band_names_src = [f"B{idx+1}" for idx in range(band_count)]
             else:
                 band_names_src = band_names
             # is a selection of bands provided? If no use all available bands
@@ -427,32 +422,31 @@ class RasterCollection(MutableMapping):
             if band_names_src is None:
                 # get band indices of all bands, add 1 since GDAL starts
                 # counting at 1
-                band_idxs = [x+1 for x in range(band_count)]
+                band_idxs = [x + 1 for x in range(band_count)]
             else:
                 # get band indices of selected bands (+1 because of GDAL)
-                band_idxs = [band_names.index(x)+1 for x in band_names_src \
-                    if x in band_names]
+                band_idxs = [
+                    band_names.index(x) + 1 for x in band_names_src if x in band_names
+                ]
 
         band_count = len(band_idxs)
         # make sure neither band_idxs nor band_names_src is None or empty
         if band_idxs is None or len(band_idxs) == 0:
-            raise ValueError(
-                'No band indices could be determined'
-            )
+            raise ValueError("No band indices could be determined")
 
         # make sure band_names_src are set
         if band_names_src is None:
-            band_names_src = [f'B{idx+1}' for idx in range(band_count)]
+            band_names_src = [f"B{idx+1}" for idx in range(band_count)]
 
         # set band_names_dst to values of band_names_src or default names
         if band_names_dst is None:
             band_names_dst = band_names_src
 
         return {
-            'band_idxs': band_idxs,
-            'band_names_src': band_names_src,
-            'band_names_dst': band_names_dst,
-            'band_count': band_count
+            "band_idxs": band_idxs,
+            "band_names_src": band_names_src,
+            "band_names_dst": band_names_dst,
+            "band_count": band_count,
         }
 
     def copy(self):
@@ -464,14 +458,14 @@ class RasterCollection(MutableMapping):
 
     @classmethod
     def from_multi_band_raster(
-            cls,
-            fpath_raster: Path,
-            band_idxs: Optional[List[int]] = None,
-            band_names_src: Optional[List[str]] = None,
-            band_names_dst: Optional[List[str]] = None,
-            band_aliases: Optional[List[str]] = None,
-            **kwargs
-        ):
+        cls,
+        fpath_raster: Path,
+        band_idxs: Optional[List[int]] = None,
+        band_names_src: Optional[List[str]] = None,
+        band_names_dst: Optional[List[str]] = None,
+        band_aliases: Optional[List[str]] = None,
+        **kwargs,
+    ):
         """
         Loads bands from a multi-band raster file into a new
         `RasterCollection` instance.
@@ -509,47 +503,47 @@ class RasterCollection(MutableMapping):
             fpath_raster=fpath_raster,
             band_idxs=band_idxs,
             band_names_src=band_names_src,
-            band_names_dst=band_names_dst
+            band_names_dst=band_names_dst,
         )
 
         # make sure band aliases match the length of bands
         if band_aliases is not None:
-            if len(band_aliases) != band_props['band_count']:
+            if len(band_aliases) != band_props["band_count"]:
                 raise ValueError(
-                    f'Number of band_aliases ({len(band_aliases)}) does ' \
+                    f"Number of band_aliases ({len(band_aliases)}) does "
                     f'not match number of bands to load ({band_props["band_count"]})'
                 )
         else:
-            band_aliases =['' for _ in range(band_props['band_count'])]
+            band_aliases = ["" for _ in range(band_props["band_count"])]
 
         # loop over the bands and add them to an empty handler
         handler = cls()
-        for band_idx in range(band_props['band_count']):
+        for band_idx in range(band_props["band_count"]):
             try:
                 handler.add_band(
                     Band.from_rasterio,
                     fpath_raster=fpath_raster,
-                    band_idx=band_props['band_idxs'][band_idx],
-                    band_name_dst=band_props['band_names_dst'][band_idx],
+                    band_idx=band_props["band_idxs"][band_idx],
+                    band_name_dst=band_props["band_names_dst"][band_idx],
                     band_alias=band_aliases[band_idx],
-                    **kwargs
+                    **kwargs,
                 )
             except Exception as e:
                 raise Exception(
-                    f'Could not add band {band_names_src[band_idx]} ' \
-                    f'from {fpath_raster} to handler: {e}'
+                    f"Could not add band {band_names_src[band_idx]} "
+                    f"from {fpath_raster} to handler: {e}"
                 )
         return handler
 
     @classmethod
     def read_pixels(
-            cls,
-            fpath_raster: Path,
-            vector_features: Union[Path, gpd.GeoDataFrame],
-            band_idxs: List[Optional[int]] = None,
-            band_names_src: List[Optional[str]] = None,
-            band_names_dst: List[Optional[str]] = None
-        ) -> gpd.GeoDataFrame:
+        cls,
+        fpath_raster: Path,
+        vector_features: Union[Path, gpd.GeoDataFrame],
+        band_idxs: List[Optional[int]] = None,
+        band_names_src: List[Optional[str]] = None,
+        band_names_dst: List[Optional[str]] = None,
+    ) -> gpd.GeoDataFrame:
         """
         Wrapper around `~eodal.core.band.read_pixels` for raster datasets
         with multiple bands
@@ -590,26 +584,26 @@ class RasterCollection(MutableMapping):
             fpath_raster=fpath_raster,
             band_idxs=band_idxs,
             band_names_src=band_names_src,
-            band_names_dst=band_names_dst
+            band_names_dst=band_names_dst,
         )
 
         # loop over bands and extract values from raster dataset
-        for idx in range(band_props['band_count']):
+        for idx in range(band_props["band_count"]):
             if idx == 0:
                 gdf = Band.read_pixels(
                     fpath_raster=fpath_raster,
                     vector_features=vector_features,
-                    band_idx=band_props['band_idxs'][idx],
-                    band_name_src=band_props['band_names_src'][idx],
-                    band_name_dst=band_props['band_names_dst'][idx]
+                    band_idx=band_props["band_idxs"][idx],
+                    band_name_src=band_props["band_names_src"][idx],
+                    band_name_dst=band_props["band_names_dst"][idx],
                 )
             else:
                 gdf = Band.read_pixels(
                     fpath_raster=fpath_raster,
                     vector_features=gdf,
-                    band_idx=band_props['band_idxs'][idx],
-                    band_name_src=band_props['band_names_src'][idx],
-                    band_name_dst=band_props['band_names_dst'][idx]
+                    band_idx=band_props["band_idxs"][idx],
+                    band_name_src=band_props["band_names_src"][idx],
+                    band_name_dst=band_props["band_names_dst"][idx],
                 )
 
         return gdf
@@ -629,9 +623,8 @@ class RasterCollection(MutableMapping):
         self.__delitem__(band_name)
 
     def is_bandstack(
-            self,
-            band_selection: Optional[List[str]] = None
-        ) -> Union[bool, None]:
+        self, band_selection: Optional[List[str]] = None
+    ) -> Union[bool, None]:
         """
         Checks if the rasters handled in the collection fulfill the bandstack
         criteria.
@@ -658,15 +651,12 @@ class RasterCollection(MutableMapping):
         # otherwise use the first band (that will then always exist)
         # as reference to check the other bands (if any) against
         first_geo_info = self[band_selection[0]].geo_info
-        first_shape = (
-            self[band_selection[0]].nrows,
-            self[band_selection[0]].ncols
-        )
+        first_shape = (self[band_selection[0]].nrows, self[band_selection[0]].ncols)
         for idx in range(1, len(band_selection)):
             this_geo_info = self[band_selection[idx]].geo_info
             this_shape = (
                 self[band_selection[idx]].nrows,
-                self[band_selection[idx]].ncols
+                self[band_selection[idx]].ncols,
             )
             if this_shape != first_shape:
                 return False
@@ -684,11 +674,8 @@ class RasterCollection(MutableMapping):
         return True
 
     def add_band(
-            self,
-            band_constructor: Union[Callable[..., Band],Band],
-            *args,
-            **kwargs
-        ) -> None:
+        self, band_constructor: Union[Callable[..., Band], Band], *args, **kwargs
+    ) -> None:
         """
         Adds a band to the collection of raster bands.
 
@@ -711,22 +698,18 @@ class RasterCollection(MutableMapping):
             else:
                 band = band_constructor.__call__(*args, **kwargs)
         except Exception as e:
-            raise ValueError(f'Cannot initialize new Band instance: {e}')
-        
+            raise ValueError(f"Cannot initialize new Band instance: {e}")
+
         try:
             self.__setitem__(band)
             # forward band alias if any
             if band.has_alias:
                 self._band_aliases.append(band.band_alias)
         except Exception as e:
-            raise KeyError(f'Cannot add raster band: {e}')
+            raise KeyError(f"Cannot add raster band: {e}")
 
     @check_band_names
-    def plot_band(
-            self,
-            band_name: str,
-            **kwargs
-        ) -> Figure:
+    def plot_band(self, band_name: str, **kwargs) -> Figure:
         """
         Plots a band in the collection of raster bands.
 
@@ -743,11 +726,11 @@ class RasterCollection(MutableMapping):
 
     @check_band_names
     def plot_multiple_bands(
-            self,
-            band_selection: Optional[List[str]] = None,
-            ax: Optional[Axes] = None,
-            **kwargs
-        ):
+        self,
+        band_selection: Optional[List[str]] = None,
+        ax: Optional[Axes] = None,
+        **kwargs,
+    ):
         """
         Plots three selected bands in a pseudo RGB with 8bit color-depth.
 
@@ -777,12 +760,12 @@ class RasterCollection(MutableMapping):
         # but raise an error when less than three bands are available
         # unless it's
         elif len(band_selection) < 3:
-            raise ValueError('Need three bands to plot')
+            raise ValueError("Need three bands to plot")
 
         # check if data can be stacked
         if not self.is_bandstack(band_selection):
             raise ValueError(
-                'Bands to plot must share same spatial extent, pixel size and CRS'
+                "Bands to plot must share same spatial extent, pixel size and CRS"
             )
 
         # get bounds in the spatial coordinate system for plotting
@@ -808,9 +791,10 @@ class RasterCollection(MutableMapping):
         masked = []
         for band_name in band_selection:
             band_data = self.get_band(band_name).values
-            new_arr = ((band_data - band_data.min()) * \
-                       (1/(band_data.max() - band_data.min()) * \
-                        255)).astype('uint8')
+            new_arr = (
+                (band_data - band_data.min())
+                * (1 / (band_data.max() - band_data.min()) * 255)
+            ).astype("uint8")
             array_list.append(new_arr)
             masked.append(isinstance(new_arr, np.ma.MaskedArray))
         # stack arrays into 3d array
@@ -831,28 +815,23 @@ class RasterCollection(MutableMapping):
             ax = fig.add_subplot(111)
         else:
             fig = ax.get_figure()
-        ax.imshow(
-            stack,
-            vmin=vmin,
-            vmax=vmax,
-            extent=[xmin, xmax, ymin, ymax]
-        )
+        ax.imshow(stack, vmin=vmin, vmax=vmax, extent=[xmin, xmax, ymin, ymax])
         # set axis labels
         epsg = self[band_selection[0]].geo_info.epsg
         if self[band_selection[0]].crs.is_geographic:
-            unit = 'deg'
+            unit = "deg"
         elif self[band_selection[0]].crs.is_projected:
-            unit = 'm'
-        fontsize = kwargs.get('fontsize', 12)
-        ax.set_xlabel(f'X [{unit}] (EPSG:{epsg})', fontsize=fontsize)
+            unit = "m"
+        fontsize = kwargs.get("fontsize", 12)
+        ax.set_xlabel(f"X [{unit}] (EPSG:{epsg})", fontsize=fontsize)
         ax.xaxis.set_ticks(np.arange(xmin, xmax, x_interval))
-        ax.set_ylabel(f'Y [{unit}] (EPSG:{epsg})', fontsize=fontsize)
+        ax.set_ylabel(f"Y [{unit}] (EPSG:{epsg})", fontsize=fontsize)
         ax.yaxis.set_ticks(np.arange(ymin, ymax, y_interval))
-        ax.xaxis.set_major_formatter(ticker.FormatStrFormatter('%.0f'))
-        ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.0f'))
+        ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
+        ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
         # add title str
         title_str = ", ".join(band_selection)
-        ax.set_title(title_str, fontdict={'fontsize': fontsize})
+        ax.set_title(title_str, fontdict={"fontsize": fontsize})
         return fig
 
     @check_band_names
@@ -870,10 +849,10 @@ class RasterCollection(MutableMapping):
 
     # @check_band_names
     def get_pixels(
-            self,
-            vector_features: Union[Path, gpd.GeoDataFrame],
-            band_selection: Optional[List[str]] = None
-        ) -> gpd.GeoDataFrame:
+        self,
+        vector_features: Union[Path, gpd.GeoDataFrame],
+        band_selection: Optional[List[str]] = None,
+    ) -> gpd.GeoDataFrame:
         """
         Returns pixel values from bands in the collection as ``GeoDataFrame``.
 
@@ -911,9 +890,8 @@ class RasterCollection(MutableMapping):
 
     @check_band_names
     def get_values(
-            self,
-            band_selection: Optional[List[str]] = None
-        ) -> Union[np.ma.MaskedArray, np.ndarray]:
+        self, band_selection: Optional[List[str]] = None
+    ) -> Union[np.ma.MaskedArray, np.ndarray]:
         """
         Returns raster values as stacked array in collection.
 
@@ -936,8 +914,8 @@ class RasterCollection(MutableMapping):
         # cell size and spatial coordinate system (if not stacking fails)
         if not self.is_bandstack(band_selection):
             raise ValueError(
-                'Cannot stack raster bands - they do not align spatially ' \
-                'to each other.\nConsider reprojection/ resampling first.'
+                "Cannot stack raster bands - they do not align spatially "
+                "to each other.\nConsider reprojection/ resampling first."
             )
 
         stack_bands = [self.get_band(x).values for x in band_selection]
@@ -954,14 +932,14 @@ class RasterCollection(MutableMapping):
         elif set(array_types) == {zarr.core.Array}:
             raise NotImplementedError()
         else:
-            raise ValueError('Unsupported array type')
+            raise ValueError("Unsupported array type")
 
     @check_band_names
     def band_summaries(
-            self,
-            band_selection: Optional[List[str]] = None,
-            methods: Optional[List[str]] = ['nanmin', 'nanmean', 'nanstd', 'nanmax']
-        ) -> pd.DataFrame:
+        self,
+        band_selection: Optional[List[str]] = None,
+        methods: Optional[List[str]] = ["nanmin", "nanmean", "nanstd", "nanmax"],
+    ) -> pd.DataFrame:
         """
         Descriptive band statistics
 
@@ -978,17 +956,17 @@ class RasterCollection(MutableMapping):
             band_selection = self.band_names
         for band_name in band_selection:
             band_stats = self[band_name].reduce(method=methods)
-            band_stats['band_name'] = band_name
+            band_stats["band_name"] = band_name
             stats.append(band_stats)
         return pd.DataFrame(stats)
 
     @check_band_names
     def reproject(
-            self,
-            band_selection: Optional[List[str]] = None,
-            inplace: Optional[bool] = False,
-            **kwargs
-        ):
+        self,
+        band_selection: Optional[List[str]] = None,
+        inplace: Optional[bool] = False,
+        **kwargs,
+    ):
         """
         Reprojects band in the collection from one coordinate system
         into another
@@ -1009,10 +987,10 @@ class RasterCollection(MutableMapping):
         # initialize a new raster collection if inplace is False
         collection = None
         if inplace:
-            kwargs.update({'inplace': True})
+            kwargs.update({"inplace": True})
         else:
             attrs = deepcopy(self.__dict__)
-            attrs.pop('_collection')
+            attrs.pop("_collection")
             collection = RasterCollection(**attrs)
 
         # loop over band reproject the selected ones
@@ -1021,20 +999,17 @@ class RasterCollection(MutableMapping):
                 self.collection[band_name].reproject(**kwargs)
             else:
                 band = self.get_band(band_name)
-                collection.add_band(
-                    band_constructor=band.reproject,
-                    **kwargs
-                )
+                collection.add_band(band_constructor=band.reproject, **kwargs)
 
         return collection
 
     @check_band_names
     def resample(
-            self,
-            band_selection: Optional[List[str]] = None,
-            inplace: Optional[bool] = False,
-            **kwargs
-        ):
+        self,
+        band_selection: Optional[List[str]] = None,
+        inplace: Optional[bool] = False,
+        **kwargs,
+    ):
         """
         Resamples band in the collection into a different spatial resolution
 
@@ -1054,10 +1029,10 @@ class RasterCollection(MutableMapping):
         # initialize a new raster collection if inplace is False
         collection = None
         if inplace:
-            kwargs.update({'inplace': True})
+            kwargs.update({"inplace": True})
         else:
             attrs = deepcopy(self.__dict__)
-            attrs.pop('_collection')
+            attrs.pop("_collection")
             collection = RasterCollection(**attrs)
 
         # loop over band reproject the selected ones
@@ -1066,21 +1041,18 @@ class RasterCollection(MutableMapping):
                 self.collection[band_name].resample(**kwargs)
             else:
                 band = self.get_band(band_name)
-                collection.add_band(
-                    band_constructor=band.resample,
-                    **kwargs
-                )
+                collection.add_band(band_constructor=band.resample, **kwargs)
 
         return collection
 
     def mask(
-            self,
-            mask: Union[str, np.ndarray],
-            mask_values: Optional[List[Any]] = None,
-            keep_mask_values: Optional[bool] = False,
-            bands_to_mask: Optional[List[str]] = None,
-            inplace: Optional[bool] = False
-        ):
+        self,
+        mask: Union[str, np.ndarray],
+        mask_values: Optional[List[Any]] = None,
+        keep_mask_values: Optional[bool] = False,
+        bands_to_mask: Optional[List[str]] = None,
+        inplace: Optional[bool] = False,
+    ):
         """
         Masks pixels of bands in the collection using a boolean array.
 
@@ -1110,19 +1082,19 @@ class RasterCollection(MutableMapping):
         """
         # check mask and prepare it if required
         if isinstance(mask, np.ndarray):
-            if mask.dtype != 'bool':
-                raise TypeError('When providing an array it must be boolean')
+            if mask.dtype != "bool":
+                raise TypeError("When providing an array it must be boolean")
             if len(mask.shape) != 2:
-                raise ValueError('When providing an array it must be 2-dimensional')
+                raise ValueError("When providing an array it must be 2-dimensional")
         elif isinstance(mask, str):
             try:
-                mask = self.get_values(band_selection=[mask])[0,:,:]
+                mask = self.get_values(band_selection=[mask])[0, :, :]
             except Exception as e:
-                raise ValueError(f'Invalid mask band: {e}')
+                raise ValueError(f"Invalid mask band: {e}")
             # translate mask band into boolean array
             if mask_values is None:
                 raise ValueError(
-                    'When using a band as mask, you have to provide a list of mask values'
+                    "When using a band as mask, you have to provide a list of mask values"
                 )
             # convert the mask to a temporary binary mask
             tmp = np.zeros_like(mask)
@@ -1133,10 +1105,10 @@ class RasterCollection(MutableMapping):
             else:
                 # drop all values in mask_values
                 tmp[np.isin(mask, mask_values)] = 1
-            mask = tmp.astype('bool')
+            mask = tmp.astype("bool")
         else:
             raise TypeError(
-                f'Mask must be either band_name or np.ndarray not {type(mask)}'
+                f"Mask must be either band_name or np.ndarray not {type(mask)}"
             )
 
         # check bands to mask
@@ -1146,50 +1118,45 @@ class RasterCollection(MutableMapping):
         # check shapes of bands and mask before applying the mask
         if not self.is_bandstack(band_selection=bands_to_mask):
             raise ValueError(
-                'Can only mask bands that have the same spatial extent, pixel size and CRS'
+                "Can only mask bands that have the same spatial extent, pixel size and CRS"
             )
         if mask.shape[0] != self[bands_to_mask[0]].nrows:
             raise ValueError(
-                f'Number of rows in mask ({mask.shape[0]}) does not match ' \
-                f'number of rows in the raster data ({self[bands_to_mask[0]].nrows})'
+                f"Number of rows in mask ({mask.shape[0]}) does not match "
+                f"number of rows in the raster data ({self[bands_to_mask[0]].nrows})"
             )
         if mask.shape[1] != self[bands_to_mask[0]].ncols:
             raise ValueError(
-                f'Number of columns in mask ({mask.shape[1]}) does not match ' \
-                f'number of columns in the raster data ({self[bands_to_mask[0]].ncols})'
+                f"Number of columns in mask ({mask.shape[1]}) does not match "
+                f"number of columns in the raster data ({self[bands_to_mask[0]].ncols})"
             )
 
         # initialize a new raster collection if inplace is False
         collection = None
         if not inplace:
             attrs = deepcopy(self.__dict__)
-            attrs.pop('_collection')
+            attrs.pop("_collection")
             collection = RasterCollection(**attrs)
 
         # loop over band reproject the selected ones
         for band_name in bands_to_mask:
             if inplace:
-                self[band_name].mask(
-                    mask=mask,
-                    inplace=inplace
-                )
+                self[band_name].mask(mask=mask, inplace=inplace)
             else:
                 band = self.get_band(band_name)
                 collection.add_band(
-                    band_constructor=band.mask,
-                    mask=mask,
-                    inplace=inplace
+                    band_constructor=band.mask, mask=mask, inplace=inplace
                 )
 
         return collection
 
     @check_band_names
     def scale(
-            self,
-            band_selection: Optional[List[str]] = None,
-            inplace: Optional[bool] = False,
-            **kwargs
-        ):
+        self,
+        band_selection: Optional[List[str]] = None,
+        inplace: Optional[bool] = False,
+        **kwargs,
+    ):
         """
         Applies gain and offset factors to bands in collection
 
@@ -1211,23 +1178,20 @@ class RasterCollection(MutableMapping):
         collection = None
         if not inplace:
             attrs = deepcopy(self.__dict__)
-            attrs.pop('_collection')
+            attrs.pop("_collection")
             collection = RasterCollection(**attrs)
 
         # loop over band reproject the selected ones
         for band_name in band_selection:
             if inplace:
-                self.collection[band_name].scale_data(
-                    inplace=inplace,
-                    **kwargs
-                )
+                self.collection[band_name].scale_data(inplace=inplace, **kwargs)
             else:
                 # TODO: there seems to be a bug here
                 band = self.get_band(band_name)
                 collection.add_band(
                     band_constructor=band.scale_data,
                     inplace=True,  # within the band instance `inplace` must be True,
-                    **kwargs
+                    **kwargs,
                 )
         return collection
 
@@ -1239,10 +1203,8 @@ class RasterCollection(MutableMapping):
         """
 
     def calc_si(
-            self,
-            si_name: str,
-            inplace: Optional[bool] = False
-        ) -> Union[None, np.ndarray, np.ma.MaskedArray]:
+        self, si_name: str, inplace: Optional[bool] = False
+    ) -> Union[None, np.ndarray, np.ma.MaskedArray]:
         """
         Calculates a spectral index based on color-names (set as band aliases)
 
@@ -1258,8 +1220,9 @@ class RasterCollection(MutableMapping):
         if inplace:
             # look for spectral band with same shape to take geo-info from
             geo_info = [
-                self[x].geo_info for x in self.band_names if \
-                self[x].values.shape == si_values.shape
+                self[x].geo_info
+                for x in self.band_names
+                if self[x].values.shape == si_values.shape
             ][0]
             self.add_band(
                 band_constructor=Band,
@@ -1267,16 +1230,15 @@ class RasterCollection(MutableMapping):
                 geo_info=geo_info,
                 band_alias=si_name.lower(),
                 values=si_values,
-                nodata=nodata
+                nodata=nodata,
             )
         else:
             return si_values
 
     @check_band_names
     def to_dataframe(
-            self,
-            band_selection: Optional[List[str]] = None
-        ) -> gpd.GeoDataFrame:
+        self, band_selection: Optional[List[str]] = None
+    ) -> gpd.GeoDataFrame:
         """
         Converts the bands in collection to a ``GeoDataFrame``
 
@@ -1302,15 +1264,15 @@ class RasterCollection(MutableMapping):
                 # otherwise we can try to merge the pixels passed on
                 # their geometries
                 else:
-                    gdf = gdf.join(gdf_band[band_name, 'geometry'], on='geometry')
+                    gdf = gdf.join(gdf_band[band_name, "geometry"], on="geometry")
         return gdf
 
     def to_rasterio(
-            self,
-            fpath_raster: Path,
-            band_selection: Optional[List[str]] = None,
-            use_band_aliases: Optional[bool] = False
-        ) -> None:
+        self,
+        fpath_raster: Path,
+        band_selection: Optional[List[str]] = None,
+        use_band_aliases: Optional[bool] = False,
+    ) -> None:
         """
         Writes bands in collection to a raster dataset on disk using
         ``rasterio`` drivers
@@ -1330,26 +1292,26 @@ class RasterCollection(MutableMapping):
             driver = driver_from_extension(fpath_raster)
         except Exception as e:
             raise ValueError(
-                f'Could not determine GDAL driver for ' \
-                f'{fpath_raster.name}: {e}'
+                f"Could not determine GDAL driver for " f"{fpath_raster.name}: {e}"
             )
 
         # check band_selection, if not provided use all available bands
         if band_selection is None:
             band_selection = self.band_names
         if len(band_selection) == 0:
-            raise ValueError('No band selected for writing to raster file')
+            raise ValueError("No band selected for writing to raster file")
 
         # make sure all bands share the same extent, pixel size and CRS
         if not self.is_bandstack(band_selection):
             raise ValueError(
-                'Cannot write bands with different shapes, pixels sizes ' \
-                'and CRS to raster data set')
+                "Cannot write bands with different shapes, pixels sizes "
+                "and CRS to raster data set"
+            )
 
         # check for band aliases if they shall be used
         if use_band_aliases:
             if not self.has_band_aliases:
-                raise ValueError('No band aliases available')
+                raise ValueError("No band aliases available")
             band_idxs = [self.band_names.index(x) for x in band_selection]
             band_selection = [self.band_aliases[x] for x in band_idxs]
 
@@ -1358,29 +1320,31 @@ class RasterCollection(MutableMapping):
         dtypes = [self[x].values.dtype for x in band_selection]
         if len(set(dtypes)) != 1:
             UserWarning(
-                f'Multiple data types found in arrays to write ({set(dtypes)}). ' \
-                f'Casting to highest data type'
+                f"Multiple data types found in arrays to write ({set(dtypes)}). "
+                f"Casting to highest data type"
             )
 
         if len(set(dtypes)) == 1:
             dtype_str = str(dtypes[0])
         else:
             # TODO: determine highest dtype
-            dtype_str = 'float32'
+            dtype_str = "float32"
 
         # update driver, the number of bands and the metadata value
-        meta.update({
-            'driver': driver,
-            'count': len(band_selection),
-            'dtype': dtype_str,
-            'nodata': self[band_selection[0]].nodata
-        })
+        meta.update(
+            {
+                "driver": driver,
+                "count": len(band_selection),
+                "dtype": dtype_str,
+                "nodata": self[band_selection[0]].nodata,
+            }
+        )
 
         # open the result dataset and try to write the bands
-        with rio.open(fpath_raster, 'w+', **meta) as dst:
+        with rio.open(fpath_raster, "w+", **meta) as dst:
             for idx, band_name in enumerate(band_selection):
                 # check with band name to set
-                dst.set_band_description(idx+1, band_name)
+                dst.set_band_description(idx + 1, band_name)
                 # write band data
                 band_data = self.get_band(band_name).values.astype(dtype_str)
                 # set masked pixels to nodata
@@ -1388,13 +1352,10 @@ class RasterCollection(MutableMapping):
                     vals = band_data.data
                     mask = band_data.mask
                     vals[mask] = self[band_name].nodata
-                dst.write(band_data, idx+1)
+                dst.write(band_data, idx + 1)
 
     @check_band_names
-    def to_xarray(
-            self,
-            band_selection: Optional[List[str]] = None
-        ) -> xr.DataArray:
+    def to_xarray(self, band_selection: Optional[List[str]] = None) -> xr.DataArray:
         """
         Converts bands in collection a ``xarray.DataArray``
         """
@@ -1404,8 +1365,8 @@ class RasterCollection(MutableMapping):
         # bands must have same extent, pixel size and CRS
         if not self.is_bandstack(band_selection):
             raise ValueError(
-                'Selected bands must share same spatial extent, pixel size ' \
-                'and coordinate system'
+                "Selected bands must share same spatial extent, pixel size "
+                "and coordinate system"
             )
         # loop over bands and convert them to xarray
         band_xarr_list = []
@@ -1417,7 +1378,7 @@ class RasterCollection(MutableMapping):
             band_attrs_list.append(band_xarr.attrs)
 
         # merge the single xarrays in the list into a single big one
-        xarr = xr.concat(band_xarr_list, dim='band', combine_attrs='drop')
+        xarr = xr.concat(band_xarr_list, dim="band", combine_attrs="drop")
         # add the attributes from the concated objects
         xarr_attrs = deepcopy(band_attrs_list[0])
         for idx, band_attr in enumerate(band_attrs_list):
@@ -1429,10 +1390,8 @@ class RasterCollection(MutableMapping):
                 # except the 'transform' entry that remains the same
                 # for all bands
                 if isinstance(xarr_attrs[attr], tuple):
-                    if attr != 'transform':
+                    if attr != "transform":
                         attrs_list = list(xarr_attrs[attr])
                         attrs_list.append(band_attr[attr][0])
-                        xarr_attrs.update({
-                            attr: tuple(attrs_list)
-                        })
+                        xarr_attrs.update({attr: tuple(attrs_list)})
         return xarr.assign_attrs(xarr_attrs)

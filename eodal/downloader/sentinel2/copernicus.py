@@ -1,4 +1,4 @@
-'''
+"""
 This module is a very basic approach to query the Sentinel Copernicus
 archive using the Sentinelsat package as API client.
 Before executing, make sure to have DHUS_USER and DHUS_PASSWORD
@@ -28,7 +28,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import os
 from pathlib import Path
@@ -45,29 +45,26 @@ Settings = get_settings()
 logger = Settings.logger
 
 # take credentials from the environmental variables and authenticate
-URL = 'https://apihub.copernicus.eu/apihub'  
-DHUS_USER = os.getenv('DHUS_USER', '')
-DHUS_PASSWORD = os.getenv('DHUS_PASSWORD', '')
-api = SentinelAPI(
-    DHUS_USER,
-    DHUS_PASSWORD,
-    URL
-)
+URL = "https://apihub.copernicus.eu/apihub"
+DHUS_USER = os.getenv("DHUS_USER", "")
+DHUS_PASSWORD = os.getenv("DHUS_PASSWORD", "")
+api = SentinelAPI(DHUS_USER, DHUS_PASSWORD, URL)
+
 
 class Platforms(Enum):
-    Sentinel1 = 'Sentinel-1'
-    Sentinel2 = 'Sentinel-2'
-    Sentinel3 = 'Sentinel-3'
+    Sentinel1 = "Sentinel-1"
+    Sentinel2 = "Sentinel-2"
+    Sentinel3 = "Sentinel-3"
 
 
 def query_from_copernicus(
-        footprint_file: Path,
-        date_start: date,
-        date_end: date,
-        platform: Platforms,
-        cloud_cover_threshold: Optional[float]=80.,
-        **kwargs
-    ) -> pd.DataFrame:
+    footprint_file: Path,
+    date_start: date,
+    date_end: date,
+    platform: Platforms,
+    cloud_cover_threshold: Optional[float] = 80.0,
+    **kwargs,
+) -> pd.DataFrame:
     """
     This method can be used to query Sentinel (1,2,3) data
     from Copernicus Scientific Data Hub (DHUS) using the user
@@ -110,12 +107,12 @@ def query_from_copernicus(
     try:
         gdf = gpd.read_file(footprint_file)
     except Exception as e:
-        logger.error(f'Could not read data from {footprint_file}')
+        logger.error(f"Could not read data from {footprint_file}")
         return pd.DataFrame()
 
     if gdf.shape[0] > 1:
         logger.warn(
-            'Got more than one footprint feature; take the first and ignore the rest'
+            "Got more than one footprint feature; take the first and ignore the rest"
         )
 
     # check spatial reference system
@@ -126,9 +123,7 @@ def query_from_copernicus(
     footprint = gdf.geometry.iloc[0].wkt
 
     products = api.query(
-        footprint,
-        date=(date_start, date_end),
-        platformname=platform.value
+        footprint, date=(date_start, date_end), platformname=platform.value
     )
 
     # convert to pandas dataframe
@@ -143,19 +138,17 @@ def query_from_copernicus(
     if len(kwargs) > 0:
         try:
             custom_filtered = product_cc_filtered.loc[
-                (product_cc_filtered[list(kwargs)] == pd.Series(kwargs)).all(axis=1)].copy()
+                (product_cc_filtered[list(kwargs)] == pd.Series(kwargs)).all(axis=1)
+            ].copy()
         except Exception as e:
-            logger.error(f'Could not apply filtering logic {e}. Return unfiltered df')
+            logger.error(f"Could not apply filtering logic {e}. Return unfiltered df")
             return product_cc_filtered
         return custom_filtered
     else:
         return product_cc_filtered
 
 
-def download_data(
-        df: pd.DataFrame,
-        download_dir: Path
-    ) -> None:
+def download_data(df: pd.DataFrame, download_dir: Path) -> None:
     """
     downloads Sentinel products from Copernicus DHUS
     using the download API client implemented in Sentinelsat.
@@ -167,10 +160,7 @@ def download_data(
         directory where to download the data to
     """
     try:
-        api.download_all(
-            df.index,
-            directory_path=download_dir
-        )
+        api.download_all(df.index, directory_path=download_dir)
     except Exception as e:
-        logger.error(f'Download failed: {e}')
+        logger.error(f"Download failed: {e}")
         return

@@ -1,4 +1,4 @@
-'''
+"""
 Functions to ingest new, remote sensing platform-independent
 data into the metadata DB.
 
@@ -16,7 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import geopandas as gpd
 
@@ -31,15 +31,12 @@ from eodal.metadata.database.db_model import Regions
 Settings = get_settings()
 logger = Settings.logger
 
-DB_URL = f'postgresql://{Settings.DB_USER}:{Settings.DB_PW}@{Settings.DB_HOST}:{Settings.DB_PORT}/{Settings.DB_NAME}'
+DB_URL = f"postgresql://{Settings.DB_USER}:{Settings.DB_PW}@{Settings.DB_HOST}:{Settings.DB_PORT}/{Settings.DB_NAME}"
 engine = create_engine(DB_URL, echo=Settings.ECHO_DB)
 session = sessionmaker(bind=engine)()
 
 
-def add_region(
-        region_identifier: str,
-        region_file: Path
-    ) -> None:
+def add_region(region_identifier: str, region_file: Path) -> None:
     """
     Adds a new region to the database. Regions are geograhic extents
     (aka bounding boxes) used to organize archive queries (e.g., from
@@ -61,12 +58,9 @@ def add_region(
     # use the first feature (all others are ignored)
     bounding_box = region_data.geometry.iloc[0]
     # the insert requires extended Well Know Text (eWKT)
-    bounding_box_ewkt = f'SRID=4326;{bounding_box.wkt}'
+    bounding_box_ewkt = f"SRID=4326;{bounding_box.wkt}"
 
-    insert_dict = {
-        'region_uid': region_identifier,
-        'geom': bounding_box_ewkt
-    }
+    insert_dict = {"region_uid": region_identifier, "geom": bounding_box_ewkt}
 
     try:
         session.add(Regions(**insert_dict))

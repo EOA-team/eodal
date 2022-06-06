@@ -1,4 +1,4 @@
-'''
+"""
 Function to keep a local Sentinel-2 archive up-to-date by comparing data available
 in your local archive for a given geographic region, time period and processing level
 with records available from CREODIAS (user credentials required).
@@ -28,7 +28,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import pandas as pd
 import numpy as np
@@ -50,16 +50,16 @@ logger = get_settings()
 
 
 def pull_from_creodias(
-        date_start: date,
-        date_end: date,
-        processing_level: ProcessingLevels,
-        path_out: Path,
-        region: str,
-        cloud_cover_threshold: Optional[int] = 100,
-        unzip: Optional[bool] = True,
-        overwrite_existing_zips: Optional[bool] = False
-    ) -> pd.DataFrame:
-    '''
+    date_start: date,
+    date_end: date,
+    processing_level: ProcessingLevels,
+    path_out: Path,
+    region: str,
+    cloud_cover_threshold: Optional[int] = 100,
+    unzip: Optional[bool] = True,
+    overwrite_existing_zips: Optional[bool] = False,
+) -> pd.DataFrame:
+    """
     Checks if CREODIAS has Sentinel-2 datasets not yet available locally
     and downloads these datasets from CREODIAS.
 
@@ -93,18 +93,18 @@ def pull_from_creodias(
         The function does **not** check if a dataset was downloaded completely!
     :return:
         dataframe with references to downloaded datasets
-    '''
+    """
 
     # query database to get the bounding box of the selected region
     try:
         region_gdf = get_region(region)
     except Exception as e:
-        logger.error(f'Failed to query region: {e}')
+        logger.error(f"Failed to query region: {e}")
         return
 
     # parse the region's geometry as extended well-known-text
     bounding_box = region_gdf.geometry.iloc[0]
-    bounding_box_ewkt = f'SRID=4326;{bounding_box.wkt}'
+    bounding_box_ewkt = f"SRID=4326;{bounding_box.wkt}"
 
     # local database query to check what is already available locally
     try:
@@ -112,12 +112,12 @@ def pull_from_creodias(
             date_start=date_start,
             date_end=date_end,
             processing_level=processing_level,
-            bounding_box=bounding_box_ewkt
+            bounding_box=bounding_box_ewkt,
         )
     except Exception as e:
-        logger.error(f'Failed to query local datasets: {e}')
+        logger.error(f"Failed to query local datasets: {e}")
         return
-    
+
     # set max_records to 2000 (CREODIAS currently does not allow more)
     max_records = 2000
 
@@ -128,19 +128,18 @@ def pull_from_creodias(
         max_records=max_records,
         processing_level=processing_level,
         bounding_box=bounding_box,
-        cloud_cover_threshold=cloud_cover_threshold
+        cloud_cover_threshold=cloud_cover_threshold,
     )
 
     # get .SAFE datasets from CREODIAS
-    datasets['product_uri'] = datasets.properties.apply(
-        lambda x: Path(x['productIdentifier']).name
+    datasets["product_uri"] = datasets.properties.apply(
+        lambda x: Path(x["productIdentifier"]).name
     )
 
     # compare with records from local metadata DB and keep those records
     # not available locally
     missing_datasets = np.setdiff1d(
-        datasets['product_uri'].values,
-        meta_db_df['product_uri'].values
+        datasets["product_uri"].values, meta_db_df["product_uri"].values
     )
     datasets_filtered = datasets[datasets.product_uri.isin(missing_datasets)]
 
@@ -148,7 +147,7 @@ def pull_from_creodias(
     download_datasets(
         datasets=datasets_filtered,
         download_dir=path_out,
-        overwrite_existing_zips=overwrite_existing_zips
+        overwrite_existing_zips=overwrite_existing_zips,
     )
 
     # unzip datasets

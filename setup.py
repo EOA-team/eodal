@@ -51,7 +51,7 @@ if extras_require:
 # are installed.
 # https://packaging.python.org/guides/single-sourcing-package-version/
 meta = {}
-exec(read("package_name/__meta__.py"), meta)
+exec(read("eodal/__meta__.py"), meta)
 
 
 # Import the README and use it as the long-description.

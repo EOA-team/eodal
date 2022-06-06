@@ -1,4 +1,4 @@
-'''
+"""
 Base class defining map algebra operators
 
 Copyright (C) 2022 Lukas Valentin Graf
@@ -15,15 +15,17 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 from typing import List
+
 
 class Operator:
     """
     Band operator supporting basic algebraic operations
     """
-    operators: List[str] = ['+', '-', '*', '/', '**', '<', '>', '==', '<=', '>=']
+
+    operators: List[str] = ["+", "-", "*", "/", "**", "<", ">", "==", "<=", ">="]
 
     class BandMathError(Exception):
         pass
@@ -39,7 +41,7 @@ class Operator:
         # check operator passed first
         if operator not in cls.operators:
             raise ValueError(f'Unknown operator "{operator}"')
-    
+
     @classmethod
     def calc(cls):
         """

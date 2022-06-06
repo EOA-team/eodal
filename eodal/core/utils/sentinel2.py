@@ -1,4 +1,4 @@
-'''
+"""
 Helper functions to read Sentinel-2 TCI (RGB quicklook) and Scene Classification Layer
 (SCL) file from a .SAFE dataset.
 
@@ -16,7 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 from pathlib import Path
 from typing import Optional
@@ -28,10 +28,7 @@ from eodal.utils.sentinel2 import get_S2_processing_level
 from eodal.utils.constants.sentinel2 import ProcessingLevels
 
 
-def read_s2_sclfile(
-        in_dir: Path,
-        in_file_aoi: Optional[Path] = None
-    ) -> Sentinel2:
+def read_s2_sclfile(in_dir: Path, in_file_aoi: Optional[Path] = None) -> Sentinel2:
     """
     Reads the Sentinel-2 scene classification layer (SCL) file from
     a dataset in .SAFE format.
@@ -49,17 +46,12 @@ def read_s2_sclfile(
     """
     # read SCL file and return
     scl = Sentinel2().from_safe(
-        in_dir=in_dir,
-        vector_features=in_file_aoi,
-        band_selection=['SCL']
+        in_dir=in_dir, vector_features=in_file_aoi, band_selection=["SCL"]
     )
     return scl
 
 
-def read_s2_tcifile(
-        in_dir: Path,
-        in_file_aoi: Optional[Path] = None
-    ) -> Sentinel2:
+def read_s2_tcifile(in_dir: Path, in_file_aoi: Optional[Path] = None) -> Sentinel2:
     """
     Reads the Sentinel-2 RGB quicklook file from a data set in
     .SAFE format (processing levels L1C and L2A)
@@ -81,23 +73,18 @@ def read_s2_tcifile(
         is_l2a = True
 
     try:
-        tci_file = get_S2_tci(
-            in_dir=in_dir,
-            is_L2A=is_l2a
-        )
+        tci_file = get_S2_tci(in_dir=in_dir, is_L2A=is_l2a)
     except Exception as e:
         raise Exception from e
 
     try:
         tci = RasterCollection.from_multi_band_raster(
             fpath_raster=tci_file,
-            band_idxs=[1,2,3],
-            band_aliases=['red', 'green', 'blue'],
-            vector_features=in_file_aoi
+            band_idxs=[1, 2, 3],
+            band_aliases=["red", "green", "blue"],
+            vector_features=in_file_aoi,
         )
     except Exception as e:
         raise Exception from e
 
     return tci
-
-        

@@ -1,4 +1,4 @@
-'''
+"""
 Implementation of a data model for eodal's metadata DB including
 platform specific tables for storing e.g., Sentinel-2 metadata
 
@@ -16,7 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 
 from sqlalchemy import create_engine
@@ -35,21 +35,21 @@ logger = Settings.logger
 metadata = MetaData(schema=Settings.DEFAULT_SCHEMA)
 Base = declarative_base(metadata=metadata)
 
-DB_URL = f'postgresql://{Settings.DB_USER}:{Settings.DB_PW}@{Settings.DB_HOST}:{Settings.DB_PORT}/{Settings.DB_NAME}'
+DB_URL = f"postgresql://{Settings.DB_USER}:{Settings.DB_PW}@{Settings.DB_HOST}:{Settings.DB_PORT}/{Settings.DB_NAME}"
 engine = create_engine(DB_URL, echo=Settings.ECHO_DB)
 
 
 class Regions(Base):
 
-    __tablename__ = 'sentinel2_regions'
+    __tablename__ = "sentinel2_regions"
 
     region_uid = Column(String, nullable=False, primary_key=True)
-    geom = Column(Geometry(geometry_type='POLYGON',srid=4326), nullable=False)
+    geom = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
 
 
 class S2_Raw_Metadata(Base):
 
-    __tablename__ = 'sentinel2_raw_metadata'
+    __tablename__ = "sentinel2_raw_metadata"
 
     # scene and tile id
     scene_id = Column(String, nullable=False, primary_key=True)
@@ -82,11 +82,11 @@ class S2_Raw_Metadata(Base):
     ncols_60m = Column(Integer, nullable=False)
 
     epsg = Column(Integer, nullable=False)
-    
-    ulx = Column(Float, nullable=False, comment='Upper left corner x coordinate')
-    uly = Column(Float, nullable=False, comment='Upper left corner y coordinate')
 
-    geom = Column(Geometry(geometry_type='POLYGON',srid=4326), nullable=False)
+    ulx = Column(Float, nullable=False, comment="Upper left corner x coordinate")
+    uly = Column(Float, nullable=False, comment="Upper left corner y coordinate")
+
+    geom = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
 
     # viewing and illumination angles
     sun_zenith_angle = Column(Float, nullable=False)
@@ -135,14 +135,16 @@ class S2_Raw_Metadata(Base):
 
     # storage location
     storage_device_ip = Column(String)
-    storage_device_ip_alias = Column(String) # might be necessary
+    storage_device_ip_alias = Column(String)  # might be necessary
     storage_share = Column(String, nullable=False)
-    path_type = Column(String, nullable=False, comment='type of the path (e.g., POSIX-Path)')
+    path_type = Column(
+        String, nullable=False, comment="type of the path (e.g., POSIX-Path)"
+    )
 
 
 class S2_Processed_Metadata(Base):
-    
-    __tablename__ = 'sentinel2_processed_metadata'
+
+    __tablename__ = "sentinel2_processed_metadata"
 
     # scene and tile id
     scene_id = Column(String, nullable=False, primary_key=True)
@@ -157,18 +159,21 @@ class S2_Processed_Metadata(Base):
 
     # storage address, filenames
     storage_device_ip = Column(String, nullable=False)
-    storage_device_ip_alias = Column(String, nullable=False) # Linux
+    storage_device_ip_alias = Column(String, nullable=False)  # Linux
     storage_share = Column(String, nullable=False)
     bandstack = Column(String, nullable=False)
     scl = Column(String)
     preview = Column(String, nullable=False)
-    path_type = Column(String, nullable=False, comment='type of the path (e.g., POSIX-Path)')
+    path_type = Column(
+        String, nullable=False, comment="type of the path (e.g., POSIX-Path)"
+    )
 
     __table_args__ = (
-        ForeignKeyConstraint(['scene_id', 'product_uri'],
-                             ['sentinel2_raw_metadata.scene_id', 'sentinel2_raw_metadata.product_uri'],
-                             onupdate="CASCADE",
-                             ondelete="CASCADE"
+        ForeignKeyConstraint(
+            ["scene_id", "product_uri"],
+            ["sentinel2_raw_metadata.scene_id", "sentinel2_raw_metadata.product_uri"],
+            onupdate="CASCADE",
+            ondelete="CASCADE",
         ),
     )
 
@@ -181,11 +186,11 @@ def create_tables() -> None:
     try:
         Base.metadata.create_all(bind=engine)
         for table in Base.metadata.tables.keys():
-            logger.info(f'Created table {table}')
+            logger.info(f"Created table {table}")
     except Exception as e:
-        raise Exception(f'Could not create table: {e}')
+        raise Exception(f"Could not create table: {e}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     create_tables()

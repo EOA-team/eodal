@@ -1,4 +1,4 @@
-'''
+"""
 Scriptable high-level function interfaces to the Sentinel-2 processing pipeline and
 related operational functionalities.
 
@@ -20,7 +20,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -47,16 +47,17 @@ from eodal.utils.constants.sentinel2 import ProcessingLevels
 
 logger = get_settings().logger
 
+
 def cli_s2_pipeline_fun(
-        processed_data_archive: Path,
-        date_start: date,
-        date_end: date,
-        tile: str,
-        processing_level: ProcessingLevels,
-        n_threads: int,
-        resampling_options: dict,
-        path_options: Optional[dict] = None
-    ) -> None:
+    processed_data_archive: Path,
+    date_start: date,
+    date_end: date,
+    tile: str,
+    processing_level: ProcessingLevels,
+    n_threads: int,
+    resampling_options: dict,
+    path_options: Optional[dict] = None,
+) -> None:
     """
     Function calling Sentinel-2 pre-processing pipeline for user-defined
     time period and Sentinel-2 tile. The pre-processing pipeline brings
@@ -94,56 +95,59 @@ def cli_s2_pipeline_fun(
         tile=tile,
         processing_level=processing_level,
         n_threads=n_threads,
-        **resampling_options
+        **resampling_options,
     )
-    
+
     # set storage paths
-    metadata['storage_share'] = str(processed_data_archive)
+    metadata["storage_share"] = str(processed_data_archive)
 
     if path_options is not None:
-        metadata['storage_device_ip'] = path_options.get('storage_device_ip', '')
-        metadata['storage_device_ip_alias'] = path_options.get('storage_device_ip_alias', '')
-        metadata['path_type'] = 'posix'
-        mount_point = path_options.get('mount_point', '')
-        mount_point_replacement = path_options.get('mount_point_replacement', '')
-        metadata['storage_share'] = metadata["storage_share"].apply(
-            lambda x, mount_point=mount_point, mount_point_replacement=mount_point_replacement:
-            str(x).replace(mount_point, mount_point_replacement)
+        metadata["storage_device_ip"] = path_options.get("storage_device_ip", "")
+        metadata["storage_device_ip_alias"] = path_options.get(
+            "storage_device_ip_alias", ""
+        )
+        metadata["path_type"] = "posix"
+        mount_point = path_options.get("mount_point", "")
+        mount_point_replacement = path_options.get("mount_point_replacement", "")
+        metadata["storage_share"] = metadata["storage_share"].apply(
+            lambda x, mount_point=mount_point, mount_point_replacement=mount_point_replacement: str(
+                x
+            ).replace(
+                mount_point, mount_point_replacement
+            )
         )
 
     # rename columns to match DB attributes
-    metadata = metadata.rename(columns={'rgb_preview': 'preview'})
+    metadata = metadata.rename(columns={"rgb_preview": "preview"})
 
     # remove storage share from file-paths (breaks otherwise the entry in the DB)
-    metadata['bandstack'] = metadata['bandstack'].apply(lambda x: Path(x).name)
-    cols = ['preview']
-    if processing_level.name == 'L2A':
-        cols.append('scl')
+    metadata["bandstack"] = metadata["bandstack"].apply(lambda x: Path(x).name)
+    cols = ["preview"]
+    if processing_level.name == "L2A":
+        cols.append("scl")
     for col in cols:
         metadata[col] = metadata[col].apply(
             lambda x: str(Path(Path(x).parent.name).joinpath(Path(x).name))
         )
 
-    if 'scl_preview' in metadata.columns:
-        metadata.drop('scl_preview', axis=1, inplace=True)
+    if "scl_preview" in metadata.columns:
+        metadata.drop("scl_preview", axis=1, inplace=True)
 
     # write to database (set raw_metadata option to False)
-    meta_df_to_database(
-        meta_df=metadata,
-        raw_metadata=False
-    )
+    meta_df_to_database(meta_df=metadata, raw_metadata=False)
 
     # write failed datasets to disk
-    failed_datasets.to_csv(processed_data_archive.joinpath('failed_datasets.csv'))
+    failed_datasets.to_csv(processed_data_archive.joinpath("failed_datasets.csv"))
+
 
 def cli_s2_creodias_update(
-        s2_raw_data_archive: Path,
-        region: str,
-        processing_level: ProcessingLevels,
-        cloud_cover_threshold: Optional[int] = 100,
-        path_options: Optional[Dict[str, str]] = None,
-        overwrite_existing_zips: Optional[bool] = False
-    ) -> None:
+    s2_raw_data_archive: Path,
+    region: str,
+    processing_level: ProcessingLevels,
+    cloud_cover_threshold: Optional[int] = 100,
+    path_options: Optional[Dict[str, str]] = None,
+    overwrite_existing_zips: Optional[bool] = False,
+) -> None:
     """
     Loops over an existing Sentinel-2 rawdata (i.e., *.SAFE datasets) archive
     and checks the datasets available locally with those datasets available at
@@ -159,14 +163,14 @@ def cli_s2_creodias_update(
     IMPORTANT: For database ingestion it is important to map the paths correctly
     and store them in the database in a way that allows accessing the data from
     all your system components (``file_system_options``).
-    
+
     * In the easiest case, this the absolute path to the datasets (or URI)
     * If your data is stored on a NAS, you might specify the address of the NAS
       in the variable `storage_device_ip` and provide a `mount_point`, i.e.,
       the path (or drive on Windows) where the NAS is mounted into your local
       file system. Also aliasing of the is supported (`storage_device_ip_alias`),
       however, if possible try to avoid it.
-    
+
 
     :param s2_raw_data_archive:
         Sentinel-2 raw data archive (containing *.SAFE datasets) to monitor.
@@ -236,29 +240,29 @@ def cli_s2_creodias_update(
     for path in Path(s2_raw_data_archive).iterdir():
 
         if path.is_dir():
-    
+
             # get year automatically
             year = int(path.name)
-    
+
             # create temporary download directory
-            path_out = path.joinpath(f'temp_dl_{year}')
-    
+            path_out = path.joinpath(f"temp_dl_{year}")
+
             if not path_out.exists():
                 path_out.mkdir()
 
             # download data from CREODIAS
             downloaded_ds = pull_from_creodias(
-                date_start=date(year,1,1),
-                date_end=date(year,12,31),
+                date_start=date(year, 1, 1),
+                date_end=date(year, 12, 31),
                 processing_level=processing_level,
                 path_out=path_out,
                 region=region,
                 cloud_cover_threshold=cloud_cover_threshold,
-                overwrite_existing_zips=overwrite_existing_zips
+                overwrite_existing_zips=overwrite_existing_zips,
             )
 
             if downloaded_ds.empty:
-                logger.info(f'No new datasets found for year {year} on CREODIAS')
+                logger.info(f"No new datasets found for year {year} on CREODIAS")
                 continue
 
             # move the datasets into the actual SAT archive (on level up)
@@ -268,8 +272,8 @@ def cli_s2_creodias_update(
             parent_dir = path_out.parent
             for _, record in downloaded_ds.iterrows():
                 try:
-                    shutil.move(record.dataset_name, '..')
-                    logger.info(f'Moved {record.dataset_name} to {parent_dir}')
+                    shutil.move(record.dataset_name, "..")
+                    logger.info(f"Moved {record.dataset_name} to {parent_dir}")
                     # once the dataset is moved successfully parse its metadata and
                     # ingest it into the database
                     in_dir = path.joinpath(record.dataset_name)
@@ -277,20 +281,29 @@ def cli_s2_creodias_update(
 
                     # some path handling if required
                     if path_options != {}:
-                        scene_metadata['storage_device_ip'] = path_options.get('storage_device_ip','')
-                        scene_metadata['storage_device_ip_alias'] = path_options.get('storage_device_ip_alias','')
-                        mount_point = path_options.get('mount_point', '')
-                        mount_point_replacement = path_options.get('mount_point_replacement', '')
-                        scene_metadata['storage_share'] = scene_metadata['storage_share'].replace(
-                            mount_point, mount_point_replacement)
+                        scene_metadata["storage_device_ip"] = path_options.get(
+                            "storage_device_ip", ""
+                        )
+                        scene_metadata["storage_device_ip_alias"] = path_options.get(
+                            "storage_device_ip_alias", ""
+                        )
+                        mount_point = path_options.get("mount_point", "")
+                        mount_point_replacement = path_options.get(
+                            "mount_point_replacement", ""
+                        )
+                        scene_metadata["storage_share"] = scene_metadata[
+                            "storage_share"
+                        ].replace(mount_point, mount_point_replacement)
 
                     # database insert
                     metadata_dict_to_database(scene_metadata)
-                    logger.info(f'Ingested scene metadata for {record.dataset_name} into DB')
+                    logger.info(
+                        f"Ingested scene metadata for {record.dataset_name} into DB"
+                    )
 
                 except Exception as e:
                     error_happened = True
-                    logger.error(f'{record.dataset_name} produced an error: {e}')
+                    logger.error(f"{record.dataset_name} produced an error: {e}")
                     errored_datasets.append(record.dataset_name)
                     error_msgs.append(e)
 
@@ -301,26 +314,27 @@ def cli_s2_creodias_update(
             if error_happened:
 
                 # get the timestamp (date) of the current run
-                processing_date = datetime.now().date().strftime('%Y-%m-%d')
+                processing_date = datetime.now().date().strftime("%Y-%m-%d")
 
                 # write to log directory
-                log_dir = path_out.parent.joinpath('logs')
+                log_dir = path_out.parent.joinpath("logs")
                 if not log_dir.exists():
                     log_dir.mkdir()
-                errored_logfile = log_dir.joinpath('datasets_errored.csv')
+                errored_logfile = log_dir.joinpath("datasets_errored.csv")
                 if not errored_logfile.exists():
-                    with open(errored_logfile, 'w') as src:
-                        line = 'download_date,dataset_name,error_message\n'
+                    with open(errored_logfile, "w") as src:
+                        line = "download_date,dataset_name,error_message\n"
                         src.writelines(line)
-                with open(errored_logfile, 'a') as src:
+                with open(errored_logfile, "a") as src:
                     for error in list(zip(errored_datasets, error_msgs)):
-                        line = processing_date + ',' + error[0] + ',' + str(error[1])
-                        src.writelines(line + '\n')
+                        line = processing_date + "," + error[0] + "," + str(error[1])
+                        src.writelines(line + "\n")
+
 
 def cli_s2_sen2cor_update(
-        s2_raw_data_archive: Path,
-        path_options: Optional[Dict[str, Any]] = {},
-    ) -> None:
+    s2_raw_data_archive: Path,
+    path_options: Optional[Dict[str, Any]] = {},
+) -> None:
     """
     Loops over the Sentinel-2 raw data archive and checks for each
     scene (*.SAFE) if it exists already in the eodal metadata DB. If not
@@ -337,8 +351,8 @@ def cli_s2_sen2cor_update(
         path of the dataset is used in the database.
     """
     # if yes loop over all scenes (S2*.SAFE)
-    for scene_dir in s2_raw_data_archive.rglob('S2*.SAFE'):
-        
+    for scene_dir in s2_raw_data_archive.rglob("S2*.SAFE"):
+
         try:
             # check if the scene exists already in the DB (using its product_uri
             # which is the same as the scene directory name)
@@ -349,29 +363,36 @@ def cli_s2_sen2cor_update(
                 scene_metadata, _ = parse_s2_scene_metadata(scene_dir)
                 # some path handling if required
                 if path_options != {}:
-                    scene_metadata['storage_device_ip'] = path_options.get('storage_device_ip','')
-                    scene_metadata['storage_device_ip_alias'] = path_options.get('storage_device_ip_alias','')
-                    mount_point = path_options.get('mount_point', '')
-                    mount_point_replacement = path_options.get('mount_point_replacement', '')
-                    scene_metadata['storage_share'] = scene_metadata['storage_share'].replace(
-                        mount_point, mount_point_replacement)
+                    scene_metadata["storage_device_ip"] = path_options.get(
+                        "storage_device_ip", ""
+                    )
+                    scene_metadata["storage_device_ip_alias"] = path_options.get(
+                        "storage_device_ip_alias", ""
+                    )
+                    mount_point = path_options.get("mount_point", "")
+                    mount_point_replacement = path_options.get(
+                        "mount_point_replacement", ""
+                    )
+                    scene_metadata["storage_share"] = scene_metadata[
+                        "storage_share"
+                    ].replace(mount_point, mount_point_replacement)
                 # ingest it into the database
                 metadata_dict_to_database(scene_metadata)
-                logger.info(
-                    f'Ingested scene metadata for {product_uri} into DB')
+                logger.info(f"Ingested scene metadata for {product_uri} into DB")
             else:
-                logger.info(f'{product_uri} already in database')
+                logger.info(f"{product_uri} already in database")
         except Exception as e:
-            logger.error(f'{product_uri} produced an error: {e}')
+            logger.error(f"{product_uri} produced an error: {e}")
+
 
 def cli_s2_scene_selection(
-        tile: str,
-        date_start: date,
-        date_end: date,
-        processing_level: ProcessingLevels,
-        out_dir: Path,
-        cloud_cover_threshold: Optional[Union[int, float]] = 100
-    ) -> None:
+    tile: str,
+    date_start: date,
+    date_end: date,
+    processing_level: ProcessingLevels,
+    out_dir: Path,
+    cloud_cover_threshold: Optional[Union[int, float]] = 100,
+) -> None:
     """
     Function to query the Sentinel-2 metadata using a set of search criteria, including
     filtering by date range, cloud cover and Sentinel-2 tile.
@@ -403,35 +424,36 @@ def cli_s2_scene_selection(
             date_end=date_end,
             processing_level=processing_level,
             tile=tile,
-            cloud_cover_threshold=cloud_cover_threshold
+            cloud_cover_threshold=cloud_cover_threshold,
         )
     except Exception as e:
-        logger.error(f'Metadata query for Sentinel-2 data failed: {e}')
+        logger.error(f"Metadata query for Sentinel-2 data failed: {e}")
         return
 
     # calculate average cloud cover for the selected scenes
     cc_avg = metadata.cloudy_pixel_percentage.mean()
 
     # get timestamp of query execution
-    query_time = datetime.now().strftime('%Y%m%d_%H%M%S')
+    query_time = datetime.now().strftime("%Y%m%d_%H%M%S")
     # write out metadata of the query as CSV
-    metadata.to_csv(out_dir.joinpath(f'{query_time}_query.csv'), index=False)
+    metadata.to_csv(out_dir.joinpath(f"{query_time}_query.csv"), index=False)
 
     # Plot available scenes for query
-    fig = plt.figure(
-        figsize=(8, 6),
-        dpi=300
-    )
+    fig = plt.figure(figsize=(8, 6), dpi=300)
     ax = fig.add_subplot(111)
-    ax.plot(metadata['sensing_date'], metadata['cloudy_pixel_percentage'], 
-            marker = 'o', markersize = 10)
-    ax.set_xlabel('Sensing Date')
-    ax.set_ylabel('Cloud cover [%]')
-    ax.set_ylim(0., 100.)
-    ax.set_title(f'Tile {tile} - No. of scenes: {metadata.shape[0]}'
-                 + '\n' + f'Average cloud cover: {np.round(cc_avg, 2)}%')
-    plt.savefig(
-        out_dir.joinpath(f'{query_time}_query_CCplot.png'), 
-        bbox_inches="tight"
+    ax.plot(
+        metadata["sensing_date"],
+        metadata["cloudy_pixel_percentage"],
+        marker="o",
+        markersize=10,
     )
+    ax.set_xlabel("Sensing Date")
+    ax.set_ylabel("Cloud cover [%]")
+    ax.set_ylim(0.0, 100.0)
+    ax.set_title(
+        f"Tile {tile} - No. of scenes: {metadata.shape[0]}"
+        + "\n"
+        + f"Average cloud cover: {np.round(cc_avg, 2)}%"
+    )
+    plt.savefig(out_dir.joinpath(f"{query_time}_query_CCplot.png"), bbox_inches="tight")
     plt.close()
