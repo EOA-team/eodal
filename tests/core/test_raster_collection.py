@@ -1,5 +1,5 @@
 """
-Tests for the RasterCollection class
+Tests for the `RasterCollection` class
 """
 
 import datetime
@@ -157,10 +157,10 @@ def test_rasterio_constructor_multi_band(get_bandstack):
     )
 
     assert gTiff_collection.band_names == \
-        ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B9', 'B10'], \
+        ['B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B11', 'B12'], \
         'wrong list of band names in collection'
     assert gTiff_collection.is_bandstack(), 'collection must be bandstacked'
-    gTiff_collection['B2'].crs == 32632, 'wrong CRS'
+    gTiff_collection['B02'].crs == 32632, 'wrong CRS'
 
     # read multi-band geoTiff into new handler with custom destination names
     colors = ['blue', 'green', 'red', 'red_edge_1', 'red_edge_2', 'red_edge_3', \
