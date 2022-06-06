@@ -1,0 +1,145 @@
+# Tests for releases and release candidates
+#
+# Runs on every tag creation, and all pushes and PRs to release branches
+# named "v1.2.x", etc.
+#
+# This workflow is more extensive than the regular test workflow.
+# - Tests are executed on more Python versions
+# - Tests are run on more operating systems
+# - N.B. There is no pip cache here to ensure runs are always against the
+#   very latest versions of dependencies, even if this workflow ran recently.
+#
+# In addition, the package is built as a wheel on each OS/Python job, and these
+# are stored as artifacts to use for your distribution process. There is an
+# extra job (disabled by default) which can be enabled to push to Test PyPI.
+
+name: release candidate tests
+
+on:
+  push:
+    branches:
+      # Release branches.
+      # Examples: "v1", "v3.0", "v1.2.x", "1.5.0", "1.2rc0"
+      # Expected usage is (for example) a branch named "v1.2.x" which contains
+      # the latest release in the 1.2 series.
+      - 'v[0-9]+'
+      - 'v?[0-9]+.[0-9x]+'
+      - 'v?[0-9]+.[0-9]+.[0-9x]+'
+      - 'v?[0-9]+.[0-9]+.[0-9]+.[0-9x]+'
+      - 'v?[0-9]+.[0-9x]+rc[0-9]*'
+    tags:
+      # Run whenever any tag is created
+      - '**'
+  pull_request:
+    branches:
+      # Release branches
+      - 'v[0-9]+'
+      - 'v?[0-9]+.[0-9x]+'
+      - 'v?[0-9]+.[0-9]+.[0-9x]+'
+      - 'v?[0-9]+.[0-9]+.[0-9]+.[0-9x]+'
+      - 'v?[0-9]+.[0-9x]+rc[0-9]*'
+  release:
+    # Run on a new release
+    types: [created, edited, published]
+
+jobs:
+  test-build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.6", "3.7", "3.8", "3.9", "3.10"]
+        include:
+          - os: macos-latest
+            python-version: "3.6"
+          - os: macos-latest
+            python-version: "3.10"
+    env:
+      OS: ${{ matrix.os }}
+      PYTHON: ${{ matrix.python-version }}
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: System information
+      run: python .github/workflows/system_info.py
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install flake8
+        python -m pip install --editable .[test]
+
+    - name: Sanity check with flake8
+      run: |
+        # stop the build if there are Python syntax errors or undefined names
+        python -m flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings
+        python -m flake8 . --count --exit-zero --statistics
+
+    - name: Debug environment
+      run: python -m pip freeze
+
+    - name: Test with pytest
+      run: |
+        python -m pytest --cov=package_name --cov-report term --cov-report xml --cov-config .coveragerc --junitxml=testresults.xml
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v1
+      with:
+        flags: unittests
+        env_vars: OS,PYTHON
+        name: Python ${{ matrix.python-version }} on ${{ runner.os }}
+
+    - name: Build wheels
+      run: |
+        python -m pip install --upgrade setuptools wheel twine
+        python setup.py sdist bdist_wheel
+
+    - name: Store wheel artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: wheel-${{ matrix.os }}-${{ matrix.python-version }}
+        path: dist/*
+
+    - name: Build HTML docs
+      run: |
+        python -m pip install --editable .[docs]
+        cd docs
+        make html
+        cd ..
+
+  publish:
+    # Disabled by default
+    if: |
+      false &&
+      startsWith(github.ref, 'refs/tags/')
+    needs: test-build
+
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Download wheel artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: wheel-*
+        path: dist/
+
+    - name: Store aggregated wheel artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: wheels
+        path: dist/*
+
+    - name: Publish package to Test PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        user: __token__
+        password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        repository_url: https://test.pypi.org/legacy/

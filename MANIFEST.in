@@ -1,0 +1,10 @@
+include CHANGELOG.rst
+include LICEN[CS]E*
+include pyproject.toml
+include README.rst
+include requirements*.txt
+
+global-exclude *.py[co]
+global-exclude __pycache__
+global-exclude *~
+global-exclude *.ipynb_checkpoints/*

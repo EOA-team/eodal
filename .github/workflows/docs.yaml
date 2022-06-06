@@ -1,0 +1,61 @@
+# Docs workflow
+#
+# Ensures that the docs can be built with sphinx.
+# - On every push and PR, checks the HTML documentation builds on linux.
+# - On every PR and tag, checks the documentation builds as a PDF on linux.
+# - If your repository is public, on pushes to the default branch (i.e. either
+#   master or main), the HTML documentation is pushed to the gh-pages branch,
+#   which is automatically rendered at the publicly accessible url
+#   https://USER.github.io/PACKAGE/
+
+name: docs
+
+on: [push, pull_request]
+
+jobs:
+  docs-html:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Check if README.md needs to be converted
+      id: check_readme
+      run: |
+        if [ ! -f "README.rst" ] && [ -f "README.md" ]; then
+            echo '::set-output name=convert::true';
+        fi
+
+    - name: Convert README.md to README.rst
+      if: steps.check_readme.outputs.convert == 'true'
+      uses: docker://pandoc/core:2.9
+      with:
+        args: >-
+            README.md
+            --from=gfm
+            --output=README.rst
+
+    - name: Build HTML docs
+      uses: ammaraskar/sphinx-action@master
+      with:
+        docs-folder: "docs/"
+
+    - name: Determine default branch
+      run: |
+        DEFAULT_BRANCH=$(git remote show origin | awk '/HEAD branch/ {print $NF}')
+        echo "default_branch=$DEFAULT_BRANCH" >> $GITHUB_ENV
+        echo "default_branch_ref=refs/heads/$DEFAULT_BRANCH" >> $GITHUB_ENV
+
+    - name: Determine whether repo is public
+      run: |
+        REMOTE_HTTP=$(git remote get-url origin | sed -e "s|:\([^/]\)|/\1|g" -e "s|^git@|https://|" -e "s|\.git$||")
+        echo "Probing $REMOTE_HTTP"
+        if wget -q --method=HEAD ${REMOTE_HTTP}; then IS_PUBLIC=1; else IS_PUBLIC=0; fi
+        echo "is_public=$IS_PUBLIC"
+        echo "is_public=$IS_PUBLIC" >> $GITHUB_ENV
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      if: github.ref == env.default_branch_ref && env.is_public == 1
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: "docs/_build/html/"
