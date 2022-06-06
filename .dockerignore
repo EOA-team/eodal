@@ -1,0 +1,5 @@
+.eggs/
+.project
+.pydevproject
+.pytest_cache/
+build/
