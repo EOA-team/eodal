@@ -1,3 +1,5 @@
+from setuptools_scm import get_version
+
 # `name` is the name of the package as used for `pip install package`
 name = "eodal"
 # `path` is the name of the package for `import package`
@@ -13,3 +15,4 @@ author_email = ""
 description = ""  # One-liner
 url = "https://github.com/remote-sensing-team/eodal"  # your project home-page
 license = "GNU General Public License version 3"  # See https://choosealicense.com
+version = get_version()
