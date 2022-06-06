@@ -98,7 +98,7 @@ Output
    # plot scene classification layer
    s2_ds.plot_scl()
 
-.. image:: img/eodal_Sentinel-2_SCL-2_SCL.png
+.. image:: img/eodal_Sentinel-2_SCL.png
   :width: 400
   :alt: Sentinel-2 Scene classification layer
 
