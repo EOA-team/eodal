@@ -60,6 +60,7 @@ jobs:
         python -m pip install --editable .[test]
         python -m pip install pytest
         python -m pip install pytest-cov
+        python -m pip install requests
 
     - name: Sanity check with flake8
       run: |
