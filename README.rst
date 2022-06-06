@@ -47,7 +47,7 @@ S2A_MSIL2A_20190524T101031_N0212_R022_T32UPU_20190524T130304.zip):
    import geopandas as gpd
    from pathlib import Path
    from shapely.geometry import Polygon
-   from agrisatpy.core.sensors import Sentinel2
+   from eodal.core.sensors import Sentinel2
 
    # file-path to the .SAFE dataset
    dot_safe_dir = Path('../data/S2A_MSIL2A_20190524T101031_N0212_R022_T32UPU_20190524T130304.SAFE')
@@ -98,7 +98,7 @@ Output
    # plot scene classification layer
    s2_ds.plot_scl()
 
-.. image:: img/eodal_Sentinel-2_SCL-2_NIR.png
+.. image:: img/eodal_Sentinel-2_SCL-2_SCL.png
   :width: 400
   :alt: Sentinel-2 Scene classification layer
 
