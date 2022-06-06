@@ -1,6 +1,6 @@
 """
 Module that could be used in (parallelized) way for pre-processing Sentinel-2 data
-as part of the ``AgriSatPy`` operational processing pipeline:
+as part of the ``eodal`` operational processing pipeline:
              
 - resampling from 20 to 10m spatial resolution
 - generation of a RGB preview image per scene
@@ -8,9 +8,24 @@ as part of the ``AgriSatPy`` operational processing pipeline:
 - resampling of SCL data (L2A processing level, only) and generation of a preview
 - generation of metadata of the processed data (links to the input datasets)
 
-The module relies on metadata from AgriSatPy's metadata DB.
+The module relies on metadata from eodal's metadata DB.
 
 Depending on your hardware this might take a while!
+
+Copyright (C) 2022 Gregor Perich & Lukas Valentin Graf
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import time
@@ -26,11 +41,11 @@ from datetime import datetime
 from .resample_and_stack import resample_and_stack_s2
 from .merge_blackfill import merge_split_scenes
 
-from agrisatpy.config import get_settings
-from agrisatpy.metadata.sentinel2.database.querying import find_raw_data_by_tile
-from agrisatpy.metadata.utils import reconstruct_path
-from agrisatpy.operational.resampling.utils import identify_split_scenes
-from agrisatpy.utils.constants import ProcessingLevels
+from eodal.config import get_settings
+from eodal.metadata.sentinel2.database.querying import find_raw_data_by_tile
+from eodal.metadata.utils import reconstruct_path
+from eodal.operational.resampling.utils import identify_split_scenes
+from eodal.utils.constants import ProcessingLevels
 
 
 Settings = get_settings()

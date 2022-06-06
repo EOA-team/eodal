@@ -9,8 +9,8 @@ from pystac_client import Client
 from shapely.geometry import Polygon
 from typing import Any, Dict, List
 
-from agrisatpy.config import get_settings
-from agrisatpy.utils.sentinel2 import ProcessingLevels
+from eodal.config import get_settings
+from eodal.utils.sentinel2 import ProcessingLevels
 
 Settings = get_settings()
 
@@ -89,7 +89,7 @@ def sentinel2(
     metadata_list = []
     for scene in scenes:
         # extract scene metadata required for Sentinel-2
-        # map the STAC keys to AgriSatPy's naming convention
+        # map the STAC keys to eodal's naming convention
         props = scene["properties"]
         # tile-id requires some string handling in case of AWS
         if isinstance(s2.tile_id, list):
