@@ -135,7 +135,7 @@ class UploadCommand(Command):
 
         sys.exit()
 
-setuptools.setup(
+setup(
     name=meta['name'],
     setup_requires=['setuptools_scm'],
     use_scm_version={'version_scheme': 'post-release'},
