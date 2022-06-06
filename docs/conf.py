@@ -24,7 +24,7 @@ REPO_DIRECTORY = os.path.dirname(DOCS_DIRECTORY)
 sys.path.insert(0, DOCS_DIRECTORY)
 sys.path.insert(0, REPO_DIRECTORY)
 
-from package_name import __meta__ as meta  # noqa: E402 isort:skip
+from eodal import __meta__ as meta  # noqa: E402 isort:skip
 
 
 # -- Project information -----------------------------------------------------
