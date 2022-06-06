@@ -18,6 +18,12 @@ docs/source/readme.rst
 testresults.xml
 coverage.xml
 
+##---------------------------------------------------
+# IDE .gitignore files
+##---------------------------------------------------
+.project
+.pydevproject
+.idea
 
 ##---------------------------------------------------
 # Python default .gitignore
