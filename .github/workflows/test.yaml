@@ -58,6 +58,8 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install flake8
         python -m pip install --editable .[test]
+        python -m pip install pytest
+        python -m pip install pytest-cov
 
     - name: Sanity check with flake8
       run: |
@@ -71,7 +73,7 @@ jobs:
 
     - name: Test with pytest
       run: |
-        python -m pytest --cov=package_name --cov-report term --cov-report xml --cov-config .coveragerc --junitxml=testresults.xml
+        python -m pytest --cov=eodal --cov-report term --cov-report xml --cov-config .coveragerc --junitxml=testresults.xml
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
