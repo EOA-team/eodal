@@ -15,4 +15,4 @@ author_email = ""
 description = ""  # One-liner
 url = "https://github.com/remote-sensing-team/eodal"  # your project home-page
 license = "GNU General Public License version 3"  # See https://choosealicense.com
-version = get_version()
+version = "0.0"
