@@ -17,3 +17,5 @@ rtree
 zarr
 numba
 pystac-client
+sentinelsat
+
