@@ -14,14 +14,11 @@ Besides that, ``RasterCollection`` is a super class from which sensor-specific c
 .. highlight:: python
 .. code-block:: python
 
+    import numpy as np
     from eodal.core.raster import RasterCollection
     from eodal.core.band import Band
     from eodal.core.band import GeoInfo
-    
-    # Empty `RasterCollection`:
-    handler = RasterCollection()
-    handler.empty  # returns True
-    
+
     # New collection from `numpy.ndarray`
     # Define GeoInfo and Array first and use them to initialize a new RasterCollection
     # instance:
@@ -47,7 +44,7 @@ Besides that, ``RasterCollection`` is a super class from which sensor-specific c
     values = np.random.random(size=(100,120))
     
     # get the RasterCollection object
-    raster = RasterDataHandler(
+    raster = RasterCollection(
              band_constructor=Band,
              band_name=band_name,
              values=values,

@@ -57,7 +57,7 @@ S2A_MSIL2A_20190524T101031_N0212_R022_T32UPU_20190524T130304.zip):
    xmin, xmax = 11.295, 11.385
    bbox = Polygon([(xmin, ymin), (xmax, ymin), (xmax, ymax), (xmin, ymax)])
 
-   # AgriSatPy expects a vector file or a GeoDataFrame for spatial sub-setting
+   # eodal expects a vector file or a GeoDataFrame for spatial sub-setting
    bbox_gdf = gpd.GeoDataFrame(geometry=[bbox], crs=4326)
 
    # read data from .SAFE (all 10 and 20m bands + scene classification layer)
@@ -66,7 +66,7 @@ S2A_MSIL2A_20190524T101031_N0212_R022_T32UPU_20190524T130304.zip):
        vector_features=bbox_gdf
    )
 
-   # AgriSatPy support band aliasing. Thus, you can access the bands by their name ...
+   # eodal support band aliasing. Thus, you can access the bands by their name ...
    s2_ds.band_names
 
 Output
