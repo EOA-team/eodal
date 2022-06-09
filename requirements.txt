@@ -20,4 +20,4 @@ pystac-client
 sentinelsat
 pydantic[dotenv]
 requests
-
+planetary_computer

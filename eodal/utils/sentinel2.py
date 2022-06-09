@@ -21,16 +21,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import os
 import glob
 import pandas as pd
+import planetary_computer
 
 from datetime import date
 from datetime import datetime
 from pathlib import Path
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from eodal.config import get_settings
+from eodal.config.stac_providers import STAC_Providers
 from eodal.config import Sentinel2
 from eodal.utils.exceptions import BandNotFoundError, MetadataNotFoundError
 from eodal.utils.constants.sentinel2 import ProcessingLevels
@@ -39,6 +38,21 @@ from eodal.utils.constants.sentinel2 import ProcessingLevels
 s2 = Sentinel2()
 Settings = get_settings()
 
+
+def _url_to_safe_name(stac_asset: Union[str, Dict[str, Any]]) -> str:
+    """
+    extracts the .SAFE name from the asset returned by the STAC query
+
+    :param url:
+        asset containing hyperlink reference to Sentinel-2 dataset
+    :returns:
+        .SAFE dataset name extracted from the URL of B01
+    """
+    if isinstance(stac_asset, dict):
+        stac_asset = stac_asset['B01']['href']
+    url_parts = stac_asset.split('/')
+    dot_safe_name = [x for x in url_parts if x.startswith('S2') and x.endswith('.SAFE')][0]
+    return dot_safe_name
 
 def get_S2_processing_level(dot_safe_name: Union[str, Path]) -> ProcessingLevels:
     """
@@ -52,6 +66,8 @@ def get_S2_processing_level(dot_safe_name: Union[str, Path]) -> ProcessingLevels
     """
     if isinstance(dot_safe_name, Path):
         dot_safe_name = dot_safe_name.name
+    elif Settings.USE_STAC:
+        dot_safe_name = _url_to_safe_name(dot_safe_name)
 
     if dot_safe_name.find("MSIL1C") >= 0 or dot_safe_name.find("l1c") >= 0:
         return ProcessingLevels.L1C
@@ -59,7 +75,6 @@ def get_S2_processing_level(dot_safe_name: Union[str, Path]) -> ProcessingLevels
         return ProcessingLevels.L2A
     else:
         raise ValueError(f"Could not determine processing level for {dot_safe_name}")
-
 
 def get_S2_acquistion_time_from_safe(dot_safe_name: Union[str, Path]) -> date:
     """
@@ -73,8 +88,10 @@ def get_S2_acquistion_time_from_safe(dot_safe_name: Union[str, Path]) -> date:
     """
     if isinstance(dot_safe_name, Path):
         dot_safe_name = dot_safe_name.name
-    return datetime.strptime(dot_safe_name.split("_")[2], "%Y%m%dT%H%M%S")
+    elif Settings.USE_STAC:
+        dot_safe_name = _url_to_safe_name(dot_safe_name)
 
+    return datetime.strptime(dot_safe_name.split("_")[2], "%Y%m%dT%H%M%S")
 
 def get_S2_acquistion_date_from_safe(dot_safe_name: Union[str, Path]) -> date:
     """
@@ -88,7 +105,6 @@ def get_S2_acquistion_date_from_safe(dot_safe_name: Union[str, Path]) -> date:
     """
     return get_S2_acquistion_time_from_safe(dot_safe_name).date()
 
-
 def get_S2_processing_baseline_from_safe(dot_safe_name: Union[str, Path]) -> int:
     """
     Determines the PDGS processing baseline of a dataset in .SAFE format
@@ -101,8 +117,10 @@ def get_S2_processing_baseline_from_safe(dot_safe_name: Union[str, Path]) -> int
     """
     if isinstance(dot_safe_name, Path):
         dot_safe_name = dot_safe_name.name
-    return int(dot_safe_name.split("_")[3].replace("N", ""))
+    elif Settings.USE_STAC:
+        dot_safe_name = _url_to_safe_name(dot_safe_name)
 
+    return int(dot_safe_name.split("_")[3].replace("N", ""))
 
 def get_S2_platform_from_safe(dot_safe_name: Union[str, Path]) -> str:
     """
@@ -116,8 +134,10 @@ def get_S2_platform_from_safe(dot_safe_name: Union[str, Path]) -> str:
     """
     if isinstance(dot_safe_name, Path):
         dot_safe_name = dot_safe_name.name
-    return dot_safe_name.split("_")[0]
+    elif Settings.USE_STAC:
+        dot_safe_name = _url_to_safe_name(dot_safe_name)
 
+    return dot_safe_name.split("_")[0]
 
 def get_S2_bandfiles(
     in_dir: Path, resolution: Optional[int] = None, is_L2A: Optional[bool] = True
@@ -146,7 +166,6 @@ def get_S2_bandfiles(
             search_pattern = f"GRANULE/*/IM*/*B*.jp2"
     files = glob.glob(str(in_dir.joinpath(search_pattern)))
     return [Path(x) for x in files]
-
 
 def get_S2_sclfile(
     in_dir: Path,
@@ -200,7 +219,6 @@ def get_S2_sclfile(
         )
     return Path(scl_file)
 
-
 def get_S2_bandfiles_with_res(
     in_dir: Path,
     band_selection: List[Tuple[str, Union[int, float]]],
@@ -233,7 +251,11 @@ def get_S2_bandfiles_with_res(
         band_props = {}
         if Settings.USE_STAC:
             # extract URL from asset
-            band_fpath = in_dir[band_name]["href"]
+            # if the STAC provider is Microsoft, sign the request
+            if Settings.STAC_BACKEND == STAC_Providers.MSPC:
+                band_fpath = planetary_computer.sign(in_dir[band_name]["href"])
+            else:
+                band_fpath = in_dir[band_name]["href"]
         else:
             # search expression for the file depends on the processing level
             if is_l2a:
@@ -254,7 +276,6 @@ def get_S2_bandfiles_with_res(
     # construct pandas DataFrame with all band entries and return
     band_df = pd.DataFrame(band_list)
     return band_df
-
 
 def get_S2_tci(
     in_dir: Path,

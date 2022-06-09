@@ -60,6 +60,7 @@ from eodal.utils.sentinel2 import (
 from copy import deepcopy
 from eodal.core.utils.geometry import convert_3D_2D
 from eodal.config import get_settings
+from eodal.utils.sentinel2 import _url_to_safe_name
 
 Settings = get_settings()
 
@@ -349,17 +350,33 @@ class Sentinel2(RasterCollection):
                         masking_after_read_required = True
 
         # determine platform (S2A or S2B)
-        platform = get_S2_platform_from_safe(dot_safe_name=in_dir)
+        try:
+            platform = get_S2_platform_from_safe(dot_safe_name=in_dir)
+        except Exception as e:
+            raise ValueError(f'Could not determine platform: {e}')
         # set scene properties (platform, sensor, acquisition date)
-        acqui_time = get_S2_acquistion_time_from_safe(dot_safe_name=in_dir)
-        processing_level = get_S2_processing_level(dot_safe_name=in_dir)
+        try:
+            acqui_time = get_S2_acquistion_time_from_safe(dot_safe_name=in_dir)
+        except Exception as e:
+            raise ValueError(f'Could not determine acquisition time: {e}')
+        try:
+            processing_level = get_S2_processing_level(dot_safe_name=in_dir)
+        except Exception as e:
+            raise ValueError(f'Could not determine processing level: {e}')
+        try:
+            if isinstance(in_dir, Path):
+                product_uri = in_dir.name
+            elif Settings.USE_STAC:
+                product_uri = _url_to_safe_name(in_dir)
+        except Exception as e:
+            raise ValueError(f'Could not determine product uri: {e}')
 
         scene_properties = SceneProperties(
             acquisition_time=acqui_time,
             platform=platform,
             sensor="MSI",
             processing_level=processing_level,
-            product_uri=in_dir.name,
+            product_uri=product_uri,
         )
 
         # set AREA_OR_POINT to Point (see here: https://gis.stackexchange.com/a/263329)
