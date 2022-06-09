@@ -72,12 +72,12 @@ class Settings(BaseSettings):
     ECHO_DB: bool = False
 
     # STAC configuration
-    USE_STAC: bool = False
+    USE_STAC: bool = True
     MAX_ITEMS: int = 500
     LIMIT_ITEMS: int = 5
 
     # change the value of this variable to use a different STAC service provider
-    STAC_BACKEND = STAC_Providers.AWS
+    STAC_BACKEND = STAC_Providers.MSPC
 
     # define logger
     CURRENT_TIME: str = datetime.now().strftime("%Y%m%d-%H%M%S")

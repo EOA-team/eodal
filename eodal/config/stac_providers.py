@@ -55,5 +55,6 @@ class STAC_Providers:
             platform: str = "platform"
             tile_id: str = "s2:mgrs_tile"
             sensing_time: str = "datetime"
-            sensing_time_fmt: str = "%Y-%m-%dT%H:%M:%SZ"
+            sensing_time_fmt: str = "%Y-%m-%dT%H:%M:%S.%fZ"
             cloud_cover: str = "eo:cloud_cover"
+            epsg: str = "proj:epsg"
