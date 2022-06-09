@@ -60,7 +60,7 @@ from eodal.utils.sentinel2 import (
 from copy import deepcopy
 from eodal.core.utils.geometry import convert_3D_2D
 from eodal.config import get_settings
-from utils.sentinel2 import _url_to_safe_name
+from eodal.utils.sentinel2 import _url_to_safe_name
 
 Settings = get_settings()
 
