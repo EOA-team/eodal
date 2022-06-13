@@ -1,7 +1,7 @@
 Contributing
 ============
 
-Contributions are welcome! If you can see a way to improve the development of E:earth_africa:dal:
+Contributions are welcome! If you can see a way to improve the development of E:earth_africa:dal :
 
 - Do click the fork button
 - Make your changes and make a pull request.
