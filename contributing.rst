@@ -45,7 +45,7 @@ E.g.,
 Class Naming
 ------------
 
-Following PEP8 (https://realpython.com/python-pep8/)__ conventions, class names should start with a captital lette.
+Following PEP8 (https://realpython.com/python-pep8/) conventions, class names should start with a captital lette.
 Class names consisting of multiple words should not be separated by an underscore, but follow the *camel case* convention:
 
 E.g.,
