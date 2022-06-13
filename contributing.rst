@@ -6,13 +6,13 @@ Contributions are welcome! If you can see a way to improve the development of E:
 - Do click the fork button
 - Make your changes and make a pull request.
 
-If you consider contributing as a **developer** please make sure to understand the follow the `code style guidelines`:
+If you consider contributing as a **developer** please make sure to understand the follow the code style guidelines:
 
 CODE STYLE
 ----------
 
 Establishing some common code styling rules can help increasing the readability and maintability of the code and is vital for collaborative development.
-We encourage the use of [Black]() for code style formatting. Black_ is an uncompromising Python code formatter.
+We encourage the use of `Black <https://black.readthedocs.io/en/stable/the_black_code_style/current_style.html>` for code style formatting. Black_ is an uncompromising Python code formatter.
 By using it, you cede control over minutiae of hand-formatting.
 But in return, you no longer have to worry about formatting your code correctly, since black will handle it.
 Blackened code looks the same for all authors, ensuring consistent code formatting within your project.
@@ -28,7 +28,7 @@ Variable Naming
 ---------------
 
 Variable names shall be consice and verbose. Within the function bodies, there is no strict variable naming style, however,
-we try to follow the :PEP8:`https://realpython.com/python-pep8/` conventions whenever possible.
+we try to follow the `PEP8 <https://realpython.com/python-pep8/>` conventions whenever possible.
 
 Therefore, for variable names (taken from PEP8):
 Use a lowercase single letter, word, or words. Separate words with underscores to improve readability.
@@ -45,7 +45,7 @@ E.g.,
 Class Naming
 ------------
 
-Following [PEP8](https://realpython.com/python-pep8/) conventions, class names should start with a captital lette.
+Following `PEP8 <https://realpython.com/python-pep8/>` conventions, class names should start with a captital lette.
 Class names consisting of multiple words should not be separated by an underscore, but follow the *camel case* convention:
 
 E.g.,
@@ -68,9 +68,9 @@ Moreover, the in- and outputs of the function should be documented in the `reST`
 .. code:: python
 
     def fun(
-    a: int,
-    b: Union[int, float],
-    c: Optional[str]=''
+        a: int,
+        b: Union[int, float],
+        c: Optional[str]=''
     ) -> int:
     """
     function description goes here
