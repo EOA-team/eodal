@@ -18,3 +18,4 @@ Release date: YYYY-MM-DD.
 Initial release (to be released).
 
 - Added: Support for Microsoft Planetary Computer (using its STAC)
+- Added: Guidelines for Contribution to E:earth_africa:dal
