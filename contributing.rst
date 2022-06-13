@@ -28,7 +28,7 @@ Variable Naming
 ---------------
 
 Variable names shall be consice and verbose. Within the function bodies, there is no strict variable naming style, however,
-we try to follow the [PEP8](https://realpython.com/python-pep8/) conventions whenever possible.
+we try to follow the :PEP8:`https://realpython.com/python-pep8/` conventions whenever possible.
 
 Therefore, for variable names (taken from PEP8):
 Use a lowercase single letter, word, or words. Separate words with underscores to improve readability.
@@ -53,42 +53,47 @@ E.g.,
 .. code:: python
 
     class Class(object):
-    pass
+        pass
 
     class MyClass(Class):
-    pass
+        pass
 
 
-## Function Headers
+Function Headers
+----------------
 
 See below for an example how to style function headers. Please **always** use type declarations to indicate the datatypes required/returned.
 Moreover, the in- and outputs of the function should be documented in the `reST` style.
 
-```python
-def fun(
-   a: int,
-   b: Union[int, float],
-   c: Optional[str]=''
-) -> int:
-   """
-   function description goes here
+.. code:: python
 
-   :param a:
-       description of a
-   :param b:
-       description of b
-   :param c:
-       description of c
-   :returns:
-       description of return value(s)
-   """
-   pass # function code...
-```
+    def fun(
+    a: int,
+    b: Union[int, float],
+    c: Optional[str]=''
+    ) -> int:
+    """
+    function description goes here
 
-## Comments
+    :param a:
+        description of a
+    :param b:
+        description of b
+    :param c:
+        description of c
+    :returns:
+        description of return value(s)
+    """
+    pass # function code...
+
+Comments
+--------
 Please make inline comments to explain the code or why you opted for certain implementations. Also mention code sources in case
 you took some fixes from, e.g., stackoverflow or similar portals. Please provide the URL and the date you accessed the page.
 
+
+Development features
+====================
 
 .gitignore
 ~~~~~~~~~~
@@ -133,29 +138,6 @@ We use the `Common .gitattributes`_ and `Python .gitattributes`_ concatenated to
 .. _alexkaratarakis/gitattributes: https://github.com/alexkaratarakis/gitattributes
 .. _Common .gitattributes: https://github.com/alexkaratarakis/gitattributes/blob/master/Common.gitattributes
 .. _Python .gitattributes: https://github.com/alexkaratarakis/gitattributes/blob/master/Python.gitattributes
-
-
-Black
-~~~~~
-
-Black_ is an uncompromising Python code formatter.
-By using it, you cede control over minutiae of hand-formatting.
-But in return, you no longer have to worry about formatting your code correctly, since black will handle it.
-Blackened code looks the same for all authors, ensuring consistent code formatting within your project.
-
-The format used by Black makes code review faster by producing the smaller diffs.
-
-Black's output is always stable.
-For a given block of code, a fixed version of black will always produce the same output.
-However, you should note that different versions of black will produce different outputs.
-If you want to upgrade to a newer version of black, you must change the version everywhere it is specified:
-
-- requirements-dev.txt, `L1 <https://github.com/scottclowe/python-template-repo/blob/master/requirements-dev.txt#L1>`__
-- .pre-commit-config.yaml, `L14 <https://github.com/scottclowe/python-template-repo/blob/master/.pre-commit-config.yaml#L14>`__,
-  `L28 <https://github.com/scottclowe/python-template-repo/blob/master/.pre-commit-config.yaml#L28>`__, and
-  `L47 <https://github.com/scottclowe/python-template-repo/blob/master/.pre-commit-config.yaml#L47>`__
-
-.. _black: https://github.com/psf/black
 
 
 pre-commit
