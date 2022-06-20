@@ -58,3 +58,6 @@ class STAC_Providers:
             sensing_time_fmt: str = "%Y-%m-%dT%H:%M:%S.%fZ"
             cloud_cover: str = "eo:cloud_cover"
             epsg: str = "proj:epsg"
+            sun_zenith_angle = "s2:mean_solar_zenith"
+            sun_azimuth_angle = "s2:mean_solar_azimuth"
+

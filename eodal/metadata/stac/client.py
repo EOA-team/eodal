@@ -122,6 +122,8 @@ def sentinel2(
             "sensing_time": datetime.strptime(
                 props[s2.sensing_time], s2.sensing_time_fmt
             ),
+            "sun_azimuth_angle": props[s2.sun_azimuth_angle],
+            "sun_zenith_angle": props[s2.sun_zenith_angle]
         }
         # get links to actual Sentinel-2 bands
         meta_dict["assets"] = scene["assets"]
@@ -149,7 +151,7 @@ if __name__ == "__main__":
 
     # provide bounding box
     bounding_box_fpath = (
-        "../../../../data/sample_polygons/ZH_Polygons_2020_ESCH_EPSG32632.shp"
+        '/home/graflu/public/Evaluation/Projects/KP0031_lgraf_PhenomEn/02_Field-Campaigns/Strickhof/WW_2022/Bramenwies.shp'
     )
     gdf = gpd.read_file(bounding_box_fpath)
     gdf.to_crs(epsg=4326, inplace=True)
