@@ -178,6 +178,47 @@ class S2_Processed_Metadata(Base):
     )
 
 
+class PS_SuperDove_Metadata(Base):
+
+    __tablename__ = "ps_superdove_raw_metadata"
+
+    scene_id = Column(String, nullable=False, primary_key=True)
+
+    sensing_time = Column(TIMESTAMP, nullable=False)
+    gsd = Column(Float, nullable=False, comment='Ground Sampling Distance [m]')
+
+    anomalous_pixels = Column(Integer, nullable=False)
+    clear_confidence_percent = Column(Integer, nullable=False)
+    clear_percent = Column(Integer, nullable=False)
+    cloud_cover = Column(Integer, nullable=False)
+    cloud_percent = Column(Integer, nullable=False)
+    ground_control = Column(Boolean, nullable=False)
+    heavy_haze_percent = Column(Integer, nullable=False)
+    instrument = Column(String, nullable=False)
+    item_type = Column(String, nullable=False)
+    light_haze_percent = Column(Integer, nullable=False)
+    pixel_resolution = Column(Integer, nullable=False)
+    provider = Column(String, nullable=False)
+    quality_category = Column(String, nullable=False)
+    satellite_azimuth = Column(Float, nullable=False)
+    satellite_id =  Column(String, nullable=False)
+    shadow_percent =  Column(Integer, nullable=False)
+    snow_ice_percent = Column(Integer, nullable=False)
+    strip_id = Column(String, nullable=False)
+    sun_azimuth = Column(Float, nullable=False)
+    sun_elevation = Column(Float, nullable=False)
+    view_angle = Column(Float, nullable=False)
+    visible_confidence_percent = Column(Integer, nullable=False)
+    visible_percent = Column(Integer, nullable=False)
+
+    # storage location
+    storage_device_ip = Column(String)
+    storage_device_ip_alias = Column(String)  # might be necessary
+    storage_share = Column(String, nullable=False)
+    path_type = Column(
+        String, nullable=False, comment="type of the path (e.g., POSIX-Path)"
+    )
+
 def create_tables() -> None:
     """
     creates all Sentinel-2 related tables in the current
