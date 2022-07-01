@@ -211,6 +211,8 @@ class PS_SuperDove_Metadata(Base):
     visible_confidence_percent = Column(Integer, nullable=False)
     visible_percent = Column(Integer, nullable=False)
 
+    geom = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
+
     # storage location
     storage_device_ip = Column(String)
     storage_device_ip_alias = Column(String)  # might be necessary
