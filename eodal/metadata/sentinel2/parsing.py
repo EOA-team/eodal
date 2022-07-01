@@ -550,10 +550,3 @@ def loop_s2_archive(
         pd.DataFrame.from_dict(metadata_scenes),
         pd.DataFrame.from_dict(ql_ds_scenes),
     )
-
-
-# unit test
-if __name__ == "__main__":
-
-    s2_archive = Path("./../../../../data")
-    metadata = loop_s2_archive(in_dir=s2_archive, extract_datastrip=True)
