@@ -212,6 +212,9 @@ class PS_SuperDove_Metadata(Base):
     visible_percent = Column(Integer, nullable=False)
 
     geom = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
+    nrows = Column(Integer, nullable=False)
+    ncols = Column(Integer, nullable=False)
+    epsg = Column(Integer, nullable=False)
 
     # storage location
     storage_device_ip = Column(String)
