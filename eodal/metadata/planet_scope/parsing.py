@@ -24,14 +24,15 @@ import json
 from pathlib import Path
 from shapely.geometry import shape
 from typing import Any, Dict
+from xml.dom import minidom
 
-def parse_metadata(in_file: Path) -> Dict[str, Any]:
+def _parse_metadata_json(in_file: Path) -> Dict[str, Any]:
     """
     Parses the metadata file (*.json) delivered with the Planet-Scope
     scenes
 
     :param in_file:
-        PlanetScope metadata file-path
+        PlanetScope metadata file-path (*.json)
     :returns:
         parsed metadata
     """
@@ -64,3 +65,47 @@ def parse_metadata(in_file: Path) -> Dict[str, Any]:
     props['storage_device_ip'] = ''
 
     return props
+
+def _parse_metadata_xml(in_file: Path) -> Dict[str, Any]:
+    """
+    Parses the metadata file (*.xml) delivered with the Planet-Scope
+    scenes to extract the EPSG code of the scene and the orbit directions
+
+    :param in_file:
+        PlanetScope metadata file-path (*.xml)
+    :returns:
+        parsed metadata
+    """
+    # parse the xml file into a minidom object
+    xmldoc = minidom.parse(str(in_file))
+    metadata = {}
+    metadata['epsg'] = xmldoc.getElementsByTagName('ps:epsgCode')[0].firstChild.nodeValue
+    metadata['nrows'] = xmldoc.getElementsByTagName('ps:numRows')[0].firstChild.nodeValue
+    metadata['ncols'] = xmldoc.getElementsByTagName('ps:numColumns')[0].firstChild.nodeValue
+    metadata['orbit_direction'] = xmldoc.getElementsByTagName(
+        'eop:orbitDirection')[0].firstChild.nodeValue
+    return metadata
+
+def parse_metadata(in_dir: Path) -> Dict[str, Any]:
+    """
+    Parses the metadata files (*.json and *.xml) delivered with the Planet-Scope
+    scenes and returns the data in a format ready for DB insert
+
+    :param in_dir:
+        PS scene directory where metadata and image files are located
+    :returns:
+        parsed metadata
+    """
+    # find the json metadata file
+    in_file_json = next(in_dir.glob('*.json'))
+    json_metadata = _parse_metadata_json(in_file=in_file_json)
+    # find the xml metadata file
+    in_file_xml = next(in_dir.glob('*.xml'))
+    json_metadata.update(_parse_metadata_xml(in_file=in_file_xml))
+
+    return json_metadata
+
+if __name__ == '__main__':
+
+    in_dir = Path('/mnt/ides/Lukas/software/eodal/data/20220414_101133_47_227b')
+    metadata = parse_metadata(in_dir)
