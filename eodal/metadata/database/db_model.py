@@ -236,7 +236,5 @@ def create_tables() -> None:
     except Exception as e:
         raise Exception(f"Could not create table: {e}")
 
-
 if __name__ == "__main__":
-
     create_tables()
