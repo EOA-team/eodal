@@ -36,7 +36,7 @@ from typing import Optional
 from typing import Union
 
 from eodal.config import get_settings
-from eodal.metadata.database import PS_SuperDove_Metadata
+from eodal.metadata.database.db_model import PS_SuperDove_Metadata
 from eodal.utils.exceptions import DataNotFoundError
 
 Settings = get_settings()
