@@ -215,6 +215,7 @@ class PS_SuperDove_Metadata(Base):
     nrows = Column(Integer, nullable=False)
     ncols = Column(Integer, nullable=False)
     epsg = Column(Integer, nullable=False)
+    orbit_direction = Column(String, nullable=False)
 
     # storage location
     storage_device_ip = Column(String)

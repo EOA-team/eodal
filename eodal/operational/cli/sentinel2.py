@@ -350,7 +350,7 @@ def cli_s2_sen2cor_update(
         with different mount points of the NAS share. If not provided, the absolute
         path of the dataset is used in the database.
     """
-    # if yes loop over all scenes (S2*.SAFE)
+    # loop over all scenes (S2*.SAFE)
     for scene_dir in s2_raw_data_archive.rglob("S2*.SAFE"):
 
         try:

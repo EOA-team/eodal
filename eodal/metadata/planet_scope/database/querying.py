@@ -110,4 +110,28 @@ def find_raw_data_by_bbox(
     try:
         return pd.read_sql(query_statement, session.bind)
     except Exception as e:
-        raise DataNotFoundError(f"Could not find Planet-Scope data by bounding box: {e}")
+        raise DataNotFoundError(
+            f"Could not find Planet-Scope data by bounding box: {e}"
+        )
+
+def get_scene_metadata(scene_id: str) -> pd.DataFrame:
+    """
+    Returns the complete metadata record of a Planet-Scope scene
+
+    :param product_uri:
+        unique scene identifier provided by Planet in the metadata *.json file
+    :returns:
+        ``DataFrame`` with complete scene metadata
+    """
+    query_statement = (
+        session.query(PS_SuperDove_Metadata)
+        .filter(PS_SuperDove_Metadata.scene_id == scene_id)
+        .statement
+    )
+
+    try:
+        return pd.read_sql(query_statement, session.bind)
+    except Exception as e:
+        raise DataNotFoundError(
+            "Could not find Planet-Scope scene with product_uri " f"{scene_id}: {e}"
+        )

@@ -55,11 +55,8 @@ if __name__ == '__main__':
     from pathlib import Path
     from eodal.metadata.planet_scope.parsing import parse_metadata
     
-    in_file = Path(
-        '/mnt/ides/Lukas/software/eodal/data/20220414_101133_47_227b/20220414_101133_47_227b_metadata.json'
+    in_dir = Path(
+        '/mnt/ides/Lukas/software/eodal/data/20220414_101133_47_227b'
     )
-    metadata = parse_metadata(in_file)
+    metadata = parse_metadata(in_dir)
     metadata_dict_to_database(metadata)
-
-
-    
