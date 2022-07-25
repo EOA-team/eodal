@@ -72,7 +72,7 @@ class Settings(BaseSettings):
     ECHO_DB: bool = False
 
     # STAC configuration
-    USE_STAC: bool = False
+    USE_STAC: bool = True
     MAX_ITEMS: int = 500
     LIMIT_ITEMS: int = 5
 
