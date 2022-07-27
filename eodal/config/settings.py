@@ -79,6 +79,9 @@ class Settings(BaseSettings):
     # change the value of this variable to use a different STAC service provider
     STAC_BACKEND = STAC_Providers.MSPC # STAC_Providers.AWS
 
+    # subscription key for MS-PC (might be required for some data sets like Sentinel-1)
+    PC_SDK_SUBSCRIPTION_KEY: str = ''
+
     # define logger
     CURRENT_TIME: str = datetime.now().strftime("%Y%m%d-%H%M%S")
     LOGGER_NAME: str = "eodal"
