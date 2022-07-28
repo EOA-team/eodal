@@ -505,8 +505,8 @@ class Sentinel2(RasterCollection):
         :param point_features:
             vector file (e.g., ESRI shapefile or geojson) or ``GeoDataFrame``
             defining point locations for which to extract pixel values
-        :param raster:
-            custom raster dataset understood by ``GDAL`` from which to extract
+        :param in_dir:
+            Sentinel-2 scene in .SAFE structure from which to extract
             pixel values at the provided point locations
         :param band_selection:
             list of bands to read. Per default all raster bands available are read.
