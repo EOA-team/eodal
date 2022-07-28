@@ -2,8 +2,10 @@
 Accessing Planet-Scope data
 '''
 
+import geopandas as gpd
+
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from eodal.core.raster import RasterCollection
 from eodal.utils.constants.planet_scope import super_dove_band_mapping, super_dove_gain_factor
@@ -62,7 +64,8 @@ class SuperDove(PlanetScope):
         :param band_selection:
             selection of bands to read. By default all bands are read.
         :param read_ql:
-            If True (default) reads the quality layers from the udm2 file.
+            If True (default) reads the quality layers from the udm2 file
+            (usable data mask).
         :param apply_scaling:
             If True scales the reflectance factors between 0 and 1 based
             on gain and offset.
@@ -76,7 +79,7 @@ class SuperDove(PlanetScope):
         if band_selection is not None:
             band_names, band_aliases = cls._process_band_selection(
                 band_selection, platform='SuperDove')
-        sr = RasterCollection.from_multi_band_raster(
+        sr = cls.from_multi_band_raster(
             fpath_raster=sr_file,
             band_names_src=band_names,
             band_names_dst=band_names,
@@ -106,8 +109,49 @@ class SuperDove(PlanetScope):
             the threshold the more confident the algorithm was that the pixel
             was clear. Set to 100 (maximum confidence) by default.
         """
+        # check if clear and confidence band are available
+        if not set(['clear', 'confidence']).issubset(set(self.band_names)):
+            raise BandNotFoundError('"clear" and/or "confidence" are missing')
+        clear_mask = self['clear'] == 0
+        confidence_mask = self['confidence'] < confidence_threshold
+        # combine clear and confidence mask
+        mask = clear_mask and confidence_mask
+        # apply mask
+        self.mask(mask.values.data, inplace=True)
+
+    @classmethod
+    def read_pixels(
+        cls,
+        vector_features: Union[Path, gpd.GeoDataFrame],
+        in_dir: Path,
+        band_selection: Optional[List[str]] = None,
+        read_ql: Optional[bool] = True,
+        apply_scaling: Optional[bool] = True,    
+    ) -> gpd.GeoDataFrame:
+        """
+        Extracts PlanetScope Super Dove raster values at locations defined by one or many
+        vector geometry features read from a vector file (e.g., ESRI shapefile) or
+        ``GeoDataFrame``.
+
+        :param point_features:
+            vector file (e.g., ESRI shapefile or geojson) or ``GeoDataFrame``
+            defining point locations for which to extract pixel values
+        :param in_dir:
+            Planet Scope SuperDove scene from which to extract
+            pixel values at the provided point locations
+        :param band_selection:
+            list of bands to read. Per default all raster bands available are read.
+        :param read_ql:
+            read quality layer file (udm2, usuable data mask)
+        :param apply_scaling:
+            apply SuperDove gain and offset factor to derive reflectance values scaled
+            between 0 and 1.
+        :returns:
+            ``GeoDataFrame`` containing the extracted raster values. The band values
+            are appened as columns to the dataframe. Existing columns of the input
+            `in_file_pixels` are preserved.
+        """
         pass
-        
 
 
 if __name__ == '__main__':
@@ -115,4 +159,5 @@ if __name__ == '__main__':
     scene = Path('/home/graflu/public/Evaluation/Satellite_data/Planet/Eschikon/PSB_SD/analytic_8b_sr_udm2/2022/20220307_095705_17_2473')
     band_selection=['blue', 'green', 'red']
     parcel = Path('/home/graflu/public/Evaluation/Projects/KP0031_lgraf_PhenomEn/02_Field-Campaigns/Strickhof/WW_2022/Hohrueti.shp')
-    SuperDove.from_analytic(in_dir=scene, band_selection=band_selection, vector_features=parcel)
+    ds = SuperDove.from_analytic(in_dir=scene, band_selection=band_selection, vector_features=parcel)
+    ds.mask_non_clear_pixels()
