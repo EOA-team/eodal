@@ -413,7 +413,8 @@ class RasterCollection(MutableMapping):
             if len(band_names) == 0:
                 band_names_src = [f"B{idx+1}" for idx in range(band_count)]
             else:
-                band_names_src = band_names
+                if band_names_src is None:
+                    band_names_src = band_names
             # is a selection of bands provided? If no use all available bands
             # otherwise check the band indices
             if band_names_src is None:
@@ -998,7 +999,8 @@ class RasterCollection(MutableMapping):
                 band = self.get_band(band_name)
                 collection.add_band(band_constructor=band.reproject, **kwargs)
 
-        return collection
+        if not inplace:
+            return collection
 
     @check_band_names
     def resample(
