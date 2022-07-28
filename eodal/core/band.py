@@ -362,7 +362,6 @@ class Band(object):
         `rasterio` compatible representation of essential image metadata
     :attrib transform:
         `Affine` transform representation of the image geo-localisation
-
     """
 
     def __init__(
@@ -378,6 +377,7 @@ class Band(object):
         nodata: Optional[Union[int, float]] = None,
         is_tiled: Optional[Union[int, bool]] = 0,
         area_or_point: Optional[str] = "Area",
+        alias: Optional[str] = ""
     ):
         """
         Constructor to instantiate a new band object.
@@ -424,6 +424,8 @@ class Band(object):
             `Point`. When `Area` pixel coordinates refer to the upper left corner of the
             pixel, whereas `Point` indicates that pixel coordinates are from the center
             of the pixel.
+        :param alias:
+            band alias name (optional).
         """
 
         # make sure the passed values are 2-dimensional
@@ -1348,9 +1350,15 @@ class Band(object):
             # clip data for displaying to central 96% percentile
             # TODO: here seems to be a bug with nans in the data ...
             if vmin is None:
-                vmin = np.nanquantile(self.values, 0.02)
+                try:
+                    vmin = np.nanquantile(self.values, 0.02)
+                except ValueError:
+                    vmin = self.values.min() 
             if vmax is None:
-                vmax = np.nanquantile(self.values, 0.98)
+                try:
+                    vmax = np.nanquantile(self.values, 0.98)
+                except ValueError:
+                    vmax = self.values.max()
 
             # actual displaying of the band data
             img = ax.imshow(
