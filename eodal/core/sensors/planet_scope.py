@@ -75,6 +75,7 @@ class SuperDove(PlanetScope):
         """
         # read the surface reflectance file
         sr_file = next(in_dir.glob('*_SR_8b.tif'))
+        band_names, band_aliases = None, None
         # process the band selection
         if band_selection is not None:
             band_names, band_aliases = cls._process_band_selection(
@@ -151,8 +152,38 @@ class SuperDove(PlanetScope):
             are appened as columns to the dataframe. Existing columns of the input
             `in_file_pixels` are preserved.
         """
-        pass
-
+        # process the band selection
+        band_names = None
+        if band_selection is not None:
+            band_names, _ = cls._process_band_selection(
+                band_selection, platform='SuperDove')
+        # read surface reflectance values
+        sr_file = next(in_dir.glob('*_SR_8b.tif'))
+        sr = RasterCollection.read_pixels(
+            fpath_raster=sr_file,
+            vector_features=vector_features,
+            band_names_src=band_names,
+            band_names_dst=band_names
+        )
+        # skip no-data pixels (surface reflectance is zero in all bands)
+        if band_names is None:
+            band_names = super_dove_band_mapping.values()
+            sr = sr.loc[~(sr[band_names] == 0).all(axis=1)]
+        # apply scaling if selected
+        if apply_scaling:
+            for band_name in band_names:
+                sr[band_name] = sr[band_name].apply(
+                    lambda x, super_dove_gain_factor=super_dove_gain_factor:
+                        x * super_dove_gain_factor
+                )
+        # extract udm if selected
+        if read_ql:
+            udm_file = next(in_dir.glob('*_udm2.tif'))
+            sr = RasterCollection.read_pixels(
+                fpath_raster=udm_file,
+                vector_features=vector_features
+            )
+        return sr
 
 if __name__ == '__main__':
 
@@ -161,3 +192,6 @@ if __name__ == '__main__':
     parcel = Path('/home/graflu/public/Evaluation/Projects/KP0031_lgraf_PhenomEn/02_Field-Campaigns/Strickhof/WW_2022/Hohrueti.shp')
     ds = SuperDove.from_analytic(in_dir=scene, band_selection=band_selection, vector_features=parcel)
     ds.mask_non_clear_pixels()
+
+    fpath_pixels = Path('/home/graflu/public/Evaluation/Projects/KP0031_lgraf_PhenomEn/02_Field-Campaigns/Strickhof/Sampling_Points/Bramenwies.shp')
+    pixels = SuperDove.read_pixels(vector_features=fpath_pixels, in_dir=scene)
