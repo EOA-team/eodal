@@ -1,7 +1,7 @@
 """
-Function to keep a local Sentinel-2 archive up-to-date by comparing data available
-in your local archive for a given geographic region, time period and processing level
-with records available from CREODIAS (user credentials required).
+Function to keep a local Sentinel-1 archive up-to-date by comparing data available
+in your local archive for a given geographic region, time period, product type and
+sensor mode.
 
 The function not only checks if CREODIAS has new datasets available, it also automatically
 downloads them into a user-defined location.
@@ -9,7 +9,7 @@ downloads them into a user-defined location.
 IMPORTANT: In order to receive results the region (i.e., geographic extent) for which
 to download data must be defined in the metadata DB.
 
-IMPORTANT: CREODIAS does not allow more than 2000 records (each Sentinel-2 scene is a record)
+IMPORTANT: CREODIAS does not allow more than 2000 records (each Sentinel-1 scene is a record)
 to be queried at once. If you might exceed this threshold (e.g., your region is large and/or
 your time period is long) split your query into smaller chunks by using, e.g., shorter time
 periods for querying.
@@ -37,31 +37,32 @@ from datetime import date
 from pathlib import Path
 from typing import Optional
 
-from eodal.utils.constants import ProcessingLevels
-from eodal.downloader.sentinel2.creodias import query_creodias
+from eodal.downloader.sentinel1.creodias import query_creodias
 from eodal.downloader.utils.creodias import download_datasets
 
 from eodal.downloader.utils import unzip_datasets
 from eodal.metadata.database.querying import get_region
-from eodal.metadata.sentinel2.database.querying import find_raw_data_by_bbox
+from eodal.metadata.sentinel1.database.querying import find_raw_data_by_bbox
 from eodal.config import get_settings
 
 logger = get_settings()
 
-
 def pull_from_creodias(
     date_start: date,
     date_end: date,
-    processing_level: ProcessingLevels,
     path_out: Path,
     region: str,
-    cloud_cover_threshold: Optional[int] = 100,
     unzip: Optional[bool] = True,
     overwrite_existing_zips: Optional[bool] = False,
+    **kwargs
 ) -> pd.DataFrame:
     """
-    Checks if CREODIAS has Sentinel-2 datasets not yet available locally
+    Checks if CREODIAS has Sentinel-1 datasets not yet available locally
     and downloads these datasets from CREODIAS.
+
+    IMPORTANT:
+        Unless specified otherwise, GRD (Ground Range Detected) products
+        acquired in IW (Interferometric Wide Swath) mode are considered.
 
     NOTE:
         CREODIAS limits the maximum amount of datasets to download within a
@@ -72,8 +73,6 @@ def pull_from_creodias(
         Start date of the database & creodias query
     :param date end:
         End date of the database & creodias query
-    :param processing_level:
-        Select S2 processing level L1C or L2A
     :param path_out:
         Out directory where the additional data from CREODIAS should be
         downloaded to
@@ -81,9 +80,6 @@ def pull_from_creodias(
         Region identifier of the Sentinel-2 archive. By region we mean a
         geographic extent (bounding box) in which the data is organized. The bounding
         box extent is taken from the metadata DB based on the region identifier.
-    :param cloud_cover_threshold:
-        cloud cover threshold (0-100%) to be used for CREODIAS query. Defaults
-        to 100% (i.e., also completely cloudy scenes are downloaded).
     :param unzip:
         if True (default) datasets are unzipped and zip archives are deleted
     :param overwrite_existing_zips:
@@ -91,6 +87,10 @@ def pull_from_creodias(
         process was interrupted (e.g., due to a connection timeout) setting the flag
         to True can save time because datasets already downloaded are ignored. NOTE:
         The function does **not** check if a dataset was downloaded completely!
+    :param kwargs:
+        optional key-word arguments to pass to 
+        `~eodal.downloader.sentinel1.creodias.query_creodias` such sensor_mode and
+        product_type
     :return:
         dataframe with references to downloaded datasets
     """
@@ -108,10 +108,13 @@ def pull_from_creodias(
 
     # local database query to check what is already available locally
     try:
+        product_type = kwargs.get('product_type', 'GRD')
+        sensor_mode = kwargs.get('sensor_mode', 'IW')
         meta_db_df = find_raw_data_by_bbox(
             date_start=date_start,
             date_end=date_end,
-            processing_level=processing_level,
+            product_type=product_type,
+            sensor_mode=sensor_mode,
             bounding_box=bounding_box_ewkt,
         )
     except Exception as e:
@@ -122,14 +125,7 @@ def pull_from_creodias(
     max_records = 2000
 
     # check for available datasets
-    datasets = query_creodias(
-        start_date=date_start,
-        end_date=date_end,
-        max_records=max_records,
-        processing_level=processing_level,
-        bounding_box=bounding_box,
-        cloud_cover_threshold=cloud_cover_threshold,
-    )
+    datasets = query_creodias
 
     # get .SAFE datasets from CREODIAS
     datasets["product_uri"] = datasets.properties.apply(

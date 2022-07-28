@@ -46,6 +46,33 @@ class Regions(Base):
     region_uid = Column(String, nullable=False, primary_key=True)
     geom = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
 
+class S1_Raw_Metadata(Base):
+
+    __tablename__ = "sentinel1_raw_metadata"
+
+    scene_id = Column(String, nullable=False, primary_key=True)
+    product_uri = Column(String, nullable=False, primary_key=True)
+
+    spacecraft_name = Column(String, nullable=False)
+    sensing_orbit_start = Column(Integer, nullable=False)
+    sensing_orbit_stop = Column(Integer, nullable=False)
+    relative_orbit_start = Column(Integer, nullable=False)
+    relative_orbit_stop = Column(Integer, nullable=False)
+    sensing_orbit_direction = Column(String, nullable=False)
+    sensing_time = Column(TIMESTAMP, nullable=False)
+    sensing_date = Column(Date, nullable=False)
+    instrument_mode = Column(String, nullable=False)
+    product_type = Column(String, nullable=False)
+    product_class = Column(String, nullable=False)
+    processing_software_name = Column(String, nullable=False)
+    processing_software_version = Column(String, nullable=False)
+    mission_data_take_id = Column(Integer, nullable=False)
+    storage_device_ip = Column(String)
+    storage_device_ip_alias = Column(String)
+    storage_share = Column(String)
+
+    # scene footprint
+    geom = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
 
 class S2_Raw_Metadata(Base):
 
@@ -141,7 +168,6 @@ class S2_Raw_Metadata(Base):
         String, nullable=False, comment="type of the path (e.g., POSIX-Path)"
     )
 
-
 class S2_Processed_Metadata(Base):
 
     __tablename__ = "sentinel2_processed_metadata"
@@ -176,7 +202,6 @@ class S2_Processed_Metadata(Base):
             ondelete="CASCADE",
         ),
     )
-
 
 class PS_SuperDove_Metadata(Base):
 
