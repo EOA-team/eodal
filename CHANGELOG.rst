@@ -19,3 +19,5 @@ Initial release (to be released).
 
 - Added: Support for Microsoft Planetary Computer (using its STAC)
 - Added: Guidelines for Contribution to E:earth_africa:dal
+- Added: Sensor core class to work with Planet Scope Super Dove sensors including download capacities
+- Added: Metadata and archive handling for Sentinel-1 products (GRD, SLC)
