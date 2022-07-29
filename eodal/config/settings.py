@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     CREODIAS_USER: str = ""
     CREODIAS_PASSWORD: str = ""
 
+    # define Planet-API token
+    PLANET_API_KEY: str = ""
+
     # metadata base connection details
     DB_USER: str = "postgres"
     DB_PW: str = "P@ssW0rd!"
