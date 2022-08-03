@@ -272,14 +272,14 @@ class Sentinel2Mapper(Mapper):
             data
         """
         # resample to target resolution based on the MapperConfig settings
+        has_scl = False
         band_selection = self.mapper_configs.band_names
         if band_selection is None:
             band_selection = s2_scene.band_names
-            has_scl = False
-            # make sure SCL is always resampled to 10m using nearest neighbor
-            if "SCL" in band_selection:
-                band_selection.remove("SCL")
-                has_scl = True
+        # make sure SCL is always resampled to 10m using nearest neighbor
+        if "SCL" in band_selection:
+            band_selection.remove("SCL")
+            has_scl = True
         s2_scene.resample(
             band_selection=band_selection,
             interpolation_method=self.mapper_configs.resampling_method,
@@ -300,6 +300,14 @@ class Sentinel2Mapper(Mapper):
         """
         Backend method for processing and reading scene data if more than one scene
         is available for a given sensing date and feature (area of interest)
+
+        :param scenes_date:
+            `DataFrame` with all Sentinel-2 scenes of a single date
+        :param feature_gdf:
+            `GeoDataFrame` with spatial features for which to extract data
+        :param kwargs:
+            optional key-word arguments to pass on to
+            `~eodal.core.sensors.Sentinel2.from_safe`
         """
         # check which baseline should be used
         return_highest_baseline = kwargs.get("return_highest_baseline", True)
@@ -334,7 +342,7 @@ class Sentinel2Mapper(Mapper):
         else:
             # check processing baseline first (one dataset can appear in different processing
             # baselines)
-            updated_scenes = identify_updated_scenes(
+            updated_scenes, old_scenes = identify_updated_scenes(
                 metadata_df=scenes_date, return_highest_baseline=return_highest_baseline
             )
             # only one scene left -> read the scene and return
@@ -343,16 +351,30 @@ class Sentinel2Mapper(Mapper):
                     in_dir = updated_scenes["assets"].iloc[0]
                 else:
                     in_dir = updated_scenes["real_path"].iloc[0]
-                res = Sentinel2.from_safe(
-                    in_dir=in_dir,
-                    band_selection=self.mapper_configs.band_names,
-                    **kwargs,
-                )
-                self._resample_s2_scene(s2_scene=res)
-                return res
-            # if updated scenes is not empty overwrite the scenes_date DataFrame
+                # if there were only two input scenes we're done
+                # otherwise we have to check if we have to merge data
+                if scenes_date.shape[0] == 2:
+                    res = Sentinel2.from_safe(
+                        in_dir=in_dir,
+                        band_selection=self.mapper_configs.band_names,
+                        **kwargs,
+                    )
+                    self._resample_s2_scene(s2_scene=res)
+                    return res
+            # if updated scenes is not empty update the scenes_date DataFrame
             if not updated_scenes.empty:
-                scenes_date = updated_scenes.copy()
+                # drop "out-dated" scenes
+                appended = pd.concat([scenes_date, old_scenes])
+                appended.drop_duplicates(subset=['product_uri', 'tile_id'], keep=False, inplace=True)
+                scenes_date = appended.copy()
+                # if there is a single scene from a another tile in the
+                # "old" scenes append it to the scenes_date
+                old_scenes_grouped = old_scenes.groupby(by='tile_id')
+                for tile_scenes in old_scenes_grouped:
+                    if tile_scenes[0] not in scenes_date.tile_id.unique():
+                        scenes_date = pd.concat(
+                            [scenes_date, tile_scenes[1].copy()]
+                        )
 
             # apply merge logic
             tmp_fnames = []
@@ -441,6 +463,9 @@ class Sentinel2Mapper(Mapper):
         :param sensing_date:
             date for which to extract observations (or the closest date if
             no observations are available for the given date)
+        :param kwargs:
+            optional key-word arguments to pass on to
+            `~eodal.core.sensors.Sentinel2.from_safe`
         :returns:
             depending on the geometry type of the feature either a
             ``GeoDataFrame`` (geometry type: ``Point``) or ``Sentinel2Handler``
@@ -535,6 +560,10 @@ class Sentinel2Mapper(Mapper):
             optional key-word arguments to pass to `~eodal.core.band.Band.from_rasterio`
         """
         assets = {}
+        # check if band selection is passed in kwargs
+        band_selection_kwargs = kwargs.get('band_selection', None)
+        if band_selection_kwargs is not None:
+            object.__setattr__(self, 'band_names', band_selection_kwargs)
         # loop over features (AOIs) in feature dict
         for feature, scenes_df in self.observations.items():
             # in case a feature selection is available check if the current
