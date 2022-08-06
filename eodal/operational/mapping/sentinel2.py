@@ -19,8 +19,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
 import cv2
-import pandas as pd
 import geopandas as gpd
+import numpy as np
+import pandas as pd
 import uuid
 
 from datetime import date
@@ -598,5 +599,10 @@ class Sentinel2Mapper(Mapper):
             if isinstance(res, gpd.GeoDataFrame):
                 assets[feature] = pd.concat(feature_res)
             else:
+                # order scenes by acquisition time
+                timestamps = [x.scene_properties.acquisition_time for x in feature_res]
+                sorted_indices = np.argsort(np.array(timestamps))
+                feature_res_ordered = [feature_res[idx] for idx in sorted_indices]
                 assets[feature] = feature_res
+                
         return assets
