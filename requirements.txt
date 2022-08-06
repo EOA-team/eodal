@@ -10,7 +10,7 @@ matplotlib
 lxml
 joblib
 psycopg2-binary
-opencv-python
+opencv-python-headless
 requests
 xarray
 rtree
