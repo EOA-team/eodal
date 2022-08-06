@@ -18,18 +18,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import cv2
+import matplotlib.pyplot as plt
+
 from datetime import date
 from geopandas import GeoDataFrame
 from pandas import DataFrame
 from pathlib import Path
-from shapely.geometry import MultiPolygon
-from shapely.geometry import Point
-from shapely.geometry import Polygon
-from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Union
+from shapely.geometry import MultiPolygon, Point, Polygon
+from typing import Any, Dict, List, Optional, Union
+
 
 
 class Feature(object):
