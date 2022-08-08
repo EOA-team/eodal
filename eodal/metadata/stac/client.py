@@ -2,18 +2,22 @@
 Querying datasets from a Spatio-Temporal Asset Catalog (STAC).
 """
 
+import geopandas as gpd
 import pandas as pd
+import planetary_computer
 
 from datetime import date, datetime
+from pathlib import Path
 from pystac_client import Client
+from pystac.item_collection import ItemCollection
 from shapely.geometry import Polygon
 from typing import Any, Dict, List
 
-from eodal.config import get_settings
+from eodal.config import get_settings, STAC_Providers
+from eodal.utils.decorators import prepare_bbox
 from eodal.utils.sentinel2 import ProcessingLevels
 
 Settings = get_settings()
-
 
 def query_stac(
     date_start: date,
@@ -34,7 +38,7 @@ def query_stac(
     :param collection:
         name of the collection
         (e.g., sentinel-2-l2a for Sentinel-2 L2A data)
-    :param bounding_box_wkt:
+    :param bounding_box:
         bounding box either as extended well-known text in geographic coordinates
         or as shapely ``Polygon`` in geographic coordinates (WGS84)
     :returns:
@@ -59,7 +63,7 @@ def query_stac(
     scenes = item_json["features"]
     return scenes
 
-
+@prepare_bbox
 def sentinel2(
     cloud_cover_threshold: float, processing_level: ProcessingLevels, **kwargs
 ) -> pd.DataFrame:
@@ -136,6 +140,39 @@ def sentinel2(
     # create pandas DataFrame out of scene metadata records
     return pd.DataFrame(metadata_list)
 
+@prepare_bbox
+def sentinel1_rtc(**kwargs) -> pd.DataFrame:
+    """
+    Sentinel-1 RTC (radiometry and terrain corrected) querying using data
+    from Microsoft Planetary Computer.
+
+    :param kwargs:
+        :param kwargs:
+        keyword arguments to pass to `query_stac` function
+    :returns:
+        dataframe with references to found Sentinel-1  RTC scenes
+    """
+
+    # check STAC provider and status
+    if not Settings.USE_STAC:
+        raise ValueError('This method requires STAC')
+    if Settings.STAC_BACKEND != STAC_Providers.MSPC:
+        raise ValueError('This method requires Microsoft Planetary Computer')
+    if Settings.PC_SDK_SUBSCRIPTION_KEY == '':
+        raise ValueError('This method requires a valid Planetary Computer API key')
+
+    # set collection to sentinel1-rtc
+    kwargs.update({'collection': 'sentinel-1-rtc'})
+
+    # query the catalog
+    scenes = query_stac(**kwargs)
+    metadata_list = []
+    for scene in scenes:
+        metadata_dict = scene['properties']
+        metadata_dict['assets'] = scene['assets']
+        metadata_list.append(metadata_dict)
+
+    return pd.DataFrame(metadata_list)
 
 # unit test
 if __name__ == "__main__":
@@ -150,22 +187,26 @@ if __name__ == "__main__":
     processing_level = ProcessingLevels.L2A
 
     # provide bounding box
-    bounding_box_fpath = (
+    bounding_box_fpath = Path(
         '/home/graflu/public/Evaluation/Projects/KP0031_lgraf_PhenomEn/02_Field-Campaigns/Strickhof/WW_2022/Bramenwies.shp'
     )
-    gdf = gpd.read_file(bounding_box_fpath)
-    gdf.to_crs(epsg=4326, inplace=True)
-    bounding_box = box(*gdf.total_bounds)
 
     # set scene cloud cover threshold [%]
     cloud_cover_threshold = 80
 
+    # Sentinel-1
+    res_s1 = sentinel1_rtc(
+        date_start=date_start,
+        date_end=date_end,
+        vector_features=bounding_box_fpath
+    )
+
     # run stack query and make sure some items are returned
-    res = sentinel2(
+    res_s2 = sentinel2(
         date_start=date_start,
         date_end=date_end,
         processing_level=processing_level,
         cloud_cover_threshold=cloud_cover_threshold,
-        bounding_box=bounding_box,
+        vector_features=bounding_box_fpath,
     )
-    assert res.empty, "no results found"
+    assert res_s2.empty, "no results found"
