@@ -6,8 +6,11 @@ Created on Jul 27, 2022
 
 import geopandas as gpd
 import json
+import pandas as pd
 import requests
+import time
 
+from alive_progress import alive_bar
 from datetime import date, datetime
 from pathlib import Path
 from requests.models import Response
@@ -16,46 +19,89 @@ from shapely.geometry import box
 from typing import Any, Dict, List, Optional
 
 from eodal.config import get_settings
+from eodal.utils.exceptions import APIError, AuthenticationError
 
 Settings = get_settings()
+logger = Settings.logger
+
+# order and data URL
 orders_url = 'https://api.planet.com/compute/ops/orders/v2'
 data_url = 'https://api.planet.com/data/v1'
 
-class APIError(Exception):
-    pass
-
-class AuthenticationError(Exception):
-    pass
-
 class PlanetAPIClient(object):
+    """
+    `eodal` Planet-API client.
+
+    :attrib request:
+        query parameters to pass to Planet-API (e.g.,
+        date and dataset filters)
+    :attrib features:
+        features returned from Planet API (i.e., found
+        Planet-Scope scenes)
+    :attrib session:
+        (authenticated) session object to interact with
+        the Planet-API without re-sensing the API key for
+        every single request
+    """
 
     def __init__(
             self,
-            request: Dict[str, Any] = {},
-            features: List[Dict[str, Any]] = []
+            request: Optional[Dict[str, Any]] = {},
+            features: Optional[List[Dict[str, Any]]] = [{}],
+            session: Optional[Session] = None
         ):
+        """
+        Class constructor method
+
+        :param request:
+            query parameters to pass to Planet-API (e.g.,
+            date and dataset filters)
+        :param features:
+            features returned from Planet API (i.e., found
+            Planet-Scope scenes)
+        :param session:
+            (authenticated) session object to interact with
+            the Planet-API without re-sensing the API key for
+            every single request
+        """
         self.request = request
         self.features = features
+        self.session = session
 
-    @staticmethod
-    def authenticate(url: str) -> Session:
-        """
-        Authentication for using the Planet (orders) API
-    
-        :param url:
-            API endpoint for testing authentication
-        :returns:
-            authenticated session object
-        """
-        # open a session and try to authenticate
-        session = requests.Session()
-        session.auth = (Settings.PLANET_API_KEY, '')
-        response = session.get(url)
-        # make sure authentication was successful (return code 200)
-        if response.status_code != 200:
-            raise AuthenticationError(
-                f'[HTTP:{response.status_code}] Could not authenticate at {url}: {response.text}')
-        return session
+    @property
+    def features(self) -> List[Dict[str, Any]]:
+        return self._features
+
+    @features.setter
+    def features(self, val: List[Dict[str, Any]]):
+        if not isinstance(val, list):
+            raise TypeError('Expected a list object')
+        if not all([isinstance(x, dict) for x in val]):
+            raise TypeError('all list elements must be dictionaries')
+        self._features = val
+
+    @property
+    def request(self) -> Dict[str, Any]:
+        return self._request
+
+    @request.setter
+    def request(self, val: Dict[str, Any]) -> None:
+        if not isinstance(val, dict):
+            raise TypeError('Expected a dictionary object')
+        self._request = val
+
+    @property
+    def session(self) -> Session:
+        return self._session
+
+    @session.setter
+    def session(self, val: Session):
+        if not isinstance(val, Session) and val is not None:
+            raise TypeError(
+                'Expected a Session object ' + \
+                '(requests.sessions.Session object)'
+            )
+        self._session = val
 
     @staticmethod
     def date_to_planet_dt(date_to_convert: date) -> str:
@@ -69,18 +115,6 @@ class PlanetAPIClient(object):
         """
         timestamp = datetime(*date_to_convert.timetuple()[:-2])
         return timestamp.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-
-    def place_order(request, auth):
-        response = requests.post(orders_url, data=json.dumps(request), auth=auth, headers=headers)
-        print(response)
-    
-        if not response.ok:
-            raise Exception(response.content)
-        
-        order_id = response.json()['id']
-        print(order_id)
-        order_url = orders_url + '/' + order_id
-        return order_url
 
     @staticmethod
     def quicksearch(session: Session, request_data: Dict[str, Any]) -> Response:
@@ -134,10 +168,10 @@ class PlanetAPIClient(object):
             cloudy pixel percentage threshold (0-100%) for filtering
             too cloudy scenes
         :returns:
-        
+            `PlanetAPIClient object'
         """
         # open authenticated session
-        session = cls.authenticate(url=orders_url)
+        cls.authenticate(self=cls, url=orders_url)
     
         # check bounding box; re-project to WGS84 if necessary
         if isinstance(bounding_box, Path):
@@ -204,30 +238,239 @@ class PlanetAPIClient(object):
             "filter": andfilter
         }
     
-        response = cls.quicksearch(session=session, request_data=request_data)
+        response = cls.quicksearch(session=cls.session, request_data=request_data)
         features = response.json()["features"]
 
-        return cls(response, features)
-    
+        return cls(request=request_data, features=features, session=cls.session)
 
+    def authenticate(self, url: str) -> None:
+        """
+        Authentication for using the Planet (orders) API
     
+        :param url:
+            API end-point for testing authentication
+        """
+        # open a session and try to authenticate
+        self.session = requests.Session()
+        self.session.auth = (Settings.PLANET_API_KEY, '')
+        response = self.session.get(url)
+        # make sure authentication was successful (return code 200)
+        if response.status_code != 200:
+            raise AuthenticationError(
+                f'[HTTP:{response.status_code}] Could not authenticate at ' + \
+                f'{url}: {response.text}')
 
+    def _check_order_status(self, order_url: str) -> str:
+        """
+        Back-end method called by `check_order_status` once or multiple times.
+
+        :param order_url:
+            URL of the placed order
+        :returns:
+            current order state (e.g., 'running', 'success', 'failed', etc.)
+        """
+        r = self.session.get(order_url)
+        response = r.json()
+        return response['state']
+
+    def check_order_status(self, order_url: str, loop: Optional[bool] = False,
+                           sleep_time: Optional[int] = 10, max_iter: Optional[int] = 1000):
+        """
+        Checks the order status of a placed order (authenticated session required).
+
+        :param order_url:
+            URL of the placed order
+        :param loop:
+            if False makes a single query about the order status (default). If True
+            re-runs the query every xx seconds (10 by default) until a maximum of
+            yy iterations (1000 by default) is reached or the order status is one
+            of 'success', 'failed' or 'partial'
+        :param sleep_time:
+            time to sleep between repeated requests in seconds. Ignored if `loop`
+            is False (default behavior)
+        :param max_iter:
+            maximum number of iterations in case of repeated requests. Ignored if
+            `loop` is set to False.
+        """
+        if not loop:
+            return self._check_order_status(order_url)
+
+        with alive_bar(max_iter, force_tty=True) as prog_bar:
+            for _ in range(max_iter):
+                status = self._check_order_status(order_url)
+                if status in ['success', 'failed', 'partial']:
+                    return status
+                time.sleep(sleep_time)
+                prog_bar()
+
+        return status
+
+    def place_order(self, order_name: str,
+                    product_bundle: Optional[str] = 'analytic_8b_sr_udm2',
+                    processing_tools: Optional[List[Dict[str, Any]]] = None
+                    ) -> str:
+        """
+        Places (activates) an order. Only activated orders can be downloaded
+        once they are available.
+
+        IMPORTANT:
+            To place an order you must have already queried the quick-search
+            API to retrieve available item_ids!
+
+        :param order_name:
+            name of the order (will also appear in the online UI)
+        :param product_bundle:
+            product bundle to download. `analytic_8b_sr_udm2` (Super Dove
+            with 8 bands, surface reflectance and quality mask) by default.
+        :param processing_tools:
+            optional list of pre-processing operators offered by Planet such
+            as clipping image data to an Area of Interest.
+            See this notebook for examples:
+            https://github.com/planetlabs/notebooks/blob/master/jupyter-notebooks/orders/tools_and_toolchains.ipynb
+        :returns:
+            URL of the placed order
+        """
+        # set content-type to application/json
+        headers = {'content-type': 'application/json'}
+        # prepare request body using (data part)
+        data_request_dict = {}
+        data_request_dict.update({
+            'item_type': self.request['item_types'][0],
+            'item_ids': [x['id'] for x in self.features],
+            'product_bundle': product_bundle
+        })
+
+        # create the order request
+        order_request = {
+            'name': order_name,
+            'products': [data_request_dict]
+        }
+        # add further optional processing tools (clipping, band math, etc.)
+        if processing_tools is not None:
+            order_request.update({
+                'tools': processing_tools
+            })
+        order_request_json = json.dumps(order_request)
+        response = self.session.post(orders_url, data=order_request_json, headers=headers)
     
+        if not response.ok:
+            raise APIError(
+                f'[HTTP:{response.status_code}]: Placing order faild: {response.content}'
+            )
 
+        # get order ID and return its URL
+        order_id = response.json()['id']
+        order_url = orders_url + '/' + order_id
+        return order_url
+
+    def get_orders(self) -> pd.DataFrame:
+        """
+        Returns all available orders in a convenient `pandas.DataFrame`
+
+        :returns:
+            `DataFrame` with all orders available
+        """
+        response = self.session.get(orders_url)
+        response.raise_for_status()
+        orders = response.json()['orders']
+        return pd.DataFrame(orders)
+
+    def download_order(self, download_dir: Path, order_name: Optional[str] = '',
+                       order_url: Optional[str] = '') -> None:
+        """
+        Download data from an order. Order must be activated!
+
+        :param download_dir:
+            directory where to download the Planet scenes to. Each scene is
+            stored in a own sub-directory named by its ID to make the archive
+            structure comparable to Sentinel-2 and the single assets (files)
+            are placed within that sub-directory.
+        :param order_name:
+            name of the order to search for. Ignored if an `order_url` is provided
+        :param order_url:
+            URL of an order. If provided, `order_name` is ignored.
+        """
+        # get all available orders and search for the order name
+        if order_url == '' and order_name == '':
+            raise ValueError('Either order URL or name must be provided')
+        # get order URL from its name if the URL is not provided
+        if order_url == '':
+            order_df = self.get_orders()
+            order_rec = order_df[order_df.name == order_name].copy()
+            if order_rec.empty:
+                raise ValueError(f'Could not found a order named "{order_name}"')
+            # extract the order URL
+            order_url = list(order_rec['_links'].values[0].values())[0]
+
+        # get URLs of the single assets (data sets) within the order
+        r = self.session.get(order_url)
+        response = r.json()
+        results = response['_links']['results']
+        results_urls = [r['location'] for r in results]
+
+        # data handling stuff (file-naming) to prepar downloads
+        results_folders = list()
+        for f in results:
+            # split paths
+            a = f["name"].rsplit("/",1)[1]
+            # take the id part split it again and put together so we can extract the item id
+            results_folders.append("_".join(a.split("_", 4)[:4]))
+
+        # To construct the whole path, the file name is required
+        results_names = list()
+        for f in results:
+            results_names.append(f['name'].rsplit("/",1)[1])
+        logger.info(f'{len(results_urls)} items to download from Planet')
+
+        # actual downloading of data
+        idx = 1
+        n_results = len(results_urls) - 1 # -1 because we skip manifest.json
+        for url, folder, name in zip(results_urls, results_folders, results_names):
+            # skip manifest.json
+            if name == 'manifest.json':
+                continue
+            scene_dir = download_dir.joinpath(folder)
+            scene_dir.mkdir(exist_ok=True)
+            path = scene_dir.joinpath(name)
+            r = requests.get(url, allow_redirects=True)
+            open(path, 'wb').write(r.content)
+            logger.info(f'Downloaded Planet scene {name} to {path} ({idx}/{n_results})')
+            idx += 1
 
 if __name__ == '__main__':
 
+    ###################################
+    # usage example 1 - query archive by date and AOI, place order and download it once it's ready
     start_date = date(2022,7,25)
     end_date = date(2022,7,29)
     bounding_box = Path('/home/graflu/public/Evaluation/Projects/KP0031_lgraf_PhenomEn/MA_Supervision/22_Samuel-Wildhaber/LAI_analysis_BW/data/pl_BW_median.gpkg')
     order_name = 'Bramenwies_test'
     cloud_cover = 50.
 
-    api_response = PlanetAPIClient.query_planet_api(
+    # query the data API to get available scenes (no order placement, no download!)
+    # retrieves metadata, only
+    client = PlanetAPIClient.query_planet_api(
         start_date=start_date,
         end_date=end_date,
         bounding_box=bounding_box,
         cloud_cover_threshold=cloud_cover
     )
-    
+
+    # place the order based on the data found in the previous step
+    order_url = client.place_order(order_name=order_name)
+
+    # check the order status (it might take a while until the order is activated)
+    client.check_order_status(order_url, loop=True)
+
+    # download order -> make sure the order is activated (see previous step)
+    download_dir = Path('/home/graflu/public/Evaluation/Projects/KP0031_lgraf_PhenomEn/__work__')
+    client.download_order(order_url, download_dir)
+
+    ###################################
+    # usage example 2 - check placed orders
+    client = PlanetAPIClient()
+    # authenticate at the server -> the session attribute will be populated
+    client.authenticate(url=orders_url)
+    # get all placed orders
+    order_df = client.get_orders()
     
