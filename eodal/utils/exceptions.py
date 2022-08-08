@@ -72,3 +72,10 @@ class DataExtractionError(Exception):
 
 class STACError(Exception):
     pass
+
+class APIError(Exception):
+    pass
+
+class AuthenticationError(Exception):
+    pass
+
