@@ -38,7 +38,7 @@ date_start: date = date(2022,4,1)  		# year, month, day (incl.)
 date_end: date = date(2022,5,1)   		# year, month, day (incl.)
 
 # ---------------------- Area of Interest ------------------------------
-aoi: Path = Path('../data/sample_polygons/western_switzerland.gpkg')
+aoi: Path = Path('../data/sample_polygons/lake_lucerne.gpkg')
 
 #%% executable part
 # Sentinel-2 mapper configuration
@@ -69,7 +69,10 @@ for feature in features:
 	fig_feature = plot_feature(
 		feature_scenes=s2_data[feature],
 		band_selection=['nir_1', 'red', 'green'],
-		figsize=(20,10)
+		figsize=(15,7),
+		max_scenes_in_row=3,
+		sharex=True,
+		sharey=True
 	)
 
 # further program logic ...
