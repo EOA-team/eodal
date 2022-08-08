@@ -545,7 +545,8 @@ class Sentinel2Mapper(Mapper):
                 return res
 
     def get_complete_timeseries(
-        self, feature_selection: Optional[List[Any]] = None, **kwargs
+        self, feature_selection: Optional[List[Any]] = None,
+        drop_blackfilled_scenes: Optional[bool] = True, **kwargs
     ) -> Dict[Any, Union[gpd.GeoDataFrame, List[Sentinel2]]]:
         """
         Extracts all observation with a time period for a feature collection.
@@ -557,6 +558,8 @@ class Sentinel2Mapper(Mapper):
         :param feature_selection:
             optional subset of features ids (you can only select features included
             in the current feature collection)
+        :param drop_blackfilled_scenes:
+            drop scenes having no data values only (default)
         :param kwargs:
             optional key-word arguments to pass to `~eodal.core.band.Band.from_rasterio`
         """
@@ -582,6 +585,14 @@ class Sentinel2Mapper(Mapper):
             for idx, sensing_date in enumerate(sensing_dates):
                 try:
                     res = self.get_observation(feature, sensing_date, **kwargs)
+                    if drop_blackfilled_scenes:
+                        if res.is_blackfilled:
+                            logger.info(
+                                f"Feature {feature}: "
+                                f"Skipped data due to blackfill from {sensing_date} "
+                                f"({idx+1}/{n_sensing_dates})"
+                            )
+                            continue
                     feature_res.append(res)
                     logger.info(
                         f"Feature {feature}: "
