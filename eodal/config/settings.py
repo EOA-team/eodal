@@ -63,6 +63,10 @@ class Settings(BaseSettings):
 
     # define Planet-API token
     PLANET_API_KEY: str = ""
+    # Planet API URLs
+    ORDERS_URL: str = 'https://api.planet.com/compute/ops/orders/v2'
+    DATA_URL: str = 'https://api.planet.com/data/v1'
+
 
     # metadata base connection details
     DB_USER: str = "postgres"
