@@ -197,7 +197,7 @@ class Sentinel2Mapper(Mapper):
                         date_start=self.date_start,
                         date_end=self.date_end,
                         processing_level=self.processing_level,
-                        bounding_box=bbox,
+                        vector_features=bbox,
                         cloud_cover_threshold=self.cloud_cover_threshold,
                     )
                 except Exception as e:
