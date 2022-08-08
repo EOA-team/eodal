@@ -1,4 +1,17 @@
 """
+Example script to extract a time series of Sentinel-2 scenes for a
+custom area of interest (AOI).
+
+The script shows how to use the Sentinel2Mapper class that takes over
+data handling such as
+
+	* querying of spatio-temporal metadata catalogs to identify
+	  available Sentinel-2 scenes
+	* merging data from different Sentinel-2 tiles if required
+	* re-projection of imagery from one UTM zone into another
+	  if required
+	* removal of blackfilled scenes
+
 Copyright (C) 2022 Lukas Valentin Graf
 
 This program is free software: you can redistribute it and/or modify
