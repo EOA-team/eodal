@@ -14,6 +14,7 @@ from eodal.core.raster import RasterCollection
 def plot_feature(feature_scenes: List[RasterCollection], band_selection: str | List[str],
                  max_scenes_in_row: Optional[int] = 6,
                  eodal_plot_kwargs: Optional[Dict] = {},
+                 feature_name: Optional[str] = '',
                  **kwargs) -> plt.Figure:
         """
         Plots all scenes retrieved for a feature
@@ -48,7 +49,7 @@ def plot_feature(feature_scenes: List[RasterCollection], band_selection: str | L
                 # reshape to match the shape of ax array with >1 rows
                 ax = ax.reshape(1, ax.size)
             else:
-                nrows = np.ceil(n_scenes / max_scenes_in_row)
+                nrows = int(np.ceil(n_scenes / max_scenes_in_row))
                 f, ax = plt.subplots(ncols=max_scenes_in_row, nrows=nrows, **kwargs)
 
         # get acquisition times of the scenes if available. If not label the
@@ -76,8 +77,13 @@ def plot_feature(feature_scenes: List[RasterCollection], band_selection: str | L
 
             # increase column (and row) counter accordingly
             col_idx += 1
+            # begin a new row when all columns are filled
             if col_idx == max_scenes_in_row:
-                col_idx = 1
+                col_idx = 0
                 row_idx += 1
-                
-                
+
+        # make sure sub-plot labels do not overlap
+        f.tight_layout()
+        # figure title
+        f.suptitle(feature_name)
+        return f
