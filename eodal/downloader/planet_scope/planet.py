@@ -44,6 +44,7 @@ from typing import Any, Dict, List, Optional
 
 from eodal.config import get_settings
 from eodal.utils.exceptions import APIError, AuthenticationError
+from eodal.utils.geometry import box_to_geojson
 
 Settings = get_settings()
 logger = Settings.logger
@@ -204,12 +205,9 @@ class PlanetAPIClient(object):
             bbox = bounding_box.copy()
         else:
             raise TypeError('bounding_box must be Path object or GeoDataFrame')
-        bbox.to_crs(epsg=4326, inplace=True)
-        # get total bounds as geojson (required by API)
-        bbox_poly = box(*bbox.total_bounds)
-        bbox_json = gpd.GeoSeries([bbox_poly]).to_json()
-        bbox_feature = json.loads(bbox_json)['features'][0]['geometry']
-    
+        # convert bounding box to geojson
+        bbox_feature = box_to_geojson(gdf=bbox)
+
         # scale cloud cover between 0 and 1
         cloud_cover_threshold *= 0.01
     
