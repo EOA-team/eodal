@@ -21,3 +21,4 @@ sentinelsat
 pydantic[dotenv]
 requests
 planetary_computer
+alive_progress
