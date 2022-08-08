@@ -35,7 +35,7 @@ scene_cloud_cover_threshold: int = 50 	# percent
 
 # ------------------------- Time Range ---------------------------------
 date_start: date = date(2022,4,1)  		# year, month, day (incl.)
-date_end: date = date(2022,5,1)   		# year, month, day (incl.)
+date_end: date = date(2022,4,14)   		# year, month, day (incl.)
 
 # ---------------------- Area of Interest ------------------------------
 aoi: Path = Path('../data/sample_polygons/lake_lucerne.gpkg')
@@ -64,15 +64,15 @@ s2_data = mapper.get_complete_timeseries()
 features = mapper.get_feature_ids()
 
 # loop features (in this case it's just a single one) and plot them
-# TODO: Test this
 for feature in features:
 	fig_feature = plot_feature(
 		feature_scenes=s2_data[feature],
 		band_selection=['nir_1', 'red', 'green'],
-		figsize=(15,7),
-		max_scenes_in_row=3,
+		figsize=(16,14),
+		max_scenes_in_row=2,
 		sharex=True,
 		sharey=True
 	)
+	fig_feature.savefig('../img/s2_lake_lucerne.png', bbox_inches='tight')
 
 # further program logic ...
