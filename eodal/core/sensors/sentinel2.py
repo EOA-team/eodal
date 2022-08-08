@@ -733,14 +733,15 @@ class Sentinel2(RasterCollection):
             for scl_class in scl_class_mapping:
                 if scl_class not in scl_stats_df.Class_Value.values:
                     scl_stats_dict = {}
-                    scl_stats_dict["Class_Value"] = scl_class
+                    scl_stats_dict["Class_Value"] = int(scl_class)
                     scl_stats_dict["Class_Name"] = scl_class_mapping[scl_class]
                     scl_stats_dict["Class_Abs_Count"] = 0
                     scl_stats_dict["Class_Rel_Count"] = 0
 
-                    scl_stats_df = scl_stats_df.append(
-                        other=scl_stats_dict, ignore_index=True
-                    )
+                    scl_stats_df = pd.concat([
+                        scl_stats_df,
+                        pd.DataFrame(scl_stats_dict, index=[scl_stats_df.index.max()+1])
+                    ])
 
         return scl_stats_df
 
