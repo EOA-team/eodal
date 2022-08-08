@@ -42,5 +42,8 @@ class Sentinel1_RTC(Sentinel1):
         """
         pass
 
+    def cross_ratio(self):
+        pass
+
             
             
