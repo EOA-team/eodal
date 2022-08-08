@@ -272,7 +272,7 @@ class Sentinel2Mapper(Mapper):
             `~eodal.core.sentinel2.Sentinel2` object with loaded S2
             data
         """
-        # resample to target resolution based on the MapperConfig settings
+        # resample to target resolutionsorted_indices based on the MapperConfig settings
         has_scl = False
         band_selection = self.mapper_configs.band_names
         if band_selection is None:
@@ -614,6 +614,6 @@ class Sentinel2Mapper(Mapper):
                 timestamps = [x.scene_properties.acquisition_time for x in feature_res]
                 sorted_indices = np.argsort(np.array(timestamps))
                 feature_res_ordered = [feature_res[idx] for idx in sorted_indices]
-                assets[feature] = feature_res
+                assets[feature] = feature_res_ordered
                 
         return assets
