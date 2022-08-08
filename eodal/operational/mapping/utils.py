@@ -37,6 +37,8 @@ def plot_feature(feature_scenes: List[RasterCollection], band_selection: str | L
 
         # check number of scenes in feature_scenes and determine figure size
         n_scenes = len(feature_scenes)
+        nrows = 1
+        ncols = 1
         if n_scenes == 0:
             raise ValueError('No scenes available for plotting')
         elif n_scenes == 1:
@@ -45,12 +47,14 @@ def plot_feature(feature_scenes: List[RasterCollection], band_selection: str | L
             ax = np.array([ax]).reshape(1,1)
         else:
             if n_scenes <= max_scenes_in_row:
-                f, ax = plt.subplots(ncols=max_scenes_in_row, nrows=1, **kwargs)
+                ncols = n_scenes
+                f, ax = plt.subplots(ncols=ncols, nrows=nrows, **kwargs)
                 # reshape to match the shape of ax array with >1 rows
                 ax = ax.reshape(1, ax.size)
             else:
                 nrows = int(np.ceil(n_scenes / max_scenes_in_row))
-                f, ax = plt.subplots(ncols=max_scenes_in_row, nrows=nrows, **kwargs)
+                ncols = max_scenes_in_row
+                f, ax = plt.subplots(ncols=ncols, nrows=nrows, **kwargs)
 
         # get acquisition times of the scenes if available. If not label the
         # plots by ascending numbers (Scene 1, Scene 2, Scene 3,...)
@@ -74,6 +78,14 @@ def plot_feature(feature_scenes: List[RasterCollection], band_selection: str | L
                     **eodal_plot_kwargs
                 )
             ax[row_idx, col_idx].set_title(scene_labels[idx])
+
+            # switch off axes labels if sharex == True and sharey=True
+            if kwargs.get('sharex', False) and kwargs.get('sharey', False) \
+            and n_scenes > 1:
+                if nrows > 1:
+                    if row_idx < (nrows - 1): ax[row_idx, col_idx].set_xlabel('')
+                if nrows > 1:
+                    if col_idx > 0: ax[row_idx, col_idx].set_ylabel('')
 
             # increase column (and row) counter accordingly
             col_idx += 1
