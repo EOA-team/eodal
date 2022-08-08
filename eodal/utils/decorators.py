@@ -17,16 +17,36 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import geopandas as gpd
+
 from functools import wraps
+from pathlib import Path
 from rasterio.coords import BoundingBox
 
 from eodal.config import get_settings
-from eodal.utils.exceptions import UnknownProcessingLevel
-from eodal.utils.exceptions import BandNotFoundError
-
+from eodal.utils.exceptions import UnknownProcessingLevel, BandNotFoundError
+from eodal.utils.geometry import box_to_geojson
 
 Settings = get_settings()
 
+def prepare_bbox(f):
+    """prepares a bounding box from 1:N vector features for STAC queries"""
+    @wraps(f)
+    def wrapper(**kwargs):
+        # a bounding box (vector features) is required
+        vector_features = kwargs.get('vector_features', None)
+        if vector_features is None:
+            raise ValueError('A bounding box must be specified')
+        if isinstance(vector_features, Path):
+            vector_features = gpd.read_file(vector_features)
+        # construct the bounding box from vector features
+        # the bbox must be provided as a polygon in geographic coordinates
+        # and provide bounds as geojson (required by STAC)
+        bbox = box_to_geojson(gdf=vector_features)
+        kwargs.update({'bounding_box': bbox})
+        del kwargs['vector_features']
+        return f(**kwargs)
+    return wrapper
 
 def check_processing_level(f):
     @wraps(f)
@@ -44,7 +64,6 @@ def check_processing_level(f):
         return f(*args, **kwargs)
 
     return wrapper
-
 
 def check_band_names(f):
     """checks if passed band name(s) are available"""
@@ -116,7 +135,6 @@ def check_band_names(f):
         return f(self, *args, **kwargs)
 
     return wrapper
-
 
 def check_metadata(f):
     """validates if passed image metadata items are valid"""
