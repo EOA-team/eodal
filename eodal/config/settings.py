@@ -31,6 +31,7 @@ from functools import lru_cache
 from os.path import join
 from pathlib import Path
 from pydantic import BaseSettings
+from typing import Any
 
 from .stac_providers import STAC_Providers
 
@@ -84,7 +85,7 @@ class Settings(BaseSettings):
     LIMIT_ITEMS: int = 5
 
     # change the value of this variable to use a different STAC service provider
-    STAC_BACKEND = STAC_Providers.MSPC # STAC_Providers.AWS
+    STAC_BACKEND: Any = STAC_Providers.MSPC # STAC_Providers.AWS
 
     # subscription key for MS-PC (might be required for some data sets like Sentinel-1)
     PC_SDK_SUBSCRIPTION_KEY: str = ''
