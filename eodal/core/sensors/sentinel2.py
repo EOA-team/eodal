@@ -380,8 +380,7 @@ class Sentinel2(RasterCollection):
             product_uri=product_uri,
         )
 
-        # set AREA_OR_POINT to Point (see here: https://gis.stackexchange.com/a/263329)
-        # TODO: make sure this is really true
+        # set AREA_OR_POINT to Area
         kwargs.update({"area_or_point": "Area"})
         # set nodata to zero (unfortunately the S2 img metadata is incorrect here)
         kwargs.update({"nodata": 0})
