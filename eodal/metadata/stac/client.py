@@ -2,16 +2,12 @@
 Querying datasets from a Spatio-Temporal Asset Catalog (STAC).
 """
 
-import geopandas as gpd
 import pandas as pd
-import planetary_computer
 
 from datetime import date, datetime
-from pathlib import Path
 from pystac_client import Client
-from pystac.item_collection import ItemCollection
 from shapely.geometry import Polygon
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from eodal.config import get_settings, STAC_Providers
 from eodal.utils.decorators import prepare_bbox
@@ -141,26 +137,25 @@ def sentinel2(
     return pd.DataFrame(metadata_list)
 
 @prepare_bbox
-def sentinel1_rtc(**kwargs) -> pd.DataFrame:
+def sentinel1(collection: Optional[str] = 'sentinel-1-rtc', **kwargs) -> pd.DataFrame:
     """
-    Sentinel-1 RTC (radiometry and terrain corrected data) querying using
-    data from Microsoft Planetary Computer.
+    Sentinel-1 specific STAC query function to retrieve scenes from MSPC
 
+    :param collection:
+        Sentinel-1 collection to use. Must be one of 'sentinel-1-grd' (ground
+        range detected), 'sentinel-1-rtc' (radiometrically terrain corrected)
     :param kwargs:
         :param kwargs:
         keyword arguments to pass to `query_stac` function
     :returns:
-        dataframe with references to found Sentinel-1  RTC scenes
+        dataframe with references to found Sentinel-1 scenes
     """
 
-    # check STAC provider and status
-    if not Settings.USE_STAC:
-        raise ValueError('This method requires STAC')
     if Settings.STAC_BACKEND != STAC_Providers.MSPC:
         raise ValueError('This method requires Microsoft Planetary Computer')
 
     # set collection to sentinel1-rtc
-    kwargs.update({'collection': 'sentinel-1-rtc'})
+    kwargs.update({'collection': collection})
 
     # query the catalog
     scenes = query_stac(**kwargs)
