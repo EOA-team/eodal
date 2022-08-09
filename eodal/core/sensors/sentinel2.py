@@ -502,7 +502,7 @@ class Sentinel2(RasterCollection):
             to do spatial resampling! The underlying ``rasterio.sample`` function always
             snaps to the closest pixel in the current spectral band.
 
-        :param point_features:
+        :param vector_features:
             vector file (e.g., ESRI shapefile or geojson) or ``GeoDataFrame``
             defining point locations for which to extract pixel values
         :param in_dir:
@@ -521,7 +521,7 @@ class Sentinel2(RasterCollection):
             higher storage requirements because scaling converts the data to float32.
         :returns:
             ``GeoDataFrame`` containing the extracted raster values. The band values
-            are appened as columns to the dataframe. Existing columns of the input
+            are appended as columns to the dataframe. Existing columns of the input
             `in_file_pixels` are preserved.
         """
         # load 10 and 20 bands by default
