@@ -143,8 +143,8 @@ def sentinel2(
 @prepare_bbox
 def sentinel1_rtc(**kwargs) -> pd.DataFrame:
     """
-    Sentinel-1 RTC (radiometry and terrain corrected) querying using data
-    from Microsoft Planetary Computer.
+    Sentinel-1 RTC (radiometry and terrain corrected data) querying using
+    data from Microsoft Planetary Computer.
 
     :param kwargs:
         :param kwargs:
@@ -158,8 +158,6 @@ def sentinel1_rtc(**kwargs) -> pd.DataFrame:
         raise ValueError('This method requires STAC')
     if Settings.STAC_BACKEND != STAC_Providers.MSPC:
         raise ValueError('This method requires Microsoft Planetary Computer')
-    if Settings.PC_SDK_SUBSCRIPTION_KEY == '':
-        raise ValueError('This method requires a valid Planetary Computer API key')
 
     # set collection to sentinel1-rtc
     kwargs.update({'collection': 'sentinel-1-rtc'})
@@ -173,40 +171,3 @@ def sentinel1_rtc(**kwargs) -> pd.DataFrame:
         metadata_list.append(metadata_dict)
 
     return pd.DataFrame(metadata_list)
-
-# unit test
-if __name__ == "__main__":
-
-    import geopandas as gpd
-    from shapely.geometry import box
-
-    # define time period
-    date_start = date(2022, 5, 1)
-    date_end = date(2022, 5, 31)
-    # select processing level
-    processing_level = ProcessingLevels.L2A
-
-    # provide bounding box
-    bounding_box_fpath = Path(
-        '/home/graflu/public/Evaluation/Projects/KP0031_lgraf_PhenomEn/02_Field-Campaigns/Strickhof/WW_2022/Bramenwies.shp'
-    )
-
-    # set scene cloud cover threshold [%]
-    cloud_cover_threshold = 80
-
-    # Sentinel-1
-    res_s1 = sentinel1_rtc(
-        date_start=date_start,
-        date_end=date_end,
-        vector_features=bounding_box_fpath
-    )
-
-    # run stack query and make sure some items are returned
-    res_s2 = sentinel2(
-        date_start=date_start,
-        date_end=date_end,
-        processing_level=processing_level,
-        cloud_cover_threshold=cloud_cover_threshold,
-        vector_features=bounding_box_fpath,
-    )
-    assert res_s2.empty, "no results found"
