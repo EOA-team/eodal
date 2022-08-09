@@ -24,6 +24,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
+import geopandas as gpd
 import pandas as pd
 import planetary_computer
 
@@ -143,6 +144,57 @@ class Sentinel1(RasterCollection):
             )
 
         return sentinel1
+
+    @classmethod
+    def read_pixels_from_safe(
+            cls,
+            vector_features: Path | gpd.GeoDataFrame,
+            in_dir: Path | Dict[str, str],
+            polarizations: Optional[List[str]] = ['VV', 'VH']
+        ) -> gpd.GeoDataFrame:
+        """
+        Extracts Sentinel-1 raster values at locations defined by one or many
+        vector geometry features read from a vector file (e.g., ESRI shapefile) or
+        ``GeoDataFrame``.
+
+        NOTE:
+            A point is dimension-less, therefore, the raster grid cell (pixel) closest
+            to the point is returned if the point lies within the raster.
+
+        :param vector_features:
+            vector file (e.g., ESRI shapefile or geojson) or ``GeoDataFrame``
+            defining point locations for which to extract pixel values
+        :param in_dir:
+            Sentinel-1 scene in .SAFE structure from which to extract
+            pixel values at the provided point locations (GRD or RTC)
+        :param polarizations:
+            selection of polarization to read. 'VV' and 'VH' by default.
+        :returns:
+            ``GeoDataFrame`` containing the extracted raster values. The band values
+            are appended as columns to the dataframe. Existing columns of the input
+            `in_file_pixels` are preserved.
+        """
+        # get file-paths
+        band_df = cls._get_band_files(in_dir, polarizations)
+        # read pixel values from bands
+        gdf_list = []
+        for _, band_item in band_df.iterrows():
+            gdf_polarization = cls.read_pixels(
+                vector_features=vector_features,
+                fpath_raster=band_item.file_path,
+                band_idxs=[1],
+            )
+            gdf_polarization = gdf_polarization.rename(
+                columns={"B1": band_item.polarization}
+            )
+            gdf_list.append(gdf_polarization)
+
+        # concatenate the single GeoDataFrames with the band data
+        gdf = pd.concat(gdf_list, axis=1)
+        # clean the dataframe and remove duplicate column names after merging
+        # to avoid (large) redundancies
+        gdf = gdf.loc[:, ~gdf.columns.duplicated()]
+        return gdf
 
 if __name__ == '__main__':
 
