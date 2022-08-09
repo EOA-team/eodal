@@ -1,7 +1,27 @@
 '''
-Created on Jul 28, 2022
+This module contains the ``Sentinel1`` class that inherits from
+eodal's core ``RasterCollection`` class.
 
-@author: graflu
+The ``Sentinel1`` class enables reading one or more polarizations from Sentinel-1
+data in .SAFE format which is ESA's standard format for distributing Sentinel-1 data.
+
+The class handles data in GRD (ground-range detected) and RTC (radiometrically terrain
+corrected) processing level.
+
+Copyright (C) 2022 Lukas Valentin Graf
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
 import pandas as pd
@@ -16,11 +36,16 @@ from eodal.core.band import Band
 from eodal.core.raster import RasterCollection
 from eodal.core.scene import SceneProperties
 from eodal.utils.sentinel1 import get_S1_platform_from_safe, \
-    get_S1_acquistion_time_from_safe, _url_to_safe_name
+    get_S1_acquistion_time_from_safe, _url_to_safe_name, \
+    get_s1_imaging_mode_from_safe
 
 Settings = get_settings()
 
 class Sentinel1(RasterCollection):
+    """
+    Reading Sentinel-1 Radiometrically Terrain Corrected (RTC) and
+    Ground Range Detected (GRD) products
+    """
 
     @staticmethod
     def _get_band_files(in_dir: Path | Dict[str, str], polarizations: List[str]) -> pd.DataFrame:
@@ -48,16 +73,6 @@ class Sentinel1(RasterCollection):
                 }
             band_items.append(item)
         return pd.DataFrame(band_items)
-
-class Sentinel1_RTC(Sentinel1):
-    """
-    Access to Sentinel-1 Radiometrically Terrain Corrected (RTC) products
-    from Microsoft-Planetary Computer
-
-    IMPORTANT
-        For accessing the RTC products a valid Planetary Computer API key
-        is required.
-    """
 
     @classmethod
     def from_safe(
@@ -94,6 +109,10 @@ class Sentinel1_RTC(Sentinel1):
         except Exception as e:
             raise ValueError(f'Could not determine acquisition time: {e}')
         try:
+            mode = get_s1_imaging_mode_from_safe(dot_safe_name=in_dir)
+        except Exception as e:
+            raise ValueError(f'Could not determine imaging mode: {e}')
+        try:
             if isinstance(in_dir, Path):
                 product_uri = in_dir.name
             elif Settings.USE_STAC:
@@ -107,6 +126,7 @@ class Sentinel1_RTC(Sentinel1):
             platform=platform,
             sensor="SAR",
             product_uri=product_uri,
+            mode=mode
         )
         sentinel1 = cls(scene_properties=scene_properties)
 
@@ -123,7 +143,8 @@ class Sentinel1_RTC(Sentinel1):
 
 if __name__ == '__main__':
 
-    from eodal.metadata.stac import sentinel1_rtc
+    from eodal.metadata.stac import sentinel1
+    import matplotlib.pyplot as plt
 
     # define time period
     date_start = date(2022, 5, 1)
@@ -136,16 +157,30 @@ if __name__ == '__main__':
     )
 
     # Sentinel-1
-    res_s1 = sentinel1_rtc(
+    res_s1 = sentinel1(
         date_start=date_start,
         date_end=date_end,
-        vector_features=bounding_box_fpath
+        vector_features=bounding_box_fpath,
+        collection='sentinel-1-rtc'
     )
-
-    rec = res_s1.iloc[0]
-    asset = rec['assets']
-
-    s1 = Sentinel1_RTC.from_safe(in_dir=asset, vector_features=bounding_box_fpath)
+    res_s1 = res_s1.sort_values(by='datetime')
 
 
+    f, ax = plt.subplots(nrows=1, ncols=res_s1.shape[0], figsize=(20,5), sharex=True)
+
+    # loop datasets and plot CR
+    for idx, rec in res_s1.iterrows():
+        asset = rec['assets']
+    
+        s1 = Sentinel1.from_safe(in_dir=asset, vector_features=bounding_box_fpath)
+        s1.calc_si('CR', inplace=True)
+
+        s1.plot_band('CR', ax=ax[idx], colorbar_label='CR [-]', vmin=0, vmax=4)
+        if idx > 0:
+            ax[idx].set_ylabel('')
+        ax[idx].set_title(f'{s1.scene_properties.acquisition_time}\n{s1.scene_properties.platform}')
+
+    f.tight_layout()
+    f.savefig('/mnt/ides/Lukas/software/eodal/img/sentinel1_cr.png', bbox_inches='tight')
+    plt.close(f)
             
