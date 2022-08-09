@@ -42,6 +42,8 @@ class SceneProperties(object):
         known and applicable)
     :attribute product_uri:
         unique product (scene) identifier
+    :attribute mode:
+        imaging mode of SAR sensors
     """
 
     def __init__(
@@ -51,6 +53,7 @@ class SceneProperties(object):
         sensor: Optional[str] = "",
         processing_level: Optional[ProcessingLevels] = ProcessingLevels.UNKNOWN,
         product_uri: Optional[str] = "",
+        mode: Optional[str] = ""
     ):
         """
         Class constructor
@@ -66,24 +69,16 @@ class SceneProperties(object):
             known and applicable)
         :param product_uri:
             unique product (scene) identifier
+        :attribute mode:
+            imaging mode of SAR sensors
         """
-        # type checking first
-        if not isinstance(acquisition_time, datetime.datetime):
-            raise TypeError(
-                f"A datetime.datetime object is required: {acquisition_time}"
-            )
-        if not isinstance(platform, str):
-            raise TypeError(f"A str object is required: {platform}")
-        if not isinstance(sensor, str):
-            raise TypeError(f"A str object is required: {sensor}")
-        if not isinstance(product_uri, str):
-            raise TypeError(f"A str object is required: {product_uri}")
 
         self.acquisition_time = acquisition_time
         self.platform = platform
         self.sensor = sensor
         self.processing_level = processing_level
         self.product_uri = product_uri
+        self.mode = mode
 
     def __repr__(self) -> str:
         return str(self.__dict__)
@@ -145,6 +140,17 @@ class SceneProperties(object):
         if not isinstance(value, str):
             raise TypeError("Expected a str object")
         self._product_uri = value
+
+    @property
+    def mode(self) -> str:
+        """imaging mode of SAR sensors"""
+        return self._mode
+
+    @mode.setter
+    def mode(self, value: str) -> None:
+        if not isinstance(value, str):
+            raise TypeError("Expected a str object")
+        self._mode = value
 
 # class Sentinel2SceneProperties(SceneProperties):
 #     """
