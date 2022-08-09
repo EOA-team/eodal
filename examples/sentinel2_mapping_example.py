@@ -10,7 +10,18 @@ data handling such as
 	* merging data from different Sentinel-2 tiles if required
 	* re-projection of imagery from one UTM zone into another
 	  if required
-	* removal of blackfilled scenes
+	* removal of black-filled scenes
+
+This script works either using local data sources or by retrieving Sentinel-2
+imagery from Microsoft Planetary Computer (https://planetarycomputer.microsoft.com).
+No authentication required.
+
+To use Planetary Computer make sure to set the `USE_STAC` variable to True
+and specify Microsoft as STAC provider (default).
+
+.. code-block:: shell
+
+    export USE_STAC = "True"
 
 Copyright (C) 2022 Lukas Valentin Graf
 
