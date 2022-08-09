@@ -254,7 +254,8 @@ class Sentinel2(RasterCollection):
 
         :param in_dir:
             file-path to the .SAFE directory containing Sentinel-2 data in
-            L1C or L2A processing level
+            L1C or L2A processing level or collection of hyper-links in the case
+            of STAC
         :param band_selection:
             selection of Sentinel-2 bands to read. Per default, all 10 and
             20m bands are processed. If you wish to read less or more, specify
