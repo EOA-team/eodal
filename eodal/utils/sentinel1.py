@@ -73,3 +73,19 @@ def get_S1_platform_from_safe(dot_safe_name: Path | Dict[str, str]) -> str:
         dot_safe_name = _url_to_safe_name(dot_safe_name)
 
     return dot_safe_name.split("_")[0]
+
+def get_s1_imaging_mode_from_safe(dot_safe_name: Path | Dict[str, str]) -> str:
+    """
+    Get the imaging mode information from a Sentinel-1 .SAFE archive
+
+    :param dot_safe_name:
+        file-path to .SAFE archive or asset item returned from STAC
+    :returns:
+        imaging mode (e.g., IW for interferometric wide-swath)
+    """
+    if isinstance(dot_safe_name, Path):
+        dot_safe_name = dot_safe_name.name
+    elif Settings.USE_STAC:
+        dot_safe_name = _url_to_safe_name(dot_safe_name)
+
+    return dot_safe_name.split("_")[1]
