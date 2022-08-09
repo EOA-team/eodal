@@ -71,6 +71,9 @@ class Sentinel1(RasterCollection):
                     'polarization': polarization,
                     'file_path': href_signed
                 }
+            else:
+                # TODO: add support for reading files from local data source
+                pass
             band_items.append(item)
         return pd.DataFrame(band_items)
 
