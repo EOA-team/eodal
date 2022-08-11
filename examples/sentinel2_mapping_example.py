@@ -83,6 +83,8 @@ mapper = Sentinel2Mapper(
 
 # retrieve metadata of scenes found (no reading)
 mapper.get_scenes()
+mapper.observations # displays scenes found
+
 # read data into eodal's RasterCollection objects
 s2_data = mapper.get_complete_timeseries()
 features = mapper.get_feature_ids()
