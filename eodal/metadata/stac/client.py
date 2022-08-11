@@ -6,11 +6,12 @@ import pandas as pd
 
 from datetime import date, datetime
 from pystac_client import Client
-from shapely.geometry import Polygon
+from shapely.geometry import box, Polygon
 from typing import Any, Dict, List, Optional
 
 from eodal.config import get_settings, STAC_Providers
 from eodal.utils.decorators import prepare_bbox
+from eodal.utils.reprojection import infer_utm_zone
 from eodal.utils.sentinel2 import ProcessingLevels
 
 Settings = get_settings()
@@ -163,6 +164,12 @@ def sentinel1(collection: Optional[str] = 'sentinel-1-rtc', **kwargs) -> pd.Data
     for scene in scenes:
         metadata_dict = scene['properties']
         metadata_dict['assets'] = scene['assets']
+        metadata_dict['sensing_date'] = datetime.strptime(
+                metadata_dict['datetime'].split("T")[0], "%Y-%m-%d"
+            ).date()
         metadata_list.append(metadata_dict)
+        # infer EPSG code of the scene in UTM coordinates from its bounding box
+        bbox = box(*scene['bbox'])
+        metadata_dict['epsg'] = infer_utm_zone(bbox)
 
     return pd.DataFrame(metadata_list)
