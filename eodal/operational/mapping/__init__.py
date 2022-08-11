@@ -1,3 +1,4 @@
+from eodal.operational.mapping.sentinel1 import Sentinel1Mapper
 from eodal.operational.mapping.sentinel2 import Sentinel2Mapper
 from eodal.operational.mapping.mapper import MapperConfigs
 from eodal.operational.mapping.mapper import Mapper
