@@ -25,32 +25,24 @@ import pandas as pd
 import uuid
 
 from datetime import date
-from pathlib import Path
-from shapely.geometry import box
-from sqlalchemy.exc import DatabaseError
 from typing import Any, Dict, List, Optional, Union
 
 from eodal.config import get_settings
 from eodal.core.sensors import Sentinel2
-from eodal.metadata.sentinel2.database.querying import find_raw_data_by_bbox
 from eodal.operational.mapping.mapper import Mapper, Feature
 from eodal.operational.mapping.merging import merge_datasets
-from eodal.operational.resampling.utils import identify_split_scenes
 from eodal.utils.constants.sentinel2 import ProcessingLevels
 from eodal.utils.exceptions import (
     InputError,
     BlackFillOnlyError,
-    DataNotFoundError,
-    STACError,
+    DataNotFoundError
 )
 from eodal.metadata.sentinel2.utils import identify_updated_scenes
 from eodal.metadata.utils import reconstruct_path
 from eodal.core.scene import SceneProperties
-from eodal.metadata.stac.client import sentinel2
 
 settings = get_settings()
 logger = settings.logger
-
 
 class Sentinel2Mapper(Mapper):
     """
@@ -109,7 +101,7 @@ class Sentinel2Mapper(Mapper):
 
     def get_scenes(self) -> None:
         """
-        Queries the Sentinel-2 metadata DB for a selected time period and
+        Queries the Sentinel-2 metadata catalog for a selected time period and
         feature collection.
 
         NOTE:
@@ -120,7 +112,7 @@ class Sentinel2Mapper(Mapper):
 
         The scene selection and processing workflow contains several steps:
 
-        1.  Query the metadata DB for **ALL** available scenes that overlap
+        1.  Query the metadata catalog for **ALL** available scenes that overlap
             the bounding box of a given ``Polygon`` or ``MultiPolygon``
             feature. **IMPORTANT**: By passing a list of Sentinel-2 tiles
             to consider (``tile_ids``) you can explicitly control which
@@ -135,134 +127,7 @@ class Sentinel2Mapper(Mapper):
             (usually different UTM zones) flag the data accordingly. The target
             CRS is defined as that CRS the majority of scenes shares.
         """
-        # read features and loop over them to process each feature separately
-        is_file = isinstance(self.feature_collection, Path) or isinstance(
-            self.feature_collection, str
-        )
-        if is_file:
-            try:
-                aoi_features = gpd.read_file(self.feature_collection)
-            except Exception as e:
-                raise InputError(
-                    f"Could not read polygon features from file "
-                    f"{self.feature_collection}: {e}"
-                )
-        else:
-            aoi_features = self.feature_collection.copy()
-
-        # for the DB query, the geometries are required in geographic coordinates
-        # however, we keep the original coordinates as well to avoid to many reprojections
-        aoi_features["geometry_wgs84"] = aoi_features["geometry"].to_crs(4326)
-
-        # check if there is a unique feature column
-        # otherwise create it using uuid
-        if self.unique_id_attribute is not None:
-            if not aoi_features[self.unique_id_attribute].is_unique:
-                raise ValueError(
-                    f'"{self.unique_id_attribute}" is not unique for each feature'
-                )
-        else:
-            object.__setattr__(self, "unique_id_attribute", "_uuid4")
-            aoi_features[self.unique_id_attribute] = [
-                str(uuid.uuid4()) for _ in aoi_features.iterrows()
-            ]
-
-        s2_scenes = {}
-        # features implement the __geo_interface__
-        features = []
-        # extract all properties from the input features to preserve them
-        cols_to_ignore = [self.unique_id_attribute, "geometry", "geometry_wgs84"]
-        property_columns = [x for x in aoi_features.columns if x not in cols_to_ignore]
-        for _, feature in aoi_features.iterrows():
-
-            feature_uuid = feature[self.unique_id_attribute]
-            properties = feature[property_columns].to_dict()
-            feature_obj = Feature(
-                identifier=feature_uuid,
-                geom=feature["geometry"],
-                epsg=aoi_features.crs.to_epsg(),
-                properties=properties,
-            )
-            features.append(feature_obj.to_gdf())
-
-            # determine bounding box of the current feature using
-            # its representation in geographic coordinates
-            bbox = box(*feature.geometry_wgs84.bounds)
-
-            # use the resulting bbox to query the bounding box
-            # there a two options: use STAC or the PostgreSQL DB
-            if settings.USE_STAC:
-                try:
-                    scenes_df = sentinel2(
-                        date_start=self.date_start,
-                        date_end=self.date_end,
-                        processing_level=self.processing_level,
-                        vector_features=bbox,
-                        cloud_cover_threshold=self.cloud_cover_threshold,
-                    )
-                except Exception as e:
-                    raise STACError(f"Querying STAC catalog failed: {e}")
-            else:
-                try:
-                    scenes_df = find_raw_data_by_bbox(
-                        date_start=self.date_start,
-                        date_end=self.date_end,
-                        processing_level=self.processing_level,
-                        bounding_box=bbox,
-                        cloud_cover_threshold=self.cloud_cover_threshold,
-                    )
-                except Exception as e:
-                    raise DatabaseError(f"Querying metadata DB failed: {e}")
-
-            # filter by tile if required
-            tile_ids = self.mapper_configs.tile_selection
-            if tile_ids is not None:
-                other_tile_idx = scenes_df[~scenes_df.tile_id.isin(tile_ids)].index
-                scenes_df.drop(other_tile_idx, inplace=True)
-
-            if scenes_df.empty:
-                raise UserWarning(
-                    f"The query for feature {feature_uuid} returned now results"
-                )
-                continue
-
-            # check if the satellite data is in different projections
-            in_single_crs = scenes_df.epsg.unique().shape[0] == 1
-
-            # check if there are several scenes available for a single sensing date
-            # in this case merging of different datasets might be necessary
-            scenes_df_split = identify_split_scenes(scenes_df)
-            scenes_df["is_split"] = False
-
-            if not scenes_df_split.empty:
-                scenes_df.loc[
-                    scenes_df.product_uri.isin(scenes_df_split.product_uri), "is_split"
-                ] = True
-
-            # in case the scenes have different projections (most likely different UTM
-            # zone numbers) figure out which will be target UTM zone. To avoid too many
-            # reprojection operations of raster data later, the target CRS is that CRS
-            # most scenes have (expressed as EPSG code)
-            scenes_df["target_crs"] = scenes_df.epsg
-            if not in_single_crs:
-                most_common_epsg = scenes_df.epsg.mode().values
-                scenes_df.loc[
-                    ~scenes_df.epsg.isin(most_common_epsg), "target_crs"
-                ] = most_common_epsg[0]
-
-            # add the scenes_df DataFrame to the dictionary that contains the data for
-            # all features
-            s2_scenes[feature_uuid] = scenes_df
-
-        # create feature collection
-        features_gdf = pd.concat(features)
-        # append raw scene count
-        features_gdf["raw_scene_count"] = features_gdf.apply(
-            lambda x, s2_scenes=s2_scenes: s2_scenes[x.name].shape[0], axis=1
-        )
-        features = features_gdf.__geo_interface__
-        object.__setattr__(self, "observations", s2_scenes)
-        object.__setattr__(self, "feature_collection", features)
+        self._get_scenes(sensor='sentinel2')
 
     def _resample_s2_scene(self, s2_scene) -> None:
         """
