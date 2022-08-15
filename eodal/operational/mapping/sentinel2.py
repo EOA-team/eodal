@@ -38,7 +38,6 @@ from eodal.utils.exceptions import (
     DataNotFoundError
 )
 from eodal.metadata.sentinel2.utils import identify_updated_scenes
-from eodal.metadata.utils import reconstruct_path
 from eodal.core.scene import SceneProperties
 
 settings = get_settings()
@@ -338,76 +337,16 @@ class Sentinel2Mapper(Mapper):
             (geometry types ``Polygon`` or ``MultiPolygon``) is returned. if
             the observation contains nodata, only, None is returned.
         """
-        # define variable for returning results
-        res = None
-        # get available observations for the AOI feature
-        scenes_df = self.observations.get(feature_id, None)
-        if scenes_df is None:
-            raise DataNotFoundError(
-                f'Could not find any scenes for feature with ID "{feature_id}"'
-            )
-
-        # get scene(s) closest to the sensing_date provided
-        min_delta = abs((scenes_df.sensing_date - sensing_date)).min()
-        scenes_date = scenes_df[
-            abs((scenes_df.sensing_date - sensing_date)) == min_delta
-        ].copy()
-
-        # map the dataset path(s) when working locally (no STAC)
-        if not settings.USE_STAC:
-            try:
-                scenes_date["real_path"] = scenes_date.apply(
-                    lambda x: reconstruct_path(record=x), axis=1
-                )
-            except Exception as e:
-                raise DataNotFoundError(
-                    f"Cannot find the scenes on the file system: {e}"
-                )
-        # get properties and geometry of the current feature from the collection
-        feature_dict = self.get_feature(feature_id)
-        feature_gdf = gpd.GeoDataFrame.from_features(feature_dict)
-        feature_gdf.crs = feature_dict["features"][0]["properties"]["epsg"]
-        # parse feature geometry in kwargs so that only a spatial subset is read
-        # in addition parse the S2 gain factor as "scale" argument
-        kwargs.update({"vector_features": feature_gdf})
-        # multiple scenes for a single date
-        # check what to do (re-projection, merging)
-        if scenes_date.shape[0] > 1:
+        # call super class method for getting the observation
+        res = self._get_obervation(feature_id=feature_id, sensing_date=sensing_date,
+                                    sensor='sentinel2', **kwargs)
+        # for multiple scenes a Sentinel-2 specific class must be called
+        if isinstance(res, tuple):
+            _, scenes_date, feature_gdf = res
             res = self._read_multiple_scenes(
                 scenes_date=scenes_date, feature_gdf=feature_gdf, **kwargs
             )
-            return res
-        else:
-            # determine scene path (local environment) or URLs (STAC)
-            if settings.USE_STAC:
-                in_dir = scenes_date["assets"].iloc[0]
-            else:
-                in_dir = scenes_date["real_path"].iloc[0]
-            # if there is only one scene all we have to do is to read
-            # read pixels in case the feature's dtype is point
-            if feature_dict["features"][0]["geometry"]["type"] == "Point":
-                res = Sentinel2.read_pixels_from_safe(
-                    in_dir=in_dir,
-                    band_selection=self.mapper_configs.band_names,
-                    **kwargs,
-                )
-                res["sensing_date"] = scenes_date["sensing_date"].values
-                res["scene_id"] = scenes_date["scene_id"].values
-                return res
-            # or the feature
-            else:
-                try:
-                    res = Sentinel2.from_safe(
-                        in_dir=in_dir,
-                        band_selection=self.mapper_configs.band_names,
-                        **kwargs,
-                    )
-                    self._resample_s2_scene(s2_scene=res)
-                except BlackFillOnlyError:
-                    return res
-                except Exception as e:
-                    raise Exception from e
-                return res
+        return res
 
     def get_complete_timeseries(
         self, feature_selection: Optional[List[Any]] = None,
