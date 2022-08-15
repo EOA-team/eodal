@@ -42,6 +42,7 @@ from eodal.utils.exceptions import InputError, STACError
 
 
 settings = get_settings()
+logger = settings.logger
 
 class Feature(object):
     """
@@ -319,7 +320,7 @@ class Mapper(object):
                 scenes_df.drop(other_tile_idx, inplace=True)
 
             if scenes_df.empty:
-                raise UserWarning(
+                logger.info(
                     f"The query for feature {feature_uuid} returned now results"
                 )
                 continue
@@ -355,9 +356,11 @@ class Mapper(object):
         # create feature collection
         features_gdf = pd.concat(features)
         # append raw scene count
-        features_gdf["raw_scene_count"] = features_gdf.apply(
-            lambda x, scenes=scenes: scenes[x.name].shape[0], axis=1
-        )
+        features_gdf["raw_scene_count"] = 0
+        if len(scenes) > 0:
+            features_gdf["raw_scene_count"] = features_gdf.apply(
+                lambda x, scenes=scenes: scenes[x.name].shape[0], axis=1
+            )
         features = features_gdf.__geo_interface__
         object.__setattr__(self, "observations", scenes)
         object.__setattr__(self, "feature_collection", features)
