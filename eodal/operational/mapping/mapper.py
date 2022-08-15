@@ -28,18 +28,21 @@ from pandas import DataFrame
 from pathlib import Path
 from shapely.geometry import box, MultiPolygon, Point, Polygon
 from sqlalchemy.exc import DatabaseError
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from eodal.config import get_settings
+from eodal.core.raster import RasterCollection
+from eodal.core.sensors import Sentinel1, Sentinel2
 from eodal.metadata.stac import sentinel1, sentinel2
+from eodal.metadata.utils import reconstruct_path
 from eodal.metadata.sentinel1.database.querying import find_raw_data_by_bbox as \
     find_raw_data_by_bbox_sentinel1
 from eodal.metadata.sentinel2.database.querying import find_raw_data_by_bbox as \
     find_raw_data_by_bbox_sentinel2
 from eodal.operational.resampling.utils import identify_split_scenes
 from eodal.operational.resampling.utils import identify_split_scenes
-from eodal.utils.exceptions import InputError, STACError
-
+from eodal.utils.exceptions import BlackFillOnlyError, DataNotFoundError, InputError, \
+    STACError
 
 settings = get_settings()
 logger = settings.logger
@@ -464,3 +467,114 @@ class Mapper(object):
             return self.observations[feature_identifier].copy()
         except Exception as e:
             raise KeyError(f"{feature_identifier} did not return any results: {e}")
+
+    def _get_observation(
+        self, feature_id: Any, sensing_date: date, sensor: str, **kwargs
+    ) -> Union[gpd.GeoDataFrame, RasterCollection, Tuple,  None]:
+        """
+        Returns the scene data (observations) for a selected feature and date.
+
+        If for the date provided no scenes are found, the data from the scene(s)
+        closest in time is returned
+
+        :param feature_id:
+            identifier of the feature for which to extract observations
+        :param sensing_date:
+            date for which to extract observations (or the closest date if
+            no observations are available for the given date)
+        :param sensor:
+            name of the sensor for which to extract the observation.
+        :param kwargs:
+            optional key-word arguments to pass on to
+            `~eodal.core.sensors` class-specific methods
+        :returns:
+            depending on the geometry type of the feature either a
+            ``GeoDataFrame`` (geometry type: ``Point``) or ``Sentinel2Handler``
+            (geometry types ``Polygon`` or ``MultiPolygon``) is returned. if
+            the observation contains nodata, only, None is returned. If multiple
+            scenes must be read to get a single observation, the status 'multiple'
+            is returned.
+        """
+        # define variable for returning results
+        res = None
+        # get available observations for the AOI feature
+        scenes_df = self.observations.get(feature_id, None)
+        if scenes_df is None:
+            raise DataNotFoundError(
+                f'Could not find any scenes for feature with ID "{feature_id}"'
+            )
+
+        # get scene(s) closest to the sensing_date provided
+        min_delta = abs((scenes_df.sensing_date - sensing_date)).min()
+        scenes_date = scenes_df[
+            abs((scenes_df.sensing_date - sensing_date)) == min_delta
+        ].copy()
+
+        # map the dataset path(s) when working locally (no STAC)
+        if not settings.USE_STAC:
+            try:
+                scenes_date["real_path"] = scenes_date.apply(
+                    lambda x: reconstruct_path(record=x), axis=1
+                )
+            except Exception as e:
+                raise DataNotFoundError(
+                    f"Cannot find the scenes on the file system: {e}"
+                )
+        # get properties and geometry of the current feature from the collection
+        feature_dict = self.get_feature(feature_id)
+        feature_gdf = gpd.GeoDataFrame.from_features(feature_dict)
+        feature_gdf.crs = feature_dict["features"][0]["properties"]["epsg"]
+        # parse feature geometry in kwargs so that only a spatial subset is read
+        # in addition parse the S2 gain factor as "scale" argument
+        kwargs.update({"vector_features": feature_gdf})
+        # multiple scenes for a single date
+        # check what to do (re-projection, merging)
+        if scenes_date.shape[0] > 1:
+            return ('multiple', scenes_date, feature_gdf)
+        else:
+            # determine scene path (local environment) or URLs (STAC)
+            if settings.USE_STAC:
+                in_dir = scenes_date["assets"].iloc[0]
+            else:
+                in_dir = scenes_date["real_path"].iloc[0]
+            # if there is only one scene all we have to do is to read
+            # read pixels in case the feature's dtype is point
+            if feature_dict["features"][0]["geometry"]["type"] == "Point":
+                if sensor.lower() == 'sentinel1':
+                    res = Sentinel1.read_pixels_from_safe(
+                        in_dir=in_dir,
+                        polarizations=self.mapper_configs.band_names,
+                        **kwargs
+                    )
+                elif sensor.lower() == 'sentinel2':
+                    res = Sentinel2.read_pixels_from_safe(
+                        in_dir=in_dir,
+                        band_selection=self.mapper_configs.band_names,
+                        **kwargs,
+                    )
+                res["sensing_date"] = scenes_date["sensing_date"].values
+                res["scene_id"] = scenes_date["scene_id"].values
+            # or the feature
+            else:
+                if sensor.lower() == 'sentinel1':
+                    try:
+                        res = Sentinel1.from_safe(
+                            in_dir=in_dir,
+                            band_selection=self.mapper_configs.band_names,
+                            **kwargs
+                        )
+                    except Exception as e:
+                        raise Exception from e
+                elif sensor.lower() == 'sentinel2':
+                    try:
+                        res = Sentinel2.from_safe(
+                            in_dir=in_dir,
+                            band_selection=self.mapper_configs.band_names,
+                            **kwargs,
+                        )
+                        self._resample_s2_scene(s2_scene=res)
+                    except BlackFillOnlyError:
+                        return res
+                    except Exception as e:
+                        raise Exception from e
+        return res

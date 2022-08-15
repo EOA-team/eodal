@@ -86,7 +86,8 @@ class Sentinel1(RasterCollection):
             **kwargs
         ):
         """
-        Reads a Sentinel-1 RTC (radiometrically terrain corrected) product
+        Reads a Sentinel-1 RTC (radiometrically terrain corrected) or
+        GRD (Ground Range Detected) products
 
         NOTE
             When using MSPC as STAC provider a valid API key is required
