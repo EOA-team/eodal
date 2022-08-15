@@ -338,7 +338,7 @@ class Sentinel2Mapper(Mapper):
             the observation contains nodata, only, None is returned.
         """
         # call super class method for getting the observation
-        res = self._get_obervation(feature_id=feature_id, sensing_date=sensing_date,
+        res = self._get_observation(feature_id=feature_id, sensing_date=sensing_date,
                                     sensor='sentinel2', **kwargs)
         # for multiple scenes a Sentinel-2 specific class must be called
         if isinstance(res, tuple):
