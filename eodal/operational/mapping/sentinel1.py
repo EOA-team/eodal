@@ -79,8 +79,12 @@ class Sentinel1Mapper(Mapper):
             (geometry types ``Polygon`` or ``MultiPolygon``) is returned. if
             the observation contains nodata, only, None is returned.
         """
-        return self._get_obervation(feature_id=feature_id, sensing_date=sensing_date,
+        res = self._get_obervation(feature_id=feature_id, sensing_date=sensing_date,
                                     sensor='sentinel1', **kwargs)
+        if isinstance(res, tuple):
+            _, scenes_date, feature_gdf = res
+            # TODO: merge logic according to Sentinel-2
+        return res
 
     def get_complete_timeseries(self):
         pass
