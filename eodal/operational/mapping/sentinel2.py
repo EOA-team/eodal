@@ -187,7 +187,7 @@ class Sentinel2Mapper(Mapper):
                 else:
                     in_dir = candidate_scene["real_path"]
                 feature_gdf = Sentinel2.read_pixels_from_safe(
-                    point_features=feature_gdf,
+                    vector_features=feature_gdf,
                     in_dir=in_dir,
                     band_selection=self.mapper_configs.band_names,
                 )
@@ -195,8 +195,9 @@ class Sentinel2Mapper(Mapper):
                 if feature_gdf.empty:
                     continue
                 res = feature_gdf
-                res["sensing_date"] = candidate_scene["sensing_date"].values
-                res["scene_id"] = candidate_scene["scene_id"].values
+                if isinstance(candidate_scene, (pd.Series, gpd.GeoSeries)):
+                    res["sensing_date"] = candidate_scene["sensing_date"]
+                    res["scene_id"] = candidate_scene["scene_id"]
                 break
         # in case of a (Multi-)Polygon: check if one of the candidate scenes complete
         # contains the feature (i.e., its bounding box). If that's the case and the
