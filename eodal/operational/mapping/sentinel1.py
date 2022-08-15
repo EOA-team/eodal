@@ -4,9 +4,14 @@ Created on Aug 9, 2022
 @author: graflu
 '''
 
+import geopandas as gpd
+
+from datetime import date
 from shapely.geometry import box
+from typing import Any, Union
 
 from eodal.config import get_settings
+from eodal.core.sensors import Sentinel1
 from .mapper import Mapper
 
 settings = get_settings()
@@ -51,7 +56,33 @@ class Sentinel1Mapper(Mapper):
         """
         self._get_scenes(sensor='sentinel1')
 
-    def get_observation(self):
+    def get_observation(
+        self, feature_id: Any, sensing_date: date, **kwargs
+    ) -> Union[gpd.GeoDataFrame, Sentinel1, None]:
+        """
+        Returns the scene data (observations) for a selected feature and date.
+
+        If for the date provided no scenes are found, the data from the scene(s)
+        closest in time is returned
+
+        :param feature_id:
+            identifier of the feature for which to extract observations
+        :param sensing_date:
+            date for which to extract observations (or the closest date if
+            no observations are available for the given date)
+        :param kwargs:
+            optional key-word arguments to pass on to
+            `~eodal.core.sensors.Sentinel2.from_safe`
+        :returns:
+            depending on the geometry type of the feature either a
+            ``GeoDataFrame`` (geometry type: ``Point``) or ``Sentinel2Handler``
+            (geometry types ``Polygon`` or ``MultiPolygon``) is returned. if
+            the observation contains nodata, only, None is returned.
+        """
+        return self._get_obervation(feature_id=feature_id, sensing_date=sensing_date,
+                                    sensor='sentinel1', **kwargs)
+
+    def get_complete_timeseries(self):
         pass
 
 # TODO
