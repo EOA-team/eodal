@@ -554,6 +554,7 @@ class Mapper(object):
                     )
                 res["sensing_date"] = scenes_date["sensing_date"].values
                 res["scene_id"] = scenes_date["scene_id"].values
+                res['sensing_time'] = scenes_date['sensing_time'].values
             # or the feature
             else:
                 if sensor.lower() == 'sentinel1':

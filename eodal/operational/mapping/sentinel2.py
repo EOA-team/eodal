@@ -197,6 +197,7 @@ class Sentinel2Mapper(Mapper):
                 res = feature_gdf
                 if isinstance(candidate_scene, (pd.Series, gpd.GeoSeries)):
                     res["sensing_date"] = candidate_scene["sensing_date"]
+                    res['sensing_time'] = candidate_scene['sensing_time']
                     res["scene_id"] = candidate_scene["scene_id"]
                 break
         # in case of a (Multi-)Polygon: check if one of the candidate scenes complete
@@ -391,13 +392,14 @@ class Sentinel2Mapper(Mapper):
                 try:
                     res = self.get_observation(feature, sensing_date, **kwargs)
                     if drop_blackfilled_scenes:
-                        if res.is_blackfilled:
-                            logger.info(
-                                f"Feature {feature}: "
-                                f"Skipped data due to blackfill from {sensing_date} "
-                                f"({idx+1}/{n_sensing_dates})"
-                            )
-                            continue
+                        if hasattr(res, 'is_blackfilled'):
+                            if res.is_blackfilled:
+                                logger.info(
+                                    f"Feature {feature}: "
+                                    f"Skipped data due to blackfill from {sensing_date} "
+                                    f"({idx+1}/{n_sensing_dates})"
+                                )
+                                continue
                     feature_res.append(res)
                     logger.info(
                         f"Feature {feature}: "
