@@ -391,6 +391,8 @@ class Sentinel2Mapper(Mapper):
             for idx, sensing_date in enumerate(sensing_dates):
                 try:
                     res = self.get_observation(feature, sensing_date, **kwargs)
+                    if isinstance(res, gpd.GeoDataFrame):
+                        if res.empty: continue
                     if drop_blackfilled_scenes:
                         if hasattr(res, 'is_blackfilled'):
                             if res.is_blackfilled:
