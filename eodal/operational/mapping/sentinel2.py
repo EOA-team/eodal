@@ -160,7 +160,7 @@ class Sentinel2Mapper(Mapper):
             )
 
     def _read_multiple_scenes(
-        self, scenes_date: pd.DataFrame, feature_gdf: gpd.GeoDataFrame, **kwargs
+        self, scenes_date: pd.DataFrame, feature_id: str, **kwargs
     ) -> Union[gpd.GeoDataFrame, Sentinel2]:
         """
         Backend method for processing and reading scene data if more than one scene
@@ -168,8 +168,8 @@ class Sentinel2Mapper(Mapper):
 
         :param scenes_date:
             `DataFrame` with all Sentinel-2 scenes of a single date
-        :param feature_gdf:
-            `GeoDataFrame` with spatial features for which to extract data
+        :param feature_id:
+            ID of the feature for which to extract data
         :param kwargs:
             optional key-word arguments to pass on to
             `~eodal.core.sensors.Sentinel2.from_safe`
@@ -177,6 +177,15 @@ class Sentinel2Mapper(Mapper):
         # check which baseline should be used
         return_highest_baseline = kwargs.get("return_highest_baseline", True)
         res = None
+
+        # get properties and geometry of the current feature from the collection
+        feature_dict = self.get_feature(feature_id)
+        feature_gdf = gpd.GeoDataFrame.from_features(feature_dict)
+        feature_gdf.crs = feature_dict["features"][0]["properties"]["epsg"]
+        # parse feature geometry in kwargs so that only a spatial subset is read
+        # in addition parse the S2 gain factor as "scale" argument
+        kwargs.update({"vector_features": feature_gdf})
+
         # if the feature is a point we take the data set that is not blackfilled.
         # If more than one data set is not blackfilled  we simply take the
         # first data set
@@ -344,9 +353,9 @@ class Sentinel2Mapper(Mapper):
                                     sensor='sentinel2', **kwargs)
         # for multiple scenes a Sentinel-2 specific class must be called
         if isinstance(res, tuple):
-            _, scenes_date, feature_gdf = res
+            _, scenes_date, _ = res
             res = self._read_multiple_scenes(
-                scenes_date=scenes_date, feature_gdf=feature_gdf, **kwargs
+                scenes_date=scenes_date, feature_id=feature_id, **kwargs
             )
         return res
 
