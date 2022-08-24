@@ -293,7 +293,7 @@ class Mapper(object):
             kwargs = {
                 'date_start': self.date_start,
                 'date_end': self.date_end,
-                'vector_features': bbox
+                'bounding_box': bbox
             }
             if sensor.lower() == 'sentinel2':
                 kwargs.update({
