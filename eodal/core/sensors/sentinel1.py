@@ -39,6 +39,7 @@ from eodal.core.scene import SceneProperties
 from eodal.utils.sentinel1 import get_S1_platform_from_safe, \
     get_S1_acquistion_time_from_safe, _url_to_safe_name, \
     get_s1_imaging_mode_from_safe
+from utils.exceptions import DataNotFoundError
 
 Settings = get_settings()
 
@@ -63,18 +64,21 @@ class Sentinel1(RasterCollection):
         """
         band_items = []
         for polarization in polarizations:
-            # get band files from STAC (MS PC)
-            href = in_dir[polarization.lower()]['href']
-            # sign href (this works only with a valid API key)
-            href_signed = planetary_computer.sign_url(href)
             if Settings.USE_STAC:
-                item = {
-                    'polarization': polarization,
-                    'file_path': href_signed
-                }
+                # get band files from STAC (MS PC)
+                href = in_dir[polarization.lower()]['href']
+                # sign href (this works only with a valid API key)
+                ref = planetary_computer.sign_url(href)
             else:
-                # TODO: add support for reading files from local data source
-                pass
+                try:
+                    ref = next(in_dir.glob(
+                        f'measurement/s1*-{polarization.lower()}-*.tiff')
+                    )
+                except Exception as e:
+                    raise DataNotFoundError(
+                        f'Could not find data for polarization {polarization} in {in_dir}: {e}'
+                    )
+            item = {'polarization': polarization, 'file_path': ref}
             band_items.append(item)
         return pd.DataFrame(band_items)
 
@@ -196,3 +200,9 @@ class Sentinel1(RasterCollection):
         # to avoid (large) redundancies
         gdf = gdf.loc[:, ~gdf.columns.duplicated()]
         return gdf
+
+if __name__ == '__main__':
+
+    in_dir = Path('/home/graflu/public/Evaluation/Satellite_data/Sentinel-1/Rawdata/IW/CH/2021/S1A_IW_GRDH_1SDV_20210106T053505_20210106T053530_036013_043833_C728.SAFE')
+    s1 = Sentinel1.from_safe(in_dir=in_dir, epsg_code=4326)
+
