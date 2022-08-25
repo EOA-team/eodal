@@ -362,7 +362,6 @@ class Band(object):
         `rasterio` compatible representation of essential image metadata
     :attrib transform:
         `Affine` transform representation of the image geo-localisation
-
     """
 
     def __init__(
@@ -378,6 +377,7 @@ class Band(object):
         nodata: Optional[Union[int, float]] = None,
         is_tiled: Optional[Union[int, bool]] = 0,
         area_or_point: Optional[str] = "Area",
+        alias: Optional[str] = ""
     ):
         """
         Constructor to instantiate a new band object.
@@ -424,6 +424,8 @@ class Band(object):
             `Point`. When `Area` pixel coordinates refer to the upper left corner of the
             pixel, whereas `Point` indicates that pixel coordinates are from the center
             of the pixel.
+        :param alias:
+            band alias name (optional).
         """
 
         # make sure the passed values are 2-dimensional
@@ -619,6 +621,7 @@ class Band(object):
         band_name_dst: Optional[str] = "B1",
         vector_features: Optional[Union[Path, gpd.GeoDataFrame]] = None,
         full_bounding_box_only: Optional[bool] = False,
+        epsg_code: Optional[int] = None,
         **kwargs,
     ):
         """
@@ -657,6 +660,9 @@ class Band(object):
             if False (default) pixels not covered by the vector features are masked
             out using ``maskedArray`` in the back. If True, does not mask pixels
             within the spatial bounding box of the `vector_features`.
+        :param epsg_code:
+            custom EPSG code of the raster dataset in case the raster has no
+            internally-described EPSG code or no EPSG code at all.
         :param kwargs:
             further key-word arguments to pass to `~eodal.core.band.Band`.
         :returns:
@@ -687,7 +693,10 @@ class Band(object):
             # parse image attributes
             attrs = get_raster_attributes(riods=src)
             transform = src.meta["transform"]
-            epsg = src.meta["crs"].to_epsg()
+            if epsg_code is None:
+                epsg = src.meta["crs"].to_epsg()
+            else:
+                epsg = epsg_code
             # check for area or point pixel coordinate definition
             if "area_or_point" not in kwargs.keys():
                 area_or_point = src.tags().get("AREA_OR_POINT", "Area")
@@ -1348,9 +1357,15 @@ class Band(object):
             # clip data for displaying to central 96% percentile
             # TODO: here seems to be a bug with nans in the data ...
             if vmin is None:
-                vmin = np.nanquantile(self.values, 0.02)
+                try:
+                    vmin = np.nanquantile(self.values, 0.02)
+                except ValueError:
+                    vmin = self.values.min() 
             if vmax is None:
-                vmax = np.nanquantile(self.values, 0.98)
+                try:
+                    vmax = np.nanquantile(self.values, 0.98)
+                except ValueError:
+                    vmax = self.values.max()
 
             # actual displaying of the band data
             img = ax.imshow(

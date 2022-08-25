@@ -34,3 +34,4 @@ fig = dem.plot(
 )
 
 fig.savefig('../img/eodal_SwissALTI3D_sample.png', dpi=150, bbox_inches='tight')
+

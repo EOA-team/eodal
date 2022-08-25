@@ -19,3 +19,8 @@ Initial release (to be released).
 
 - Added: Support for Microsoft Planetary Computer (using its STAC)
 - Added: Guidelines for Contribution to E:earth_africa:dal
+- Added: Sensor core class to work with Planet Scope Super Dove sensors including download capacities
+- Added: Sensor core class to work with Sentinel-1 data (Ground Range Detected and Radiometrically Terrain Corrected)
+- Added: Metadata and archive handling for Sentinel-1 products (GRD, SLC)
+- Fixed: Various issues and bugs in the operational.mapper class (made more generic to allow easy integration of further sensors)
+- Added: Fast visualization of time series data (imagery) as part of the mapping module in the operational sub-package

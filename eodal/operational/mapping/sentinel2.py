@@ -19,37 +19,29 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
 import cv2
-import pandas as pd
 import geopandas as gpd
+import numpy as np
+import pandas as pd
 import uuid
 
 from datetime import date
-from pathlib import Path
-from shapely.geometry import box
-from sqlalchemy.exc import DatabaseError
 from typing import Any, Dict, List, Optional, Union
 
 from eodal.config import get_settings
 from eodal.core.sensors import Sentinel2
-from eodal.metadata.sentinel2.database.querying import find_raw_data_by_bbox
 from eodal.operational.mapping.mapper import Mapper, Feature
 from eodal.operational.mapping.merging import merge_datasets
-from eodal.operational.resampling.utils import identify_split_scenes
 from eodal.utils.constants.sentinel2 import ProcessingLevels
 from eodal.utils.exceptions import (
     InputError,
     BlackFillOnlyError,
-    DataNotFoundError,
-    STACError,
+    DataNotFoundError
 )
 from eodal.metadata.sentinel2.utils import identify_updated_scenes
-from eodal.metadata.utils import reconstruct_path
 from eodal.core.scene import SceneProperties
-from eodal.metadata.stac.client import sentinel2
 
 settings = get_settings()
 logger = settings.logger
-
 
 class Sentinel2Mapper(Mapper):
     """
@@ -108,7 +100,7 @@ class Sentinel2Mapper(Mapper):
 
     def get_scenes(self) -> None:
         """
-        Queries the Sentinel-2 metadata DB for a selected time period and
+        Queries the Sentinel-2 metadata catalog for a selected time period and
         feature collection.
 
         NOTE:
@@ -119,7 +111,7 @@ class Sentinel2Mapper(Mapper):
 
         The scene selection and processing workflow contains several steps:
 
-        1.  Query the metadata DB for **ALL** available scenes that overlap
+        1.  Query the metadata catalog for **ALL** available scenes that overlap
             the bounding box of a given ``Polygon`` or ``MultiPolygon``
             feature. **IMPORTANT**: By passing a list of Sentinel-2 tiles
             to consider (``tile_ids``) you can explicitly control which
@@ -134,134 +126,7 @@ class Sentinel2Mapper(Mapper):
             (usually different UTM zones) flag the data accordingly. The target
             CRS is defined as that CRS the majority of scenes shares.
         """
-        # read features and loop over them to process each feature separately
-        is_file = isinstance(self.feature_collection, Path) or isinstance(
-            self.feature_collection, str
-        )
-        if is_file:
-            try:
-                aoi_features = gpd.read_file(self.feature_collection)
-            except Exception as e:
-                raise InputError(
-                    f"Could not read polygon features from file "
-                    f"{self.feature_collection}: {e}"
-                )
-        else:
-            aoi_features = self.feature_collection.copy()
-
-        # for the DB query, the geometries are required in geographic coordinates
-        # however, we keep the original coordinates as well to avoid to many reprojections
-        aoi_features["geometry_wgs84"] = aoi_features["geometry"].to_crs(4326)
-
-        # check if there is a unique feature column
-        # otherwise create it using uuid
-        if self.unique_id_attribute is not None:
-            if not aoi_features[self.unique_id_attribute].is_unique:
-                raise ValueError(
-                    f'"{self.unique_id_attribute}" is not unique for each feature'
-                )
-        else:
-            object.__setattr__(self, "unique_id_attribute", "_uuid4")
-            aoi_features[self.unique_id_attribute] = [
-                str(uuid.uuid4()) for _ in aoi_features.iterrows()
-            ]
-
-        s2_scenes = {}
-        # features implement the __geo_interface__
-        features = []
-        # extract all properties from the input features to preserve them
-        cols_to_ignore = [self.unique_id_attribute, "geometry", "geometry_wgs84"]
-        property_columns = [x for x in aoi_features.columns if x not in cols_to_ignore]
-        for _, feature in aoi_features.iterrows():
-
-            feature_uuid = feature[self.unique_id_attribute]
-            properties = feature[property_columns].to_dict()
-            feature_obj = Feature(
-                identifier=feature_uuid,
-                geom=feature["geometry"],
-                epsg=aoi_features.crs.to_epsg(),
-                properties=properties,
-            )
-            features.append(feature_obj.to_gdf())
-
-            # determine bounding box of the current feature using
-            # its representation in geographic coordinates
-            bbox = box(*feature.geometry_wgs84.bounds)
-
-            # use the resulting bbox to query the bounding box
-            # there a two options: use STAC or the PostgreSQL DB
-            if settings.USE_STAC:
-                try:
-                    scenes_df = sentinel2(
-                        date_start=self.date_start,
-                        date_end=self.date_end,
-                        processing_level=self.processing_level,
-                        bounding_box=bbox,
-                        cloud_cover_threshold=self.cloud_cover_threshold,
-                    )
-                except Exception as e:
-                    raise STACError(f"Querying STAC catalog failed: {e}")
-            else:
-                try:
-                    scenes_df = find_raw_data_by_bbox(
-                        date_start=self.date_start,
-                        date_end=self.date_end,
-                        processing_level=self.processing_level,
-                        bounding_box=bbox,
-                        cloud_cover_threshold=self.cloud_cover_threshold,
-                    )
-                except Exception as e:
-                    raise DatabaseError(f"Querying metadata DB failed: {e}")
-
-            # filter by tile if required
-            tile_ids = self.mapper_configs.tile_selection
-            if tile_ids is not None:
-                other_tile_idx = scenes_df[~scenes_df.tile_id.isin(tile_ids)].index
-                scenes_df.drop(other_tile_idx, inplace=True)
-
-            if scenes_df.empty:
-                raise UserWarning(
-                    f"The query for feature {feature_uuid} returned now results"
-                )
-                continue
-
-            # check if the satellite data is in different projections
-            in_single_crs = scenes_df.epsg.unique().shape[0] == 1
-
-            # check if there are several scenes available for a single sensing date
-            # in this case merging of different datasets might be necessary
-            scenes_df_split = identify_split_scenes(scenes_df)
-            scenes_df["is_split"] = False
-
-            if not scenes_df_split.empty:
-                scenes_df.loc[
-                    scenes_df.product_uri.isin(scenes_df_split.product_uri), "is_split"
-                ] = True
-
-            # in case the scenes have different projections (most likely different UTM
-            # zone numbers) figure out which will be target UTM zone. To avoid too many
-            # reprojection operations of raster data later, the target CRS is that CRS
-            # most scenes have (expressed as EPSG code)
-            scenes_df["target_crs"] = scenes_df.epsg
-            if not in_single_crs:
-                most_common_epsg = scenes_df.epsg.mode().values
-                scenes_df.loc[
-                    ~scenes_df.epsg.isin(most_common_epsg), "target_crs"
-                ] = most_common_epsg[0]
-
-            # add the scenes_df DataFrame to the dictionary that contains the data for
-            # all features
-            s2_scenes[feature_uuid] = scenes_df
-
-        # create feature collection
-        features_gdf = pd.concat(features)
-        # append raw scene count
-        features_gdf["raw_scene_count"] = features_gdf.apply(
-            lambda x, s2_scenes=s2_scenes: s2_scenes[x.name].shape[0], axis=1
-        )
-        features = features_gdf.__geo_interface__
-        object.__setattr__(self, "observations", s2_scenes)
-        object.__setattr__(self, "feature_collection", features)
+        self._get_scenes(sensor='sentinel2')
 
     def _resample_s2_scene(self, s2_scene) -> None:
         """
@@ -271,15 +136,15 @@ class Sentinel2Mapper(Mapper):
             `~eodal.core.sentinel2.Sentinel2` object with loaded S2
             data
         """
-        # resample to target resolution based on the MapperConfig settings
+        # resample to target resolutionsorted_indices based on the MapperConfig settings
+        has_scl = False
         band_selection = self.mapper_configs.band_names
         if band_selection is None:
             band_selection = s2_scene.band_names
-            has_scl = False
-            # make sure SCL is always resampled to 10m using nearest neighbor
-            if "SCL" in band_selection:
-                band_selection.remove("SCL")
-                has_scl = True
+        # make sure SCL is always resampled to 10m using nearest neighbor
+        if "SCL" in band_selection:
+            band_selection.remove("SCL")
+            has_scl = True
         s2_scene.resample(
             band_selection=band_selection,
             interpolation_method=self.mapper_configs.resampling_method,
@@ -295,15 +160,32 @@ class Sentinel2Mapper(Mapper):
             )
 
     def _read_multiple_scenes(
-        self, scenes_date: pd.DataFrame, feature_gdf: gpd.GeoDataFrame, **kwargs
+        self, scenes_date: pd.DataFrame, feature_id: str, **kwargs
     ) -> Union[gpd.GeoDataFrame, Sentinel2]:
         """
         Backend method for processing and reading scene data if more than one scene
         is available for a given sensing date and feature (area of interest)
+
+        :param scenes_date:
+            `DataFrame` with all Sentinel-2 scenes of a single date
+        :param feature_id:
+            ID of the feature for which to extract data
+        :param kwargs:
+            optional key-word arguments to pass on to
+            `~eodal.core.sensors.Sentinel2.from_safe`
         """
         # check which baseline should be used
         return_highest_baseline = kwargs.get("return_highest_baseline", True)
         res = None
+
+        # get properties and geometry of the current feature from the collection
+        feature_dict = self.get_feature(feature_id)
+        feature_gdf = gpd.GeoDataFrame.from_features(feature_dict)
+        feature_gdf.crs = feature_dict["features"][0]["properties"]["epsg"]
+        # parse feature geometry in kwargs so that only a spatial subset is read
+        # in addition parse the S2 gain factor as "scale" argument
+        kwargs.update({"vector_features": feature_gdf})
+
         # if the feature is a point we take the data set that is not blackfilled.
         # If more than one data set is not blackfilled  we simply take the
         # first data set
@@ -314,7 +196,7 @@ class Sentinel2Mapper(Mapper):
                 else:
                     in_dir = candidate_scene["real_path"]
                 feature_gdf = Sentinel2.read_pixels_from_safe(
-                    point_features=feature_gdf,
+                    vector_features=feature_gdf,
                     in_dir=in_dir,
                     band_selection=self.mapper_configs.band_names,
                 )
@@ -322,8 +204,10 @@ class Sentinel2Mapper(Mapper):
                 if feature_gdf.empty:
                     continue
                 res = feature_gdf
-                res["sensing_date"] = candidate_scene["sensing_date"].values
-                res["scene_id"] = candidate_scene["scene_id"].values
+                if isinstance(candidate_scene, (pd.Series, gpd.GeoSeries)):
+                    res["sensing_date"] = candidate_scene["sensing_date"]
+                    res['sensing_time'] = candidate_scene['sensing_time']
+                    res["scene_id"] = candidate_scene["scene_id"]
                 break
         # in case of a (Multi-)Polygon: check if one of the candidate scenes complete
         # contains the feature (i.e., its bounding box). If that's the case and the
@@ -334,7 +218,7 @@ class Sentinel2Mapper(Mapper):
         else:
             # check processing baseline first (one dataset can appear in different processing
             # baselines)
-            updated_scenes = identify_updated_scenes(
+            updated_scenes, old_scenes = identify_updated_scenes(
                 metadata_df=scenes_date, return_highest_baseline=return_highest_baseline
             )
             # only one scene left -> read the scene and return
@@ -343,16 +227,30 @@ class Sentinel2Mapper(Mapper):
                     in_dir = updated_scenes["assets"].iloc[0]
                 else:
                     in_dir = updated_scenes["real_path"].iloc[0]
-                res = Sentinel2.from_safe(
-                    in_dir=in_dir,
-                    band_selection=self.mapper_configs.band_names,
-                    **kwargs,
-                )
-                self._resample_s2_scene(s2_scene=res)
-                return res
-            # if updated scenes is not empty overwrite the scenes_date DataFrame
+                # if there were only two input scenes we're done
+                # otherwise we have to check if we have to merge data
+                if scenes_date.shape[0] == 2:
+                    res = Sentinel2.from_safe(
+                        in_dir=in_dir,
+                        band_selection=self.mapper_configs.band_names,
+                        **kwargs,
+                    )
+                    self._resample_s2_scene(s2_scene=res)
+                    return res
+            # if updated scenes is not empty update the scenes_date DataFrame
             if not updated_scenes.empty:
-                scenes_date = updated_scenes.copy()
+                # drop "out-dated" scenes
+                appended = pd.concat([scenes_date, old_scenes])
+                appended.drop_duplicates(subset=['product_uri', 'tile_id'], keep=False, inplace=True)
+                scenes_date = appended.copy()
+                # if there is a single scene from a another tile in the
+                # "old" scenes append it to the scenes_date
+                old_scenes_grouped = old_scenes.groupby(by='tile_id')
+                for tile_scenes in old_scenes_grouped:
+                    if tile_scenes[0] not in scenes_date.tile_id.unique():
+                        scenes_date = pd.concat(
+                            [scenes_date, tile_scenes[1].copy()]
+                        )
 
             # apply merge logic
             tmp_fnames = []
@@ -441,85 +339,29 @@ class Sentinel2Mapper(Mapper):
         :param sensing_date:
             date for which to extract observations (or the closest date if
             no observations are available for the given date)
+        :param kwargs:
+            optional key-word arguments to pass on to
+            `~eodal.core.sensors.Sentinel2.from_safe`
         :returns:
             depending on the geometry type of the feature either a
             ``GeoDataFrame`` (geometry type: ``Point``) or ``Sentinel2Handler``
             (geometry types ``Polygon`` or ``MultiPolygon``) is returned. if
             the observation contains nodata, only, None is returned.
         """
-        # define variable for returning results
-        res = None
-        # get available observations for the AOI feature
-        scenes_df = self.observations.get(feature_id, None)
-        if scenes_df is None:
-            raise DataNotFoundError(
-                f'Could not find any scenes for feature with ID "{feature_id}"'
-            )
-
-        # get scene(s) closest to the sensing_date provided
-        min_delta = abs((scenes_df.sensing_date - sensing_date)).min()
-        scenes_date = scenes_df[
-            abs((scenes_df.sensing_date - sensing_date)) == min_delta
-        ].copy()
-
-        # map the dataset path(s) when working locally (no STAC)
-        if not settings.USE_STAC:
-            try:
-                scenes_date["real_path"] = scenes_date.apply(
-                    lambda x: reconstruct_path(record=x), axis=1
-                )
-            except Exception as e:
-                raise DataNotFoundError(
-                    f"Cannot find the scenes on the file system: {e}"
-                )
-        # get properties and geometry of the current feature from the collection
-        feature_dict = self.get_feature(feature_id)
-        feature_gdf = gpd.GeoDataFrame.from_features(feature_dict)
-        feature_gdf.crs = feature_dict["features"][0]["properties"]["epsg"]
-        # parse feature geometry in kwargs so that only a spatial subset is read
-        # in addition parse the S2 gain factor as "scale" argument
-        kwargs.update({"vector_features": feature_gdf})
-        # multiple scenes for a single date
-        # check what to do (re-projection, merging)
-        if scenes_date.shape[0] > 1:
+        # call super class method for getting the observation
+        res = self._get_observation(feature_id=feature_id, sensing_date=sensing_date,
+                                    sensor='sentinel2', **kwargs)
+        # for multiple scenes a Sentinel-2 specific class must be called
+        if isinstance(res, tuple):
+            _, scenes_date, _ = res
             res = self._read_multiple_scenes(
-                scenes_date=scenes_date, feature_gdf=feature_gdf, **kwargs
+                scenes_date=scenes_date, feature_id=feature_id, **kwargs
             )
-            return res
-        else:
-            # determine scene path (local environment) or URLs (STAC)
-            if settings.USE_STAC:
-                in_dir = scenes_date["assets"].iloc[0]
-            else:
-                in_dir = scenes_date["real_path"].iloc[0]
-            # if there is only one scene all we have to do is to read
-            # read pixels in case the feature's dtype is point
-            if feature_dict["features"][0]["geometry"]["type"] == "Point":
-                res = Sentinel2.read_pixels_from_safe(
-                    in_dir=in_dir,
-                    band_selection=self.mapper_configs.band_names,
-                    **kwargs,
-                )
-                res["sensing_date"] = scenes_date["sensing_date"].values
-                res["scene_id"] = scenes_date["scene_id"].values
-                return res
-            # or the feature
-            else:
-                try:
-                    res = Sentinel2.from_safe(
-                        in_dir=in_dir,
-                        band_selection=self.mapper_configs.band_names,
-                        **kwargs,
-                    )
-                    self._resample_s2_scene(s2_scene=res)
-                except BlackFillOnlyError:
-                    return res
-                except Exception as e:
-                    raise Exception from e
-                return res
+        return res
 
     def get_complete_timeseries(
-        self, feature_selection: Optional[List[Any]] = None, **kwargs
+        self, feature_selection: Optional[List[Any]] = None,
+        drop_blackfilled_scenes: Optional[bool] = True, **kwargs
     ) -> Dict[Any, Union[gpd.GeoDataFrame, List[Sentinel2]]]:
         """
         Extracts all observation with a time period for a feature collection.
@@ -531,10 +373,16 @@ class Sentinel2Mapper(Mapper):
         :param feature_selection:
             optional subset of features ids (you can only select features included
             in the current feature collection)
+        :param drop_blackfilled_scenes:
+            drop scenes having no data values only (default)
         :param kwargs:
             optional key-word arguments to pass to `~eodal.core.band.Band.from_rasterio`
         """
         assets = {}
+        # check if band selection is passed in kwargs
+        band_selection_kwargs = kwargs.get('band_selection', None)
+        if band_selection_kwargs is not None:
+            object.__setattr__(self, 'band_names', band_selection_kwargs)
         # loop over features (AOIs) in feature dict
         for feature, scenes_df in self.observations.items():
             # in case a feature selection is available check if the current
@@ -552,6 +400,17 @@ class Sentinel2Mapper(Mapper):
             for idx, sensing_date in enumerate(sensing_dates):
                 try:
                     res = self.get_observation(feature, sensing_date, **kwargs)
+                    if isinstance(res, gpd.GeoDataFrame):
+                        if res.empty: continue
+                    if drop_blackfilled_scenes:
+                        if hasattr(res, 'is_blackfilled'):
+                            if res.is_blackfilled:
+                                logger.info(
+                                    f"Feature {feature}: "
+                                    f"Skipped data due to blackfill from {sensing_date} "
+                                    f"({idx+1}/{n_sensing_dates})"
+                                )
+                                continue
                     feature_res.append(res)
                     logger.info(
                         f"Feature {feature}: "
@@ -569,5 +428,10 @@ class Sentinel2Mapper(Mapper):
             if isinstance(res, gpd.GeoDataFrame):
                 assets[feature] = pd.concat(feature_res)
             else:
-                assets[feature] = feature_res
+                # order scenes by acquisition time
+                timestamps = [x.scene_properties.acquisition_time for x in feature_res]
+                sorted_indices = np.argsort(np.array(timestamps))
+                feature_res_ordered = [feature_res[idx] for idx in sorted_indices]
+                assets[feature] = feature_res_ordered
+                
         return assets

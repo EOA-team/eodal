@@ -19,6 +19,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import datetime
+import numpy as np
+
+from numbers import Number
+from typing import Optional
 
 from eodal.utils.constants import ProcessingLevels
 
@@ -38,15 +42,18 @@ class SceneProperties(object):
         known and applicable)
     :attribute product_uri:
         unique product (scene) identifier
+    :attribute mode:
+        imaging mode of SAR sensors
     """
 
     def __init__(
         self,
-        acquisition_time: datetime.datetime = datetime.datetime(2999, 1, 1),
-        platform: str = "",
-        sensor: str = "",
-        processing_level: ProcessingLevels = ProcessingLevels.UNKNOWN,
-        product_uri: str = "",
+        acquisition_time: Optional[datetime.datetime] = datetime.datetime(2999, 1, 1),
+        platform: Optional[str] = "",
+        sensor: Optional[str] = "",
+        processing_level: Optional[ProcessingLevels] = ProcessingLevels.UNKNOWN,
+        product_uri: Optional[str] = "",
+        mode: Optional[str] = ""
     ):
         """
         Class constructor
@@ -62,24 +69,16 @@ class SceneProperties(object):
             known and applicable)
         :param product_uri:
             unique product (scene) identifier
+        :attribute mode:
+            imaging mode of SAR sensors
         """
-        # type checking first
-        if not isinstance(acquisition_time, datetime.datetime):
-            raise TypeError(
-                f"A datetime.datetime object is required: {acquisition_time}"
-            )
-        if not isinstance(platform, str):
-            raise TypeError(f"A str object is required: {platform}")
-        if not isinstance(sensor, str):
-            raise TypeError(f"A str object is required: {sensor}")
-        if not isinstance(product_uri, str):
-            raise TypeError(f"A str object is required: {product_uri}")
 
         self.acquisition_time = acquisition_time
         self.platform = platform
         self.sensor = sensor
         self.processing_level = processing_level
         self.product_uri = product_uri
+        self.mode = mode
 
     def __repr__(self) -> str:
         return str(self.__dict__)
@@ -141,3 +140,123 @@ class SceneProperties(object):
         if not isinstance(value, str):
             raise TypeError("Expected a str object")
         self._product_uri = value
+
+    @property
+    def mode(self) -> str:
+        """imaging mode of SAR sensors"""
+        return self._mode
+
+    @mode.setter
+    def mode(self, value: str) -> None:
+        if not isinstance(value, str):
+            raise TypeError("Expected a str object")
+        self._mode = value
+
+# class Sentinel2SceneProperties(SceneProperties):
+#     """
+#     Sentinel-2 specific scene properties
+#
+#     :attribute sun_zenith_angle:
+#         scene-wide sun zenith angle [deg]
+#     :attribute sun_azimuth_angle:
+#         scene-wide sun azimuth angle [deg]
+#     :attribute sensor_zenith_angle:
+#         scene-wide sensor zenith angle [deg]
+#     :attribute sensor_azimuth_angle:
+#         scene-wide sensor azimuth angle [deg]
+#     """
+#
+#     def __init__(
+#             self,
+#             sun_zenith_angle: Optional[float] = np.nan,
+#             sun_azimuth_angle: Optional[float] = np.nan,
+#             sensor_zenith_angle: Optional[float] = np.nan,
+#             sensor_azimuth_angle: Optional[float] = np.nan,
+#             *args,
+#             **kwargs
+#         ):
+#         """
+#         Class constructor
+#
+#         :param sun_zenith_angle:
+#             scene-wide sun zenith angle [deg]
+#         :param sun_azimuth_angle:
+#             scene-wide sun azimuth angle [deg]
+#         :param sensor_zenith_angle:
+#             scene-wide sensor zenith angle [deg]
+#         :param sensor_azimuth_angle:
+#             scene-wide sensor azimuth angle [deg]
+#         :param args:
+#             positional arguments to pass to the constructor of the
+#             super-class
+#         :param kwargs:
+#             key-word arguments to pass to the constructor of the
+#             super-class
+#         """
+#         # call constructor of super class
+#         super().__init__(*args, **kwargs)
+#
+#         self.sun_zenith_angle = sun_zenith_angle
+#         self.sun_azimuth_angle = sun_azimuth_angle
+#         self.sensor_zenith_angle = sensor_zenith_angle
+#         self.sensor_azimuth_angle = sensor_azimuth_angle
+#
+#     @property
+#     def sun_zenith_angle(self) -> float:
+#         """sun zenith angle [deg]"""
+#         return self._sun_zenith_angle
+#
+#     @sun_zenith_angle.setter
+#     def sun_zenith_angle(self, val: float) -> None:
+#         """sun zenith angle [deg]"""
+#         if not isinstance(val, Number):
+#             raise TypeError('Expected integer of float')
+#         # plausibility check
+#         if not 0 <= val <= 90:
+#             raise ValueError('The sun zenith angle ranges from 0 to 90 degrees')
+#         self._sun_zenith_angle = val
+#
+#     @property
+#     def sun_azimuth_angle(self) -> float:
+#         """sun azimuth angle [deg]"""
+#         return self._sun_zenith_angle
+#
+#     @sun_azimuth_angle.setter
+#     def sun_azimuth_angle(self, val: float) -> None:
+#         """sun azimuth angle [deg]"""
+#         if not isinstance(val, Number):
+#             raise TypeError('Expected integer of float')
+#         # plausibility check
+#         if not 0 <= val <= 180:
+#             raise ValueError('The sun azimuth angle ranges from 0 to 180 degrees')
+#         self._sun_zenith_angle = val
+#
+#     @property
+#     def sensor_zenith_angle(self) -> float:
+#         """sensor zenith angle [deg]"""
+#         return self._sensor_zenith_angle
+#
+#     @sensor_zenith_angle.setter
+#     def sensor_zenith_angle(self, val: float) -> None:
+#         """sensor zenith angle [deg]"""
+#         if not isinstance(val, Number):
+#             raise TypeError('Expected integer of float')
+#         # plausibility check
+#         if not 0 <= val <= 90:
+#             raise ValueError('The sensor zenith angle ranges from 0 to 90 degrees')
+#         self._sensor_zenith_angle = val
+#
+#     @property
+#     def sensor_azimuth_angle(self) -> float:
+#         """sun azimuth angle [deg]"""
+#         return self._sensor_zenith_angle
+#
+#     @sensor_azimuth_angle.setter
+#     def sensor_azimuth_angle(self, val: float) -> None:
+#         """sun azimuth angle [deg]"""
+#         if not isinstance(val, Number):
+#             raise TypeError('Expected integer of float')
+#         # plausibility check
+#         if not 0 <= val <= 180:
+#             raise ValueError('The sensor azimuth angle ranges from 0 to 180 degrees')
+#         self._sun_zenith_angle = val

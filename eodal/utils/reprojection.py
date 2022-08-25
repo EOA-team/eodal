@@ -2,7 +2,7 @@
 Functions for reprojecting vector and raster data from one spatial
 coordinate reference system into another one.
 
-Copyright (C) 2022 Lukas Valentin Graf
+Copyright (C) 2022 Samuel Wildhaber and Lukas Valentin Graf
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -22,17 +22,71 @@ import numpy as np
 import rasterio as rio
 import geopandas as gpd
 
+from collections import namedtuple
 from rasterio import Affine
 from rasterio.crs import CRS
-from shapely.geometry import box
+from shapely.geometry import box, MultiPolygon, Polygon
 from pathlib import Path
-from typing import Union
-from typing import Tuple
-from typing import Optional
+from typing import NamedTuple, Optional, Tuple, Union
 from geopandas import GeoDataFrame
 
 from eodal.core.utils.geometry import read_geometries
 
+UTMZone = namedtuple('Point', 'zone hemisphere')
+
+def _infer_utm_zone(shape: Polygon | MultiPolygon) -> NamedTuple:
+    """
+    Infer the UTM zone from a geometry provided in geographic coordinates.
+    The geometry must implement the centroid attribute.
+
+    :param shape:
+        geometry in geographic coordinates (WGS84) for which to check
+        the corresponding UTM zone
+    :returns:
+        `NamedTuple` with two-digit UTM `zone` number and `hemisphere`
+        (north or south)
+    """
+    centroid = shape.centroid
+    lon = centroid.x
+    lat = centroid.y
+    
+    if lat > 84 or lat < -80:
+        raise Exception('UTM Zones only valid within [-80, 84] latitude')
+    
+    zone = int((lon + 180)/ 6 + 1)
+    hemisphere = 'north' if lat > 0 else 'south'
+    return UTMZone(zone, hemisphere)
+
+def _epsg_from_utm_zone(utmzone: UTMZone) -> int:
+    """
+    EPSG code from UTM zone number and hemisphere
+
+    :param utmzone:
+        `NamedTuple` with two-digit UTM `zone` and `hemisphere`
+    :returns:
+        integer EPSG code
+    """
+    epsg_str = '32'
+    if utmzone.hemisphere == 'north':
+        epsg_str += '6'
+    elif utmzone.hemisphere == 'south':
+        epsg_str += '7'
+    else:
+        raise ValueError('Not a valid hemisphere (allowed: north or south)')
+    epsg_str += str(utmzone.zone)
+    return int(epsg_str)
+
+def infer_utm_zone(shape: Polygon | MultiPolygon) -> int:
+    """
+    Returns the EPSG code of the UTM zone a geometry with geographic coordinates
+    lies in (i.e., its centroid)
+
+    :param shape:
+        geometry in geographic coordinates (WGS84) for which to check
+        the corresponding UTM zone
+    """
+    utmzone = _infer_utm_zone(shape)
+    return _epsg_from_utm_zone(utmzone)
 
 def check_aoi_geoms(
     in_dataset: Union[Path, gpd.GeoDataFrame],
@@ -88,7 +142,6 @@ def check_aoi_geoms(
         gdf = gpd.GeoDataFrame(geometry=gpd.GeoSeries(bbox))
 
     return gdf
-
 
 def reproject_raster_dataset(
     raster: Union[Path, np.ndarray], **kwargs

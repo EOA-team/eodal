@@ -18,12 +18,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import pandas as pd
-from typing import Optional
+from typing import Optional, Tuple
 
 
 def identify_updated_scenes(
     metadata_df: pd.DataFrame, return_highest_baseline: Optional[bool] = True
-) -> pd.DataFrame:
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Returns those S2 entries in a pandas ``DataFrame`` retrieved from a query in
     eodal's metadata base that originate from the same orbit and data take
@@ -37,8 +37,10 @@ def identify_updated_scenes(
         if True (default) return those scenes with the highest baseline. Otherwise
         return the baseline most products belong to
     :return:
-        ``DataFrame`` with those S2 scenes belonging to either the highest
-        PDGS baseline or the most common baseline version
+        Tuple with two entries. The first entries contains a ``DataFrame`` with
+        those S2 scenes belonging to either the highest PDGS baseline or the most
+        common baseline version. The other "older" scenes are in the second
+        tuple item.
     """
 
     # get a copy of the input to work with
@@ -57,4 +59,5 @@ def identify_updated_scenes(
         baseline_sel = metadata.baseline.mode()
 
     # return only those data-set belonging to the selected baseline version
-    return metadata[metadata.baseline == baseline_sel]
+    return (metadata[metadata.baseline == baseline_sel],
+            metadata[metadata.baseline != baseline_sel])

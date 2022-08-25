@@ -46,6 +46,33 @@ class Regions(Base):
     region_uid = Column(String, nullable=False, primary_key=True)
     geom = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
 
+class S1_Raw_Metadata(Base):
+
+    __tablename__ = "sentinel1_raw_metadata"
+
+    scene_id = Column(String, nullable=False, primary_key=True)
+    product_uri = Column(String, nullable=False, primary_key=True)
+
+    spacecraft_name = Column(String, nullable=False)
+    sensing_orbit_start = Column(Integer, nullable=False)
+    sensing_orbit_stop = Column(Integer, nullable=False)
+    relative_orbit_start = Column(Integer, nullable=False)
+    relative_orbit_stop = Column(Integer, nullable=False)
+    sensing_orbit_direction = Column(String, nullable=False)
+    sensing_time = Column(TIMESTAMP, nullable=False)
+    sensing_date = Column(Date, nullable=False)
+    instrument_mode = Column(String, nullable=False)
+    product_type = Column(String, nullable=False)
+    product_class = Column(String, nullable=False)
+    processing_software_name = Column(String, nullable=False)
+    processing_software_version = Column(String, nullable=False)
+    mission_data_take_id = Column(Integer, nullable=False)
+    storage_device_ip = Column(String)
+    storage_device_ip_alias = Column(String)
+    storage_share = Column(String)
+
+    # scene footprint
+    geom = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
 
 class S2_Raw_Metadata(Base):
 
@@ -141,7 +168,6 @@ class S2_Raw_Metadata(Base):
         String, nullable=False, comment="type of the path (e.g., POSIX-Path)"
     )
 
-
 class S2_Processed_Metadata(Base):
 
     __tablename__ = "sentinel2_processed_metadata"
@@ -177,6 +203,52 @@ class S2_Processed_Metadata(Base):
         ),
     )
 
+class PS_SuperDove_Metadata(Base):
+
+    __tablename__ = "ps_superdove_raw_metadata"
+
+    scene_id = Column(String, nullable=False, primary_key=True)
+
+    sensing_time = Column(TIMESTAMP, nullable=False)
+    gsd = Column(Float, nullable=False, comment='Ground Sampling Distance [m]')
+
+    anomalous_pixels = Column(Integer, nullable=False)
+    clear_confidence_percent = Column(Integer, nullable=False)
+    clear_percent = Column(Integer, nullable=False)
+    cloud_cover = Column(Integer, nullable=False)
+    cloud_percent = Column(Integer, nullable=False)
+    ground_control = Column(Boolean, nullable=False)
+    heavy_haze_percent = Column(Integer, nullable=False)
+    instrument = Column(String, nullable=False)
+    item_type = Column(String, nullable=False)
+    light_haze_percent = Column(Integer, nullable=False)
+    pixel_resolution = Column(Integer, nullable=False)
+    provider = Column(String, nullable=False)
+    quality_category = Column(String, nullable=False)
+    satellite_azimuth = Column(Float, nullable=False)
+    satellite_id =  Column(String, nullable=False)
+    shadow_percent =  Column(Integer, nullable=False)
+    snow_ice_percent = Column(Integer, nullable=False)
+    strip_id = Column(String, nullable=False)
+    sun_azimuth = Column(Float, nullable=False)
+    sun_elevation = Column(Float, nullable=False)
+    view_angle = Column(Float, nullable=False)
+    visible_confidence_percent = Column(Integer, nullable=False)
+    visible_percent = Column(Integer, nullable=False)
+
+    geom = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
+    nrows = Column(Integer, nullable=False)
+    ncols = Column(Integer, nullable=False)
+    epsg = Column(Integer, nullable=False)
+    orbit_direction = Column(String, nullable=False)
+
+    # storage location
+    storage_device_ip = Column(String)
+    storage_device_ip_alias = Column(String)  # might be necessary
+    storage_share = Column(String, nullable=False)
+    path_type = Column(
+        String, nullable=False, comment="type of the path (e.g., POSIX-Path)"
+    )
 
 def create_tables() -> None:
     """
@@ -190,7 +262,5 @@ def create_tables() -> None:
     except Exception as e:
         raise Exception(f"Could not create table: {e}")
 
-
 if __name__ == "__main__":
-
     create_tables()
