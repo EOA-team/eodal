@@ -39,7 +39,7 @@ from eodal.core.scene import SceneProperties
 from eodal.utils.sentinel1 import get_S1_platform_from_safe, \
     get_S1_acquistion_time_from_safe, _url_to_safe_name, \
     get_s1_imaging_mode_from_safe
-from utils.exceptions import DataNotFoundError
+from eodal.utils.exceptions import DataNotFoundError
 
 Settings = get_settings()
 
