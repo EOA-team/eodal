@@ -34,7 +34,7 @@ def prepare_bbox(f):
     @wraps(f)
     def wrapper(**kwargs):
         # a bounding box (vector features) is required
-        vector_features = kwargs.get('vector_features', None)
+        vector_features = kwargs.get('bounding_box', None)
         if vector_features is None:
             raise ValueError('A bounding box must be specified')
         if isinstance(vector_features, Path):
@@ -44,7 +44,6 @@ def prepare_bbox(f):
         # and provide bounds as geojson (required by STAC)
         bbox = box_to_geojson(gdf=vector_features)
         kwargs.update({'bounding_box': bbox})
-        del kwargs['vector_features']
         return f(**kwargs)
     return wrapper
 
