@@ -139,7 +139,11 @@ def merge_datasets(
         return
     # otherwise, create new SatDataHandler instance from merged datasets
     # add scene properties if available
-    raster = RasterCollection(scene_properties=scene_properties)
+    if sensor is None:
+        raster = RasterCollection(scene_properties=scene_properties)
+    else:
+        raster = eval(f'eodal.core.sensors.{sensor.lower()}.{sensor[0].upper() + sensor[1::]}' \
+                      + '(scene_properties=scene_properties)')
     n_bands = out_ds.shape[0]
     # take attributes of the first dataset
     attrs = attrs_list[0]

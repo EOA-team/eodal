@@ -104,6 +104,10 @@ def find_raw_data_by_bbox(
             S2_Raw_Metadata.sensing_orbit_number,
             S2_Raw_Metadata.sensing_time,
             S2_Raw_Metadata.epsg,
+            S2_Raw_Metadata.sun_azimuth_angle,
+            S2_Raw_Metadata.sun_zenith_angle,
+            S2_Raw_Metadata.sensor_azimuth_angle,
+            S2_Raw_Metadata.sensor_zenith_angle
         )
         .filter(ST_Intersects(S2_Raw_Metadata.geom, ST_GeomFromText(bounding_box)))
         .filter(
@@ -168,6 +172,10 @@ def find_raw_data_by_tile(
             S2_Raw_Metadata.sensing_time,
             S2_Raw_Metadata.cloudy_pixel_percentage,
             S2_Raw_Metadata.epsg,
+            S2_Raw_Metadata.sun_azimuth_angle,
+            S2_Raw_Metadata.sun_zenith_angle,
+            S2_Raw_Metadata.sensor_azimuth_angle,
+            S2_Raw_Metadata.sensor_zenith_angle
         )
         .filter(S2_Raw_Metadata.tile_id == tile)
         .filter(

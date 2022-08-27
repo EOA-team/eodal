@@ -31,6 +31,7 @@ from functools import lru_cache
 from os.path import join
 from pathlib import Path
 from pydantic import BaseSettings
+from typing import Any
 
 from .stac_providers import STAC_Providers
 
@@ -61,6 +62,13 @@ class Settings(BaseSettings):
     CREODIAS_USER: str = ""
     CREODIAS_PASSWORD: str = ""
 
+    # define Planet-API token
+    PLANET_API_KEY: str = ""
+    # Planet API URLs
+    ORDERS_URL: str = 'https://api.planet.com/compute/ops/orders/v2'
+    DATA_URL: str = 'https://api.planet.com/data/v1'
+
+
     # metadata base connection details
     DB_USER: str = "postgres"
     DB_PW: str = "P@ssW0rd!"
@@ -72,12 +80,15 @@ class Settings(BaseSettings):
     ECHO_DB: bool = False
 
     # STAC configuration
-    USE_STAC: bool = False
+    USE_STAC: bool = True
     MAX_ITEMS: int = 500
     LIMIT_ITEMS: int = 5
 
     # change the value of this variable to use a different STAC service provider
-    STAC_BACKEND = STAC_Providers.AWS
+    STAC_BACKEND: Any = STAC_Providers.MSPC # STAC_Providers.AWS
+
+    # subscription key for MS-PC (might be required for some data sets like Sentinel-1)
+    PC_SDK_SUBSCRIPTION_KEY: str = ''
 
     # define logger
     CURRENT_TIME: str = datetime.now().strftime("%Y%m%d-%H%M%S")

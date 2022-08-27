@@ -29,7 +29,7 @@ from typing import List, Union
 class SpectralIndices(object):
     """generic spectral indices"""
 
-    # define color names
+    # define color names (for optical sensors)
     blue = "blue"
     green = "green"
     red = "red"
@@ -40,6 +40,11 @@ class SpectralIndices(object):
     nir_2 = "nir_2"
     swir_1 = "swir_1"
     swir_2 = "swir_2"
+
+    # polarizations (for SAR)
+    vv = 'VV'
+    vh = 'VH'
+    hh = 'HH'
 
     @classmethod
     def get_si_list(cls) -> List[str]:
@@ -266,3 +271,12 @@ class SpectralIndices(object):
         green = collection.get(cls.green).values.astype("float")
         nir = collection.get(cls.nir_1).values.astype("float")
         return (green - nir) / (green + nir)
+
+    @classmethod
+    def CR(cls, collection):
+        """
+        Calculates the Cross Ratio  VH/VV
+        """
+        vh = collection.get(cls.vh).values.astype("float")
+        vv = collection.get(cls.vv).values.astype("float")
+        return vh / vv

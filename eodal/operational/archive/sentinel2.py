@@ -39,9 +39,9 @@ from typing import Optional
 
 from eodal.utils.constants import ProcessingLevels
 from eodal.downloader.sentinel2.creodias import query_creodias
-from eodal.downloader.sentinel2.creodias import download_datasets
+from eodal.downloader.utils.creodias import download_datasets
 
-from eodal.downloader.sentinel2.utils import unzip_datasets
+from eodal.downloader.utils import unzip_datasets
 from eodal.metadata.database.querying import get_region
 from eodal.metadata.sentinel2.database.querying import find_raw_data_by_bbox
 from eodal.config import get_settings

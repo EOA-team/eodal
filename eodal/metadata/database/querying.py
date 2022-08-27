@@ -20,12 +20,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import geopandas as gpd
 
 from sqlalchemy import create_engine
-
-from eodal.metadata.database import Regions
-from eodal.utils.exceptions import RegionNotFoundError
-from eodal.config import get_settings
 from sqlalchemy.orm.session import sessionmaker
 
+from eodal.config import get_settings
+from eodal.metadata.database import Regions, S2_Raw_Metadata
+from eodal.utils.exceptions import DataNotFoundError, RegionNotFoundError
 
 Settings = get_settings()
 logger = Settings.logger
@@ -44,17 +43,37 @@ def get_region(region: str) -> gpd.GeoDataFrame:
         unique region identifier
 
     :return:
-        geodataframe with the geometry of the queried region
+        `GeoDataFrame` with the geometry of the queried region
     """
-
     query_statement = (
         session.query(Regions.geom, Regions.region_uid)
         .filter(Regions.region_uid == region)
         .statement
     )
-
     try:
         return gpd.read_postgis(query_statement, session.bind)
-
     except Exception as e:
         raise RegionNotFoundError(f"{region} not found: {e}")
+
+def get_s2_tile_footprint(tile_name: str) -> gpd.GeoDataFrame:
+    """
+    Queries the geographic extent of a Sentinel-2 tile
+
+    :param sensor:
+        name of the sensor the tiling scheme belongs to (e.g.,
+        'sentinel2')
+    :param tile_name:
+        name of the tile in the tiling scheme (e.g., 'T32TMT')
+    :returns:
+        extent of the tile in geographic coordinates (WGS84)
+    """
+    query_statement = (
+        session.query(S2_Raw_Metadata.geom)
+        .filter(S2_Raw_Metadata.tile_id == tile_name)
+        .distinct()
+        .statement
+    )
+    try:
+        return gpd.read_postgis(query_statement, session.bind)
+    except Exception as e:
+        raise DataNotFoundError(f"{tile_name} not found: {e}")

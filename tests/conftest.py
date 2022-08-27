@@ -8,7 +8,7 @@ import requests
 
 from distutils import dir_util
 from pathlib import Path
-from eodal.downloader.sentinel2.utils import unzip_datasets
+from eodal.downloader.utils import unzip_datasets
 
 @pytest.fixture
 def tmppath(tmpdir):

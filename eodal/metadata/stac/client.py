@@ -6,14 +6,15 @@ import pandas as pd
 
 from datetime import date, datetime
 from pystac_client import Client
-from shapely.geometry import Polygon
-from typing import Any, Dict, List
+from shapely.geometry import box, Polygon
+from typing import Any, Dict, List, Optional
 
-from eodal.config import get_settings
+from eodal.config import get_settings, STAC_Providers
+from eodal.utils.decorators import prepare_bbox
+from eodal.utils.reprojection import infer_utm_zone
 from eodal.utils.sentinel2 import ProcessingLevels
 
 Settings = get_settings()
-
 
 def query_stac(
     date_start: date,
@@ -34,7 +35,7 @@ def query_stac(
     :param collection:
         name of the collection
         (e.g., sentinel-2-l2a for Sentinel-2 L2A data)
-    :param bounding_box_wkt:
+    :param bounding_box:
         bounding box either as extended well-known text in geographic coordinates
         or as shapely ``Polygon`` in geographic coordinates (WGS84)
     :returns:
@@ -59,7 +60,7 @@ def query_stac(
     scenes = item_json["features"]
     return scenes
 
-
+@prepare_bbox
 def sentinel2(
     cloud_cover_threshold: float, processing_level: ProcessingLevels, **kwargs
 ) -> pd.DataFrame:
@@ -122,6 +123,8 @@ def sentinel2(
             "sensing_time": datetime.strptime(
                 props[s2.sensing_time], s2.sensing_time_fmt
             ),
+            "sun_azimuth_angle": props[s2.sun_azimuth_angle],
+            "sun_zenith_angle": props[s2.sun_zenith_angle]
         }
         # get links to actual Sentinel-2 bands
         meta_dict["assets"] = scene["assets"]
@@ -134,36 +137,39 @@ def sentinel2(
     # create pandas DataFrame out of scene metadata records
     return pd.DataFrame(metadata_list)
 
+@prepare_bbox
+def sentinel1(collection: Optional[str] = 'sentinel-1-rtc', **kwargs) -> pd.DataFrame:
+    """
+    Sentinel-1 specific STAC query function to retrieve scenes from MSPC
 
-# unit test
-if __name__ == "__main__":
+    :param collection:
+        Sentinel-1 collection to use. Must be one of 'sentinel-1-grd' (ground
+        range detected), 'sentinel-1-rtc' (radiometrically terrain corrected)
+    :param kwargs:
+        :param kwargs:
+        keyword arguments to pass to `query_stac` function
+    :returns:
+        dataframe with references to found Sentinel-1 scenes
+    """
 
-    import geopandas as gpd
-    from shapely.geometry import box
+    if Settings.STAC_BACKEND != STAC_Providers.MSPC:
+        raise ValueError('This method requires Microsoft Planetary Computer')
 
-    # define time period
-    date_start = date(2022, 5, 1)
-    date_end = date(2022, 5, 31)
-    # select processing level
-    processing_level = ProcessingLevels.L2A
+    # set collection to sentinel1-rtc
+    kwargs.update({'collection': collection})
 
-    # provide bounding box
-    bounding_box_fpath = (
-        "../../../../data/sample_polygons/ZH_Polygons_2020_ESCH_EPSG32632.shp"
-    )
-    gdf = gpd.read_file(bounding_box_fpath)
-    gdf.to_crs(epsg=4326, inplace=True)
-    bounding_box = box(*gdf.total_bounds)
+    # query the catalog
+    scenes = query_stac(**kwargs)
+    metadata_list = []
+    for scene in scenes:
+        metadata_dict = scene['properties']
+        metadata_dict['assets'] = scene['assets']
+        metadata_dict['sensing_date'] = datetime.strptime(
+                metadata_dict['datetime'].split("T")[0], "%Y-%m-%d"
+            ).date()
+        metadata_list.append(metadata_dict)
+        # infer EPSG code of the scene in UTM coordinates from its bounding box
+        bbox = box(*scene['bbox'])
+        metadata_dict['epsg'] = infer_utm_zone(bbox)
 
-    # set scene cloud cover threshold [%]
-    cloud_cover_threshold = 80
-
-    # run stack query and make sure some items are returned
-    res = sentinel2(
-        date_start=date_start,
-        date_end=date_end,
-        processing_level=processing_level,
-        cloud_cover_threshold=cloud_cover_threshold,
-        bounding_box=bounding_box,
-    )
-    assert res.empty, "no results found"
+    return pd.DataFrame(metadata_list)

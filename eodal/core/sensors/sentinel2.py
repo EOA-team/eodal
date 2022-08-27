@@ -60,6 +60,7 @@ from eodal.utils.sentinel2 import (
 from copy import deepcopy
 from eodal.core.utils.geometry import convert_3D_2D
 from eodal.config import get_settings
+from eodal.utils.sentinel2 import _url_to_safe_name
 
 Settings = get_settings()
 
@@ -253,7 +254,8 @@ class Sentinel2(RasterCollection):
 
         :param in_dir:
             file-path to the .SAFE directory containing Sentinel-2 data in
-            L1C or L2A processing level
+            L1C or L2A processing level or collection of hyper-links in the case
+            of STAC
         :param band_selection:
             selection of Sentinel-2 bands to read. Per default, all 10 and
             20m bands are processed. If you wish to read less or more, specify
@@ -349,21 +351,36 @@ class Sentinel2(RasterCollection):
                         masking_after_read_required = True
 
         # determine platform (S2A or S2B)
-        platform = get_S2_platform_from_safe(dot_safe_name=in_dir)
+        try:
+            platform = get_S2_platform_from_safe(dot_safe_name=in_dir)
+        except Exception as e:
+            raise ValueError(f'Could not determine platform: {e}')
         # set scene properties (platform, sensor, acquisition date)
-        acqui_time = get_S2_acquistion_time_from_safe(dot_safe_name=in_dir)
-        processing_level = get_S2_processing_level(dot_safe_name=in_dir)
+        try:
+            acqui_time = get_S2_acquistion_time_from_safe(dot_safe_name=in_dir)
+        except Exception as e:
+            raise ValueError(f'Could not determine acquisition time: {e}')
+        try:
+            processing_level = get_S2_processing_level(dot_safe_name=in_dir)
+        except Exception as e:
+            raise ValueError(f'Could not determine processing level: {e}')
+        try:
+            if isinstance(in_dir, Path):
+                product_uri = in_dir.name
+            elif Settings.USE_STAC:
+                product_uri = _url_to_safe_name(in_dir)
+        except Exception as e:
+            raise ValueError(f'Could not determine product uri: {e}')
 
         scene_properties = SceneProperties(
             acquisition_time=acqui_time,
             platform=platform,
             sensor="MSI",
             processing_level=processing_level,
-            product_uri=in_dir.name,
+            product_uri=product_uri,
         )
 
-        # set AREA_OR_POINT to Point (see here: https://gis.stackexchange.com/a/263329)
-        # TODO: make sure this is really true
+        # set AREA_OR_POINT to Area
         kwargs.update({"area_or_point": "Area"})
         # set nodata to zero (unfortunately the S2 img metadata is incorrect here)
         kwargs.update({"nodata": 0})
@@ -485,11 +502,11 @@ class Sentinel2(RasterCollection):
             to do spatial resampling! The underlying ``rasterio.sample`` function always
             snaps to the closest pixel in the current spectral band.
 
-        :param point_features:
+        :param vector_features:
             vector file (e.g., ESRI shapefile or geojson) or ``GeoDataFrame``
             defining point locations for which to extract pixel values
-        :param raster:
-            custom raster dataset understood by ``GDAL`` from which to extract
+        :param in_dir:
+            Sentinel-2 scene in .SAFE structure from which to extract
             pixel values at the provided point locations
         :param band_selection:
             list of bands to read. Per default all raster bands available are read.
@@ -504,7 +521,7 @@ class Sentinel2(RasterCollection):
             higher storage requirements because scaling converts the data to float32.
         :returns:
             ``GeoDataFrame`` containing the extracted raster values. The band values
-            are appened as columns to the dataframe. Existing columns of the input
+            are appended as columns to the dataframe. Existing columns of the input
             `in_file_pixels` are preserved.
         """
         # load 10 and 20 bands by default
@@ -716,14 +733,15 @@ class Sentinel2(RasterCollection):
             for scl_class in scl_class_mapping:
                 if scl_class not in scl_stats_df.Class_Value.values:
                     scl_stats_dict = {}
-                    scl_stats_dict["Class_Value"] = scl_class
+                    scl_stats_dict["Class_Value"] = int(scl_class)
                     scl_stats_dict["Class_Name"] = scl_class_mapping[scl_class]
                     scl_stats_dict["Class_Abs_Count"] = 0
                     scl_stats_dict["Class_Rel_Count"] = 0
 
-                    scl_stats_df = scl_stats_df.append(
-                        other=scl_stats_dict, ignore_index=True
-                    )
+                    scl_stats_df = pd.concat([
+                        scl_stats_df,
+                        pd.DataFrame(scl_stats_dict, index=[scl_stats_df.index.max()+1])
+                    ])
 
         return scl_stats_df
 
