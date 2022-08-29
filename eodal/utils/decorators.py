@@ -24,8 +24,10 @@ from pathlib import Path
 from rasterio.coords import BoundingBox
 
 from eodal.config import get_settings
+from eodal.core.utils.geometry import multi_to_single_points
 from eodal.utils.exceptions import UnknownProcessingLevel, BandNotFoundError
 from eodal.utils.geometry import box_to_geojson
+from core.utils.geometry import multi_to_single_points
 
 Settings = get_settings()
 
@@ -45,6 +47,27 @@ def prepare_bbox(f):
         bbox = box_to_geojson(gdf=vector_features)
         kwargs.update({'bounding_box': bbox})
         return f(**kwargs)
+    return wrapper
+
+def prepare_point_features(f):
+    """
+    casts MultiPoint geometries to single parts before calling pixel extraction methods
+    """
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if len(args) >= 2:
+            vector_features = args[1]
+        else:
+            vector_features = kwargs.get('vector_features')
+        # cast to single point geometries
+        vector_features_updated = multi_to_single_points(vector_features)
+        if len(args) >= 2:
+            arg_list = list(args)
+            arg_list[1] = vector_features_updated
+            args = tuple(arg_list)
+        else:
+            kwargs.update({'vector_features': vector_features_updated})
+        return f(*args, **kwargs)
     return wrapper
 
 def check_processing_level(f):
