@@ -48,7 +48,6 @@ def read_geometries(in_dataset: Union[Path, gpd.GeoDataFrame]) -> gpd.GeoDataFra
             f"Could not read geometries of input type {type(in_dataset)}"
         )
 
-
 def check_geometry_types(
     in_dataset: Union[Path, gpd.GeoDataFrame],
     allowed_geometry_types: List[str],
@@ -96,7 +95,6 @@ def check_geometry_types(
         )
     return gdf
 
-
 def convert_3D_2D(geometry: gpd.GeoSeries) -> gpd.GeoSeries:
     """
     Takes a GeoSeries of 3D Multi/Polygons (has_z) and returns a list of 2D Multi/Polygons.
@@ -127,3 +125,22 @@ def convert_3D_2D(geometry: gpd.GeoSeries) -> gpd.GeoSeries:
             new_geo = geometry
             break
     return new_geo
+
+def multi_to_single_points(point_features: gpd.GeoDataFrame | Path) -> gpd.GeoDataFrame:
+    """
+    Casts MultiPoint geometries to single point geometries by calling
+    `gpd.GeoDataFrame.explode()`
+
+    :param point_features:
+        point features to cast
+    :returns:
+        casted point features or input if all geometries are already single parted
+    """
+    gdf = check_geometry_types(
+        in_dataset=point_features,
+        allowed_geometry_types=['Point', 'MultiPoint']
+    )
+    if (gdf.geometry.type == 'MultiPoint').any():
+            gdf = gdf.explode(index_parts=False)
+    return gdf
+
