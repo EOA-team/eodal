@@ -539,7 +539,8 @@ class Mapper(object):
                 in_dir = scenes_date["real_path"].iloc[0]
             # if there is only one scene all we have to do is to read
             # read pixels in case the feature's dtype is point
-            if feature_dict["features"][0]["geometry"]["type"] == "Point":
+            feature_geom = feature_dict["features"][0]["geometry"]["type"]
+            if feature_geom in ["Point", "MultiPoint"]:
                 if sensor.lower() == 'sentinel1':
                     res = Sentinel1.read_pixels_from_safe(
                         in_dir=in_dir,
