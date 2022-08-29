@@ -27,7 +27,7 @@ from eodal.config import get_settings
 from eodal.core.utils.geometry import multi_to_single_points
 from eodal.utils.exceptions import UnknownProcessingLevel, BandNotFoundError
 from eodal.utils.geometry import box_to_geojson
-from core.utils.geometry import multi_to_single_points
+from eodal.core.utils.geometry import multi_to_single_points
 
 Settings = get_settings()
 
@@ -60,7 +60,10 @@ def prepare_point_features(f):
         else:
             vector_features = kwargs.get('vector_features')
         # cast to single point geometries
-        vector_features_updated = multi_to_single_points(vector_features)
+        try:
+            vector_features_updated = multi_to_single_points(vector_features)
+        except Exception as e:
+            print(e)
         if len(args) >= 2:
             arg_list = list(args)
             arg_list[1] = vector_features_updated
