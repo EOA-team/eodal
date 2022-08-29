@@ -567,23 +567,27 @@ class Sentinel2(RasterCollection):
                 if apply_scaling:
                     gdf_scaled = gdf_band.copy()
                     gdf_scaled[band_name] = 0.0
-                    gdf_scaled[band_name] = (
-                        offset + gdf_band[band_name].loc[gdf_band[band_name] != 0]
-                    ) * gain
+                    # use only pixel values were reflectance is != 0
+                    gdf_scaled[band_name] = gdf_band[band_name].apply(
+                        lambda x, offset=offset, gain=gain:
+                        (offset + x) * gain if x != 0 else 0 
+                    )
                     band_gdfs.append(gdf_scaled)
                     continue
             band_gdfs.append(gdf_band)
 
-        # concat the single GeoDataFrames with the band data
+        # concatenate the single GeoDataFrames with the band data
         gdf = pd.concat(band_gdfs, axis=1)
         # clean the dataframe and remove duplicate column names after merging
         # to avoid (large) redundancies
         gdf = gdf.loc[:, ~gdf.columns.duplicated()]
         # skip all pixels with zero reflectance (either blackfilled or outside of the
         # scene extent); in case of dtype float check for NaNs
-        if (gdf.dtypes[gdf.columns.str.startswith("B")] == "float64").all():
+        band_names = gdf.columns[gdf.columns.str.startswith("B")]
+        if (gdf.dtypes[band_names] == "float64").all():
+            gdf[band_names] = gdf[band_names].replace({0., np.nan})
             gdf.dropna(axis=0, inplace=True)
-        elif (gdf.dtypes[gdf.columns.str.startswith("B")] == "int16").all():
+        elif (gdf.dtypes[band_names] == "int16").all():
             gdf = gdf.loc[~(gdf[band_df_safe.band_name] == 0).all(axis=1)]
 
         return gdf
