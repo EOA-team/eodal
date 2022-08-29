@@ -189,7 +189,8 @@ class Sentinel2Mapper(Mapper):
         # if the feature is a point we take the data set that is not blackfilled.
         # If more than one data set is not blackfilled  we simply take the
         # first data set
-        if feature_gdf["geometry"].iloc[0].type == "Point":
+        feature_geom = feature_gdf["geometry"].iloc[0].type
+        if feature_geom in ["Point", "MultiPoint"]:
             for _, candidate_scene in scenes_date.iterrows():
                 if settings.USE_STAC:
                     in_dir = candidate_scene["assets"]
