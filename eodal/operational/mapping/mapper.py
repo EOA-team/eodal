@@ -553,9 +553,9 @@ class Mapper(object):
                         band_selection=self.mapper_configs.band_names,
                         **kwargs,
                     )
-                res["sensing_date"] = scenes_date["sensing_date"].values
-                res["scene_id"] = scenes_date["scene_id"].values
-                res['sensing_time'] = scenes_date['sensing_time'].values
+                res["sensing_date"] = scenes_date["sensing_date"].values[0]
+                res["scene_id"] = scenes_date["scene_id"].values[0]
+                res['sensing_time'] = scenes_date['sensing_time'].values[0]
             # or the feature
             else:
                 if sensor.lower() == 'sentinel1':
