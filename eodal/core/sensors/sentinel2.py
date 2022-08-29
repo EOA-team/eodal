@@ -49,6 +49,7 @@ from eodal.utils.constants.sentinel2 import (
     s2_gain_factor,
     SCL_Classes,
 )
+from eodal.utils.decorators import prepare_point_features
 from eodal.utils.exceptions import BandNotFoundError
 from eodal.utils.sentinel2 import (
     get_S2_bandfiles_with_res,
@@ -471,6 +472,7 @@ class Sentinel2(RasterCollection):
         return sentinel2
 
     @classmethod
+    @prepare_point_features
     def read_pixels_from_safe(
         cls,
         vector_features: Union[Path, gpd.GeoDataFrame],
