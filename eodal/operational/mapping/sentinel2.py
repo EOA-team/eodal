@@ -205,6 +205,10 @@ class Sentinel2Mapper(Mapper):
                 if feature_gdf.empty:
                     continue
                 res = feature_gdf
+                # make sure the coordinates are reprojected if necessary
+                if res.crs.to_epsg() != scenes_date.target_crs.unique()[0]:
+                    res.to_crs(epsg=scenes_date.target_crs.unique()[0], inplace=True)
+
                 if isinstance(candidate_scene, (pd.Series, gpd.GeoSeries)):
                     res["sensing_date"] = candidate_scene["sensing_date"]
                     res['sensing_time'] = candidate_scene['sensing_time']

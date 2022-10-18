@@ -556,6 +556,11 @@ class Mapper(object):
                 res["sensing_date"] = scenes_date["sensing_date"].values[0]
                 res["scene_id"] = scenes_date["scene_id"].values[0]
                 res['sensing_time'] = scenes_date['sensing_time'].values[0]
+                # make sure the result is projected into the target EPSG code, otherwise
+                # the resulting GeoDataFrame contains wrong coordinates, i.e., the
+                # coordinates were not projected into the target CRS
+                if res.crs.to_epsg() != scenes_date.target_crs.unique()[0]:
+                    res.to_crs(epsg=scenes_date.target_crs.unique()[0], inplace=True)
             # or the feature
             else:
                 if sensor.lower() == 'sentinel1':
