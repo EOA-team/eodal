@@ -1775,6 +1775,7 @@ class Band(object):
         self,
         method: Union[str, List[str]],
         by: Optional[Union[Path, gpd.GeoDataFrame]] = None,
+        method_args: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Union[int, float]]:
         """
         Reduces the raster data to scalar values.
@@ -1783,6 +1784,12 @@ class Band(object):
             any ``numpy`` function taking a two-dimensional array as input
             and returning a single scalar. Can be a single function name
             (e.g., "mean") or a list of function names (e.g., ["mean", "median"])
+        :param by:
+            define by what to reduce the band values (not implemented yet!!)
+        :param method_args:
+            optional dictionary with arguments to pass to the single methods in
+            case the reducer method requires extra arguments to function properly
+            (e.g., `np.quantile`)
         :returns:
             a dictionary with scalar results
         """
@@ -1813,7 +1820,11 @@ class Band(object):
             try:
                 # get function object and use its __call__ method
                 numpy_function = eval(expression)
-                stats[operator] = numpy_function.__call__(self.values)
+                # check if there are any function arguments
+                args = []
+                if method_args is not None:
+                    args = method_args.get(method, None)
+                stats[operator] = numpy_function.__call__(self.values, *args)
             except TypeError:
                 raise Exception(f"Unknown function name for {numpy_prefix}: {operator}")
 

@@ -539,7 +539,8 @@ class Mapper(object):
                 in_dir = scenes_date["real_path"].iloc[0]
             # if there is only one scene all we have to do is to read
             # read pixels in case the feature's dtype is point
-            if feature_dict["features"][0]["geometry"]["type"] == "Point":
+            feature_geom = feature_dict["features"][0]["geometry"]["type"]
+            if feature_geom in ["Point", "MultiPoint"]:
                 if sensor.lower() == 'sentinel1':
                     res = Sentinel1.read_pixels_from_safe(
                         in_dir=in_dir,
@@ -552,9 +553,14 @@ class Mapper(object):
                         band_selection=self.mapper_configs.band_names,
                         **kwargs,
                     )
-                res["sensing_date"] = scenes_date["sensing_date"].values
-                res["scene_id"] = scenes_date["scene_id"].values
-                res['sensing_time'] = scenes_date['sensing_time'].values
+                res["sensing_date"] = scenes_date["sensing_date"].values[0]
+                res["scene_id"] = scenes_date["scene_id"].values[0]
+                res['sensing_time'] = scenes_date['sensing_time'].values[0]
+                # make sure the result is projected into the target EPSG code, otherwise
+                # the resulting GeoDataFrame contains wrong coordinates, i.e., the
+                # coordinates were not projected into the target CRS
+                if res.crs.to_epsg() != scenes_date.target_crs.unique()[0]:
+                    res.to_crs(epsg=scenes_date.target_crs.unique()[0], inplace=True)
             # or the feature
             else:
                 if sensor.lower() == 'sentinel1':
