@@ -1,5 +1,5 @@
 """
-Generic mapping module
+Generic mapper module
 
 Copyright (C) 2022 Lukas Valentin Graf
 
@@ -58,7 +58,7 @@ class Feature(object):
     :attrib epsg:
         epsg code of the feature's geometry
     :attrib properties:
-        any key-value dictionary like mapping of feature properties
+        any key-value dictionary like mapper of feature properties
         (e.g., its name or other attributes spoken in terms of an
         ESRI shapefile's table of attributes)
     """
@@ -80,7 +80,7 @@ class Feature(object):
         :param epsg:
             epsg code of the feature's geometry
         :param properties:
-            any key-value dictionary like mapping of feature properties
+            any key-value dictionary like mapper of feature properties
             (e.g., its name or other attributes spoken in terms of an
             ESRI shapefile's table of attributes)
         """
@@ -127,7 +127,7 @@ class MapperConfigs(object):
 
     :attrib band_names:
         names of raster bands to process from each dataset found during the
-        mapping process
+        mapper process
     :attrib resampling_method:
         resampling might become necessary when the spatial resolution
         changes. Nearest neighbor by default.
@@ -154,7 +154,7 @@ class MapperConfigs(object):
 
         :param band_names:
             names of raster bands to process from each dataset found during the
-            mapping process
+            mapper process
         :param resampling_method:
             resampling might become necessary when the spatial resolution
             changes. Nearest neighbor by default.
@@ -199,7 +199,7 @@ class Mapper(object):
         feature (AOI) uniquely identifiable. If None (default) the features
         are labelled by a unique-identifier created on the fly.
     :attrib mapping_configs:
-        Mapping configurations specified by `~eodal.operational.mapping.MapperConfigs`.
+        Mapping configurations specified by `~eodal.operational.mapper.MapperConfigs`.
         Uses default configurations if not provided.
     :attrib observations:
         data structure for storing DB query results per AOI.
@@ -232,7 +232,7 @@ class Mapper(object):
             feature (AOI) uniquely identifiable. If None (default) the features
             are labelled by a unique-identifier created on the fly.
         :param mapping_configs:
-            Mapping configurations specified by `~eodal.operational.mapping.MapperConfigs`.
+            Mapping configurations specified by `~eodal.operational.mapper.MapperConfigs`.
             Uses default configurations if not provided.
         """
         object.__setattr__(self, "date_start", date_start)
@@ -370,7 +370,7 @@ class Mapper(object):
 
     def _prepare_features(self) -> pd.DataFrame:
         """
-        Prepares the feature collection for mapping
+        Prepares the feature collection for mapper
 
         :returns:
             `DataFrame` with prepared features

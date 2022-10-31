@@ -354,14 +354,14 @@ class RasterCollection(MutableMapping):
     @check_band_names
     def get_band_alias(self, band_name: str) -> Union[Dict[str, str], None]:
         """
-        Retuns the band_name-alias mapping of a given band
+        Retuns the band_name-alias mapper of a given band
         in collection if the band has an alias, None instead
 
         :param band_name:
             name of the band for which to return the alias or
             its name if the alias is provided
         :returns:
-            mapping of band_name:band_alias (band name is always the
+            mapper of band_name:band_alias (band name is always the
             key and band_alias is the value)
         """
         if self[band_name].has_alias:

@@ -45,7 +45,7 @@ logger = settings.logger
 
 class Sentinel2Mapper(Mapper):
     """
-    Spatial mapping class for Sentinel-2 data.
+    Spatial mapper class for Sentinel-2 data.
 
     :attrib processing_level:
         Sentinel-2 data processing level (L1C or L2A)
@@ -106,7 +106,7 @@ class Sentinel2Mapper(Mapper):
         NOTE:
             By passing a list of Sentinel-2 tiles you can explicitly control
             which Sentinel-2 tiles are considered. This might be useful for
-            mapping tasks where your feature collection lies completely within
+            mapper tasks where your feature collection lies completely within
             a single Sentinel-2 tile but also overlaps with neighboring tiles.
 
         The scene selection and processing workflow contains several steps:
