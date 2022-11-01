@@ -10,12 +10,16 @@ The format is based on `Keep a Changelog`_, and this project adheres to `Semanti
 
 Categories for changes are: Added, Changed, Deprecated, Removed, Fixed, Security.
 
-
-Version `0.1.0 <https://github.com/your_organisation/package_name/tree/0.1.0>`__
+Version `0.0.2 < https://github.com/remote-sensing-team/eodal/releases/tag/v0.0.2>`__
 --------------------------------------------------------------------------------
 
-Release date: YYYY-MM-DD.
-Initial release (to be released).
+Release date: YYYY-MM-DD
+
+
+Version `0.0.1 < https://github.com/remote-sensing-team/eodal/releases/tag/v0.0.1>`__
+--------------------------------------------------------------------------------
+
+Release date: 2022-10-31.
 
 - Added: Support for Microsoft Planetary Computer (using its STAC)
 - Added: Guidelines for Contribution to E:earth_africa:dal
