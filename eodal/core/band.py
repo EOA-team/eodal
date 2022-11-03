@@ -362,6 +362,9 @@ class Band(object):
         `rasterio` compatible representation of essential image metadata
     :attrib transform:
         `Affine` transform representation of the image geo-localisation
+    :attrib vector_features:
+        `geopandas.GeoDataFrame` with vector features used for reading the image
+        (clipping or masking). Can be None if no features were used for reading.
     """
 
     def __init__(
@@ -377,7 +380,7 @@ class Band(object):
         nodata: Optional[Union[int, float]] = None,
         is_tiled: Optional[Union[int, bool]] = 0,
         area_or_point: Optional[str] = "Area",
-        alias: Optional[str] = ""
+        vector_features: Optional[gpd.GeoDataFrame] = None
     ):
         """
         Constructor to instantiate a new band object.
@@ -424,8 +427,10 @@ class Band(object):
             `Point`. When `Area` pixel coordinates refer to the upper left corner of the
             pixel, whereas `Point` indicates that pixel coordinates are from the center
             of the pixel.
-        :param alias:
-            band alias name (optional).
+        :param vector_features:
+            `geopandas.GeoDataFrame` with vector features used for reading the image
+            (clipping or masking). Can be None if no features were used for reading
+            (optional).
         """
 
         # make sure the passed values are 2-dimensional
@@ -441,6 +446,13 @@ class Band(object):
             elif values.dtype in ["uint8", "uint16", "uint32", "uint64"]:
                 nodata = 0
 
+        # make sure vector features is a valid GeoDataFrame
+        if vector_features is not None:
+            if vector_features.crs is None:
+                raise ValueError(
+                    f'Cannot handle vector features without spatial coordinate reference system'
+                )
+
         object.__setattr__(self, "band_name", band_name)
         object.__setattr__(self, "values", values)
         object.__setattr__(self, "geo_info", geo_info)
@@ -452,6 +464,7 @@ class Band(object):
         object.__setattr__(self, "nodata", nodata)
         object.__setattr__(self, "is_tiled", is_tiled)
         object.__setattr__(self, "area_or_point", area_or_point)
+        object.__setattr__(self, "vector_features", vector_features)
 
     def __setattr__(self, *args, **kwargs):
         raise TypeError("Band object attributes are immutable")
@@ -518,6 +531,11 @@ class Band(object):
     def crs(self) -> CRS:
         """Coordinate Reference System of the band"""
         return CRS.from_epsg(self.geo_info.epsg)
+
+    @property
+    def vector_features(self) -> None | gpd.GeoDataFrame:
+        """vector features used for reading or reducing band data"""
+        return self.vector_features
 
     @property
     def has_alias(self) -> bool:
