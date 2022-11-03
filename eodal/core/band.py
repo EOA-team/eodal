@@ -447,12 +447,8 @@ class Band(object):
                 nodata = 0
 
         # make sure vector features is a valid GeoDataFrame
-        if vector_features is not None:
-            if vector_features.crs is None:
-                raise ValueError(
-                    f'Cannot handle vector features without spatial coordinate reference system'
-                )
-
+        self._check_vector_features(vector_features)
+        
         object.__setattr__(self, "band_name", band_name)
         object.__setattr__(self, "values", values)
         object.__setattr__(self, "geo_info", geo_info)
@@ -537,6 +533,12 @@ class Band(object):
         """vector features used for reading or reducing band data"""
         return self.vector_features
 
+    @vector_features.setter
+    def vector_features(self, features: Optional[gpd.GeoDataFrame]):
+        """set vector features for reducing band data"""
+        self._check_vector_features(vector_features=features)
+        object.__setattr__(self, "vector_features", features)
+
     @property
     def has_alias(self) -> bool:
         """Checks if a color name can be used for aliasing"""
@@ -586,6 +588,17 @@ class Band(object):
     def transform(self) -> Affine:
         """Affine transformation of the band"""
         return self.geo_info.as_affine()
+
+    @staticmethod
+    def _check_vector_features(vector_features: None | gpd.GeoDataFrame) -> None:
+        """
+        Asserts that passed GeoDataFrame has a CRS
+        """
+        if vector_features is not None:
+            if vector_features.crs is None:
+                raise ValueError(
+                    f'Cannot handle vector features without spatial coordinate reference system'
+                )
 
     @staticmethod
     def _get_pixel_geometries(
