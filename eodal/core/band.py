@@ -529,12 +529,12 @@ class Band(object):
         return CRS.from_epsg(self.geo_info.epsg)
 
     @property
-    def vector_features(self) -> None | gpd.GeoDataFrame:
+    def features(self) -> None | gpd.GeoDataFrame:
         """vector features used for reading or reducing band data"""
         return self.vector_features
 
-    @vector_features.setter
-    def vector_features(self, features: Optional[gpd.GeoDataFrame]):
+    @features.setter
+    def features(self, features: Optional[gpd.GeoDataFrame]):
         """set vector features for reducing band data"""
         self._check_vector_features(vector_features=features)
         object.__setattr__(self, "vector_features", features)
