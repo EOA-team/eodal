@@ -2023,3 +2023,54 @@ class Band(object):
                 dst.write(self.values, 1)
             elif self.is_ndarray:
                 dst.write(self.values, 1)
+    
+    def q_risc(rcoll, band_name, qmin=0.01, qmax=0.91, no_data=0): # 
+        """
+        Quantile-based min-max color rescaling in [0,1] for a band.
+        
+        :param rcoll:
+            RasterCollection object, containing the band to rescale.
+        :param band_name:
+            string, indicating the name of the band to rescale.
+        :param qmin:
+            scalar in [0,1], minium quantile base for the rescale. 
+            values <= qmin-quantile are set to zero.
+        :param qmax:
+            scalar in [0,1], maximum quantile base for the rescale. 
+            valuzes >= qmax-quantile are set to 1.
+        """
+        
+        band_out=np.copy(rcoll[band_name].values.data)
+        band_tmp=band_out[np.logical_not(rcoll[band_name].values.mask)]
+        vmin=np.quantile(band_tmp,qmin)
+        vmax=np.quantile(band_tmp,qmax)
+        band_out[band_out<vmin]=vmin
+        band_out[band_out>vmax]=vmax
+        band_out=(band_out-vmin)/(vmax-vmin)
+        
+        return band_out
+
+    def im_risc(rcoll, qmin=0.01, qmax=0.99, no_data=0):
+        """
+        Applies q_risc (Quantile-based min-max rescaling) to all a bands of
+        a RasterCollection object.
+        
+        :param rcoll:
+            RasterCollection object, containing the band to rescale.
+        :param qmin:
+            scalar in [0,1], minium quantile base for the rescale. 
+            values <= qmin-quantile are set to zero.
+        :param qmax:
+            scalar in [0,1], maximum quantile base for the rescale. 
+            valuzes >= qmax-quantile are set to 1.
+        """
+        rcoll_out=deepcopy(rcoll)
+        for b in rcoll.band_names:
+            dt_tmp=rcoll[b].values.data.dtype
+            rcoll_out[b].values.data.setfield(Band.q_risc(rcoll,
+                                        b,
+                                        qmin=qmin,
+                                        qmax=qmax,
+                                        no_data=no_data), dtype=dt_tmp)
+        
+        return rcoll_out
