@@ -24,6 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import shutil
 
 from datetime import date
@@ -46,7 +47,6 @@ from eodal.utils.constants.sentinel2 import ProcessingLevels
 
 
 logger = get_settings().logger
-
 
 def cli_s2_pipeline_fun(
     processed_data_archive: Path,
@@ -392,7 +392,7 @@ def cli_s2_scene_selection(
     processing_level: ProcessingLevels,
     out_dir: Path,
     cloud_cover_threshold: Optional[Union[int, float]] = 100,
-) -> None:
+) -> pd.DataFrame:
     """
     Function to query the Sentinel-2 metadata using a set of search criteria, including
     filtering by date range, cloud cover and Sentinel-2 tile.
@@ -415,6 +415,8 @@ def cli_s2_scene_selection(
     :param cloud_cover_threshold:
         optional cloud cover threshold to filter out to cloudy scenes as integer
         between 0 and 100%.
+    :returns:
+        metadata of scenes
     """
 
     # query metadata from database
@@ -439,7 +441,7 @@ def cli_s2_scene_selection(
     metadata.to_csv(out_dir.joinpath(f"{query_time}_query.csv"), index=False)
 
     # Plot available scenes for query
-    fig = plt.figure(figsize=(8, 6), dpi=300)
+    fig = plt.figure(figsize=(15, 10), dpi=300)
     ax = fig.add_subplot(111)
     ax.plot(
         metadata["sensing_date"],
@@ -456,4 +458,6 @@ def cli_s2_scene_selection(
         + f"Average cloud cover: {np.round(cc_avg, 2)}%"
     )
     plt.savefig(out_dir.joinpath(f"{query_time}_query_CCplot.png"), bbox_inches="tight")
-    plt.close()
+    plt.close(fig)
+
+    return metadata
