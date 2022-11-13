@@ -1,5 +1,5 @@
 '''
-Predefined filters for EO data selection by their metadata.
+Predefined filters for EO data selection by metadata.
 
 Copyright (C) 2022 Lukas Valentin Graf
 
@@ -44,10 +44,6 @@ class Filter:
     def __repr__(self) -> str:
         return f'Filter by {self.entity} {self.condition}'
 
-    def __add__(self, other):
-        # IDEA: filters can be combined using logical AND and OR
-        pass
-
     @property
     def entity(self) -> str:
         return self._entity
@@ -55,16 +51,6 @@ class Filter:
     @property
     def condition(self) -> str:
         return self._condition
-
-class GeoFilter(Filter):
-    pass
-
-class TimeFilter(Filter):
-    pass
-
-class QualityFilter(Filter):
-    pass
-
 
 if __name__ == '__main__':
     
