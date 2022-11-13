@@ -60,7 +60,7 @@ collection = 'sentinel-1-rtc'
 
 
 #%% executable part
-# get a new mapper instance
+# get a new scenes instance
 mapper = Sentinel1Mapper(
     date_start=date_start,
     date_end=date_end,

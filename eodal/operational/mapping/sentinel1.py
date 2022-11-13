@@ -18,7 +18,7 @@ settings = get_settings()
 
 class Sentinel1Mapper(Mapper):
     """
-    Spatial mapper class for Sentinel-1 data.
+    Spatial scenes class for Sentinel-1 data.
     """
     def __init__(
         self,

@@ -65,13 +65,13 @@ date_end: date = date(2022,4,14)   		# year, month, day (incl.)
 aoi: Path = Path('../data/sample_polygons/lake_lucerne.gpkg')
 
 #%% executable part
-# Sentinel-2 mapper configuration
+# Sentinel-2 scenes configuration
 mapper_configs = MapperConfigs(
 	spatial_resolution=spatial_resolution,
 	resampling_method=resampling_method,
 )
 
-# get a new mapper instance
+# get a new scenes instance
 mapper = Sentinel2Mapper(
 	date_start=date_start,
 	date_end=date_end,
