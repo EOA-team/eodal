@@ -72,14 +72,14 @@ def get_pixels(date_start: date, date_end: date, scene_cloud_cover_threshold: in
     :param aois:
         areas of interest (1 to N) for which to extract random pixel observations
     """
-    # setup Sentinel-2 mapper to get the relevant scenes
+    # setup Sentinel-2 scenes to get the relevant scenes
     mapper_configs = MapperConfigs(
         spatial_resolution=10.,
         resampling_method=cv2.INTER_NEAREST_EXACT,
         band_names=['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12']
     )
 
-    # get a new mapper instance
+    # get a new scenes instance
     mapper = Sentinel2Mapper(
         date_start=date_start,
         date_end=date_end,
