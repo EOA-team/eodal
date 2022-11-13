@@ -58,7 +58,7 @@ class Feature(object):
     :attrib epsg:
         epsg code of the feature's geometry
     :attrib properties:
-        any key-value dictionary like mapper of feature properties
+        any key-value dictionary-like mapping of feature properties
         (e.g., its name or other attributes spoken in terms of an
         ESRI shapefile's table of attributes)
     """
@@ -80,7 +80,7 @@ class Feature(object):
         :param epsg:
             epsg code of the feature's geometry
         :param properties:
-            any key-value dictionary like mapper of feature properties
+            any key-value dictionary-like mapping of feature properties
             (e.g., its name or other attributes spoken in terms of an
             ESRI shapefile's table of attributes)
         """
@@ -126,8 +126,7 @@ class MapperConfigs(object):
     Class defining configurations for the ``Mapper`` class
 
     :attrib band_names:
-        names of raster bands to process from each dataset found during the
-        mapper process
+        names of raster bands to process from each dataset found
     :attrib resampling_method:
         resampling might become necessary when the spatial resolution
         changes. Nearest neighbor by default.
@@ -153,8 +152,7 @@ class MapperConfigs(object):
         Constructs a new ``MapperConfig`` instance.
 
         :param band_names:
-            names of raster bands to process from each dataset found during the
-            mapper process
+            names of raster bands to process from each dataset found
         :param resampling_method:
             resampling might become necessary when the spatial resolution
             changes. Nearest neighbor by default.
