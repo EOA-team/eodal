@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jul 27 10:52:22 2022
+EXAMPLE SCRIPT TO RESCALE COLORS IN ONE- OR MULTI-BAND IMAGES
+FUCNTIONS USED: 
+    eodal.core.band.Band.q_risc()
+    eodal.core.band.Band.im_risc()
 
-@author: orianif
+Created on Wed Jul 27 10:52:22 2022
+@author: Fabio Oriani, Agroscope
+fabio.oriani <at> agroscope.admin.ch
 """
 #%%
 import geopandas as gpd
@@ -12,12 +17,15 @@ from shapely.geometry import Polygon
 from eodal.core.sensors import Sentinel2
 from eodal.core.band import Band
 import matplotlib.pyplot as plt
-import numpy as np
+#import numpy as np
 from copy import deepcopy
-from scipy.ndimage import rotate
+#from scipy.ndimage import rotate
+from eodal.config import get_settings
 
+Settings = get_settings()
+Settings.USE_STAC = False
 
-#%% IMPORT DATA
+#%% IMPORT DATA (a sentinel-2 image)
 
 # file-path to the .SAFE dataset
 dot_safe_dir = Path('../data/S2A_MSIL2A_20190524T101031_N0212_R022_T32UPU_20190524T130304.SAFE')
