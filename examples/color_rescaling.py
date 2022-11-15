@@ -2,9 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 EXAMPLE SCRIPT TO RESCALE COLORS IN ONE- OR MULTI-BAND IMAGES
-FUCNTIONS USED: 
-    eodal.core.band.Band.q_risc()
-    eodal.core.band.Band.im_risc()
+FUNCTIONS USED: 
+    eodal.core.algorithms.Band.im_risc()
 
 Created on Wed Jul 27 10:52:22 2022
 @author: Fabio Oriani, Agroscope
@@ -15,7 +14,7 @@ import geopandas as gpd
 from pathlib import Path
 from shapely.geometry import Polygon
 from eodal.core.sensors import Sentinel2
-from eodal.core.band import Band
+from eodal.core.algorithms import im_risc
 import matplotlib.pyplot as plt
 #import numpy as np
 from copy import deepcopy
@@ -47,24 +46,13 @@ s2_ds = Sentinel2().from_safe(
 # eodal support band aliasing. Thus, you can access the bands by their name ...
 s2_ds.band_names
 
-#%% Q_RISC - quantile band rescaling
-# useful to improve visibility of a single raster image.
-original=deepcopy(s2_ds)
-riscaled=Band.q_risc(original,'B02',qmin=0.01,qmax=0.99)
-
-plt.figure()
-plt.subplot(1,2,1)
-plt.imshow(original['B02'].values.data)
-plt.title('B02 band - original')
-plt.subplot(1,2,2)
-plt.imshow(riscaled)
-plt.title('B02 band - quantile-riscaled')
-
-#%% IM_RISC - quantile band rescaling to entire RasterCollection object
-# Useful to improve the visualization of an entire Raster Collection.
+#%% IM_RISC - quantile band rescaling to bands in a RasterCollection object
+# Useful to improve the visualization of a selection of bands. The outpèut is 
+# a resterColelction of the original type with the selected bands rescaled. To
+# rescale the entire collection omit the bands field.
 
 original=deepcopy(s2_ds)
-rescaled=Band.im_risc(original,qmin=0.01,qmax=0.99)
+rescaled=im_risc(original,bands=['B02','B03','B04'],qmin=0.01,qmax=0.99)
 
 plt.figure()
 ax1=plt.subplot(1,2,1)
