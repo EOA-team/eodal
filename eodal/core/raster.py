@@ -447,6 +447,25 @@ class RasterCollection(MutableMapping):
             "band_count": band_count,
         }
 
+    def apply(self, func: Callable, *args, **kwargs) -> Any:
+        """
+        Apply a custom function to a ``RasterCollection``.
+
+        :param func:
+            custom callable taking the ``RasterCollection`` as first
+            argument
+        :param args:
+            optional arguments to pass to `func`
+        :param kwargs:
+            optional keyword arguments to pass to `func`
+        :returns:
+            result of the callable
+        """
+        try:
+            return func.__call__(self, *args, **kwargs)
+        except Exception as e:
+            raise ValueError from e
+
     def copy(self):
         """
         Returns a copy of the current ``RasterCollection``
@@ -1046,7 +1065,7 @@ class RasterCollection(MutableMapping):
 
     def mask(
         self,
-        mask: Union[str, np.ndarray],
+        mask: Union[str, np.ndarray, Band],
         mask_values: Optional[List[Any]] = None,
         keep_mask_values: Optional[bool] = False,
         bands_to_mask: Optional[List[str]] = None,
@@ -1061,7 +1080,8 @@ class RasterCollection(MutableMapping):
 
         :param mask:
             either a band out of the collection (identified through its
-            band name) or a ``numpy.ndarray`` of datatype boolean.
+            band name) or a ``numpy.ndarray`` of datatype boolean or
+            another `Band` object
         :param mask_values:
             if `mask` is a band out of the collection, a list of values
             **must** be specified to create a boolean mask. Ignored if `mask`
@@ -1079,15 +1099,16 @@ class RasterCollection(MutableMapping):
         :returns:
             new RasterCollection if `inplace==False`, None otherwise
         """
+        _mask = deepcopy(mask)
         # check mask and prepare it if required
-        if isinstance(mask, np.ndarray):
+        if isinstance(_mask, np.ndarray):
             if mask.dtype != "bool":
                 raise TypeError("When providing an array it must be boolean")
-            if len(mask.shape) != 2:
+            if len(_mask.shape) != 2:
                 raise ValueError("When providing an array it must be 2-dimensional")
-        elif isinstance(mask, str):
+        elif isinstance(_mask, str):
             try:
-                mask = self.get_values(band_selection=[mask])[0, :, :]
+                _mask = self.get_values(band_selection=[_mask])[0, :, :]
             except Exception as e:
                 raise ValueError(f"Invalid mask band: {e}")
             # translate mask band into boolean array
@@ -1096,18 +1117,22 @@ class RasterCollection(MutableMapping):
                     "When using a band as mask, you have to provide a list of mask values"
                 )
             # convert the mask to a temporary binary mask
-            tmp = np.zeros_like(mask)
+            tmp = np.zeros_like(_mask)
             # set valid classes to 1, the other ones are zero
             if keep_mask_values:
                 # drop all other values not in mask_values
-                tmp[~np.isin(mask, mask_values)] = 1
+                tmp[~np.isin(_mask, mask_values)] = 1
             else:
                 # drop all values in mask_values
-                tmp[np.isin(mask, mask_values)] = 1
-            mask = tmp.astype("bool")
+                tmp[np.isin(_mask, mask_values)] = 1
+            _mask = tmp.astype("bool")
+        elif isinstance(_mask, Band):
+            if _mask.values.dtype != 'bool':
+                raise TypeError(f'Mask must have boolean values not {_mask.values.dtype}')
+            _mask = _mask.values
         else:
             raise TypeError(
-                f"Mask must be either band_name or np.ndarray not {type(mask)}"
+                f"Mask must be either band_name or np.ndarray not {type(_mask)}"
             )
 
         # check bands to mask
@@ -1118,16 +1143,6 @@ class RasterCollection(MutableMapping):
         if not self.is_bandstack(band_selection=bands_to_mask):
             raise ValueError(
                 "Can only mask bands that have the same spatial extent, pixel size and CRS"
-            )
-        if mask.shape[0] != self[bands_to_mask[0]].nrows:
-            raise ValueError(
-                f"Number of rows in mask ({mask.shape[0]}) does not match "
-                f"number of rows in the raster data ({self[bands_to_mask[0]].nrows})"
-            )
-        if mask.shape[1] != self[bands_to_mask[0]].ncols:
-            raise ValueError(
-                f"Number of columns in mask ({mask.shape[1]}) does not match "
-                f"number of columns in the raster data ({self[bands_to_mask[0]].ncols})"
             )
 
         # initialize a new raster collection if inplace is False
@@ -1140,11 +1155,11 @@ class RasterCollection(MutableMapping):
         # loop over band reproject the selected ones
         for band_name in bands_to_mask:
             if inplace:
-                self[band_name].mask(mask=mask, inplace=inplace)
+                self[band_name].mask(mask=_mask, inplace=inplace)
             else:
                 band = self.get_band(band_name)
                 collection.add_band(
-                    band_constructor=band.mask, mask=mask, inplace=inplace
+                    band_constructor=band.mask, mask=_mask, inplace=inplace
                 )
 
         return collection
