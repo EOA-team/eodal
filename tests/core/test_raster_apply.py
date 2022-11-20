@@ -97,8 +97,4 @@ def test_apply_custom_function(get_bandstack):
     with pytest.raises(ValueError):
         # wrong argument passed to function
         gTiff_collection.apply(sqrt_per_band, dummy='false-arg')
-
-
-
-
     
