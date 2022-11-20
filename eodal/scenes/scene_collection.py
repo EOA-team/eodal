@@ -6,22 +6,32 @@ Created on Nov 13, 2022
 
 import pandas as pd
 
+from typing import Callable
+
 from eodal.core.raster import RasterCollection
+from eodal.core.scene import SceneProperties
 
 class Scene:
 
-    def __init__(self, metadata: pd.Series, data: RasterCollection):
+    def __init__(self, data: RasterCollection):
         """
+        Class constructor
+
+        :param data:
+            scene data as `RasterCollection`
         """
-        self._metadata = metadata
         self._data = data
+        # set metadata using the SceneProperties from RasterCollection
+        self._metadata = data.scene_properties
 
     @property
-    def metadata(self) -> pd.Series:
+    def metadata(self) -> SceneProperties:
+        """scene metadata"""
         return self._metadata
 
     @property
     def data(self) -> RasterCollection:
+        """scene data"""
         return self._data
 
 class SceneCollection:
@@ -31,7 +41,7 @@ class SceneCollection:
     def __repr__(self) -> str:
         pass
 
-    def apply(self):
+    def apply(self, func: Callable):
         pass
 
     def dump(self):
