@@ -459,7 +459,7 @@ class RasterCollection(MutableMapping):
         :param kwargs:
             optional keyword arguments to pass to `func`
         :returns:
-            result of the callable
+            results of `func`
         """
         try:
             return func.__call__(self, *args, **kwargs)
