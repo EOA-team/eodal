@@ -281,7 +281,8 @@ class RasterCollection(MutableMapping):
         del self.collection[key]
 
     def __iter__(self):
-        return iter(self.collection)
+        for k, v in self.collection.items():
+            yield k, v
 
     def __len__(self) -> int:
         return len(self.collection)
