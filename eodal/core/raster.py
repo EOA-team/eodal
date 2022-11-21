@@ -273,7 +273,7 @@ class RasterCollection(MutableMapping):
             raise TypeError("Only Band objects can be passed")
         key = item.band_name
         if key in self.collection.keys():
-            raise KeyError("Duplicate band names not permitted")
+            raise KeyError("Duplicate band names are not permitted")
         value = item.copy()
         self.collection[key] = value
 
@@ -316,6 +316,14 @@ class RasterCollection(MutableMapping):
 
     def __lt__(self, other):
         return RasterOperator.calc(a=self, other=other, operator="<")
+
+    def __repr__(self) -> str:
+        if self.empty:
+            return 'Empty EOdal RasterCollection'
+        else:
+            return f'EOdal RasterCollection\n----------------------\n' + \
+                f'# Bands: {len(self)}\n Band names: {", ".join(self.band_names)}\n' +  \
+                f'Is band stack: {self.is_bandstacked}'
 
     @property
     def band_names(self) -> List[str]:
