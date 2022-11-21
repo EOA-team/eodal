@@ -31,16 +31,16 @@ logger = Settings.logger
 
 def unzip_datasets(download_dir: Path, platform: str, remove_zips: Optional[bool] = True) -> None:
     """
-    Helper function to unzip Sentinel-1 and 2 scenes once they are
+    Helper function to unzip Sentinel-1 and 2 mapper once they are
     downloaded from CREODIAS. Works currently on  *nix system only and requires
     `unzip` to be installed on the system.
 
     :param download_dir:
-        directory where the zipped scenes in .SAFE format are located
+        directory where the zipped mapper in .SAFE format are located
     :param platform:
         either 'S1' (Sentinel-1) or 'S2' (Sentinel-2) 
     :param remove_zips:
-        If set to False the zipped .SAFE scenes will be kept, otherwise
+        If set to False the zipped .SAFE mapper will be kept, otherwise
         (Default) they will be removed
     """
 

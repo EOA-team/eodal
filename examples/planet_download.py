@@ -40,7 +40,7 @@ bounding_box = Path('../data/sample_polygons/ZH_Polygon_73129_ESCH_EPSG32632.shp
 order_name = f'{date.today()}_ZH_Polygon_73129'
 cloud_cover = 50.
 
-# query the data API to get available scenes (no order placement, no download!)
+# query the data API to get available mapper (no order placement, no download!)
 # retrieves metadata, only
 client = PlanetAPIClient.query_planet_api(
     start_date=start_date,

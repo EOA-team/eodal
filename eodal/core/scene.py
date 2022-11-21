@@ -21,11 +21,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import datetime
 import numpy as np
 
+from collections.abc import MutableMapping
 from numbers import Number
-from typing import Optional
+from typing import Callable, List, Optional
 
+from eodal.core.raster import RasterCollection
 from eodal.utils.constants import ProcessingLevels
-
 
 class SceneProperties(object):
     """
@@ -152,111 +153,89 @@ class SceneProperties(object):
             raise TypeError("Expected a str object")
         self._mode = value
 
-# class Sentinel2SceneProperties(SceneProperties):
-#     """
-#     Sentinel-2 specific scene properties
-#
-#     :attribute sun_zenith_angle:
-#         scene-wide sun zenith angle [deg]
-#     :attribute sun_azimuth_angle:
-#         scene-wide sun azimuth angle [deg]
-#     :attribute sensor_zenith_angle:
-#         scene-wide sensor zenith angle [deg]
-#     :attribute sensor_azimuth_angle:
-#         scene-wide sensor azimuth angle [deg]
-#     """
-#
-#     def __init__(
-#             self,
-#             sun_zenith_angle: Optional[float] = np.nan,
-#             sun_azimuth_angle: Optional[float] = np.nan,
-#             sensor_zenith_angle: Optional[float] = np.nan,
-#             sensor_azimuth_angle: Optional[float] = np.nan,
-#             *args,
-#             **kwargs
-#         ):
-#         """
-#         Class constructor
-#
-#         :param sun_zenith_angle:
-#             scene-wide sun zenith angle [deg]
-#         :param sun_azimuth_angle:
-#             scene-wide sun azimuth angle [deg]
-#         :param sensor_zenith_angle:
-#             scene-wide sensor zenith angle [deg]
-#         :param sensor_azimuth_angle:
-#             scene-wide sensor azimuth angle [deg]
-#         :param args:
-#             positional arguments to pass to the constructor of the
-#             super-class
-#         :param kwargs:
-#             key-word arguments to pass to the constructor of the
-#             super-class
-#         """
-#         # call constructor of super class
-#         super().__init__(*args, **kwargs)
-#
-#         self.sun_zenith_angle = sun_zenith_angle
-#         self.sun_azimuth_angle = sun_azimuth_angle
-#         self.sensor_zenith_angle = sensor_zenith_angle
-#         self.sensor_azimuth_angle = sensor_azimuth_angle
-#
-#     @property
-#     def sun_zenith_angle(self) -> float:
-#         """sun zenith angle [deg]"""
-#         return self._sun_zenith_angle
-#
-#     @sun_zenith_angle.setter
-#     def sun_zenith_angle(self, val: float) -> None:
-#         """sun zenith angle [deg]"""
-#         if not isinstance(val, Number):
-#             raise TypeError('Expected integer of float')
-#         # plausibility check
-#         if not 0 <= val <= 90:
-#             raise ValueError('The sun zenith angle ranges from 0 to 90 degrees')
-#         self._sun_zenith_angle = val
-#
-#     @property
-#     def sun_azimuth_angle(self) -> float:
-#         """sun azimuth angle [deg]"""
-#         return self._sun_zenith_angle
-#
-#     @sun_azimuth_angle.setter
-#     def sun_azimuth_angle(self, val: float) -> None:
-#         """sun azimuth angle [deg]"""
-#         if not isinstance(val, Number):
-#             raise TypeError('Expected integer of float')
-#         # plausibility check
-#         if not 0 <= val <= 180:
-#             raise ValueError('The sun azimuth angle ranges from 0 to 180 degrees')
-#         self._sun_zenith_angle = val
-#
-#     @property
-#     def sensor_zenith_angle(self) -> float:
-#         """sensor zenith angle [deg]"""
-#         return self._sensor_zenith_angle
-#
-#     @sensor_zenith_angle.setter
-#     def sensor_zenith_angle(self, val: float) -> None:
-#         """sensor zenith angle [deg]"""
-#         if not isinstance(val, Number):
-#             raise TypeError('Expected integer of float')
-#         # plausibility check
-#         if not 0 <= val <= 90:
-#             raise ValueError('The sensor zenith angle ranges from 0 to 90 degrees')
-#         self._sensor_zenith_angle = val
-#
-#     @property
-#     def sensor_azimuth_angle(self) -> float:
-#         """sun azimuth angle [deg]"""
-#         return self._sensor_zenith_angle
-#
-#     @sensor_azimuth_angle.setter
-#     def sensor_azimuth_angle(self, val: float) -> None:
-#         """sun azimuth angle [deg]"""
-#         if not isinstance(val, Number):
-#             raise TypeError('Expected integer of float')
-#         # plausibility check
-#         if not 0 <= val <= 180:
-#             raise ValueError('The sensor azimuth angle ranges from 0 to 180 degrees')
-#         self._sun_zenith_angle = val
+
+class SceneCollection(MutableMapping):
+    """
+    Collection of 0:N scenes where each scene is a RasterCollection with
+    **non-empty** `SceneProperties` as each scene is indexed by its
+    acquistion time.
+    """
+    def __init__(
+        self,
+        scene_constructor: Optional[Callable[..., RasterCollection]] = None,
+        *args,
+        **kwargs
+    ):
+        """
+        Initializes a SceneCollection object with 0 to N scenes.
+
+         :param scene_constructor:
+            optional callable returning an `~eodal.core.raster.RasterCollection`
+            instance.
+        :param args:
+            arguments to pass to `scene_constructor` or one of RasterCollection's
+            class methods (e.g., `RasterCollection.from_multi_band_raster`)
+        :param kwargs:
+            key-word arguments to pass to `scene_constructor` or one of RasterCollection's
+            class methods (e.g., `RasterCollection.from_multi_band_raster`)
+        """
+        # mapper are stored in a dictionary like collection
+        self._frozen = False
+        self.collection = dict()
+        self._frozen = True
+
+        if scene_constructor is not None:
+            scene = scene_constructor.__call__(*args, **kwargs)
+            if not isinstance(scene, RasterCollection):
+                raise TypeError('Only RasterCollection objects can be passed')
+            self.__setitem__(scene)
+
+    def __getitem__(self, key: str) -> RasterCollection:
+        return self.collection[key]
+
+    def __setitem__(self, item: RasterCollection):
+        if not isinstance(item, RasterCollection):
+            raise TypeError("Only RasterCollection objects can be passed")
+        key = item.scene_properties.acquisition_time
+        if key in self.collection.keys():
+            raise KeyError("Duplicate scene names are not permitted")
+        if key is None:
+            raise ValueError("RasterCollection passed must have an acquistion time stamp")
+        value = item.copy()
+        self.collection[key] = value
+
+    def __delitem__(self, key: str):
+        del self.collection[key]
+
+    def __iter__(self):
+        for k, v in self.collection.items():
+            yield k, v
+
+    def __len__(self) -> int:
+        return len(self.collection)
+
+    def __repr__(self) -> str:
+        pass
+
+    @property
+    def scene_names(self) -> List[str]:
+        """scene names in collection"""
+        return list(self.collection.keys())
+
+    def apply(self, func: Callable):
+        pass
+
+    def dump(self):
+        pass
+
+    def filter(self):
+        pass
+
+    def load(self):
+        pass
+
+    def plot(self):
+        pass
+
+    def to_xarray(self):
+        pass

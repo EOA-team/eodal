@@ -25,7 +25,7 @@ def test_mspc_sentinel1(get_polygons):
         vector_features=polys
     )
 
-    assert not res_s1.empty, 'no scenes found'
+    assert not res_s1.empty, 'no mapper found'
     assert 'assets' in res_s1.columns, 'no assets provided'
     url = _url_to_safe_name(res_s1.iloc[0].assets['vh']['href'])
     assert 'GRDH' in url, 'GRD not found in file name'
@@ -39,7 +39,7 @@ def test_mspc_sentinel1(get_polygons):
         collection='sentinel-1-grd'
     )
 
-    assert not res_grd_s1.empty, 'no scenes found'
+    assert not res_grd_s1.empty, 'no mapper found'
     assert 'assets' in res_grd_s1.columns, 'no assets provided'
     url = _url_to_safe_name(res_grd_s1.iloc[0].assets['vh']['href'])
     assert 'GRDH' in url, 'GRD not found in file name'

@@ -45,22 +45,22 @@ logger = settings.logger
 
 class Sentinel2Mapper(Mapper):
     """
-    Spatial scenes class for Sentinel-2 data.
+    Spatial mapper class for Sentinel-2 data.
 
     :attrib processing_level:
         Sentinel-2 data processing level (L1C or L2A)
     :attrib cloud_cover_threshold:
         global (scene-wide) cloud coverage threshold between 0 and 100% cloud cover.
         Scenes with cloud coverage reported higher than the threshold are discarded.
-        To obtain *all* scenes in the archive use the default of 100%.
+        To obtain *all* mapper in the archive use the default of 100%.
     :attrib use_latest_pdgs_baseline:
         since a scene can possible occur in different PDGS baseline numbers (the scene_id
         and product_uri will be different, which is supported by our data model)
-        it is necessary to decide for a baseline in those cases where multiple scenes
+        it is necessary to decide for a baseline in those cases where multiple mapper
         from the same sensing and data take time are available (originating from the
         same Sentinel-2 data but processed slightly differently). By default we use
-        those scenes from the latest baseline. Otherwise, it is possible to use
-        the baseline most scenes were processed with.
+        those mapper from the latest baseline. Otherwise, it is possible to use
+        the baseline most mapper were processed with.
     """
 
     def __init__(
@@ -78,13 +78,13 @@ class Sentinel2Mapper(Mapper):
             Sentinel-2 processing level to query
         :param cloud_cover_threshold:
             cloud cover threshold in percent (0-100%). Default is 100% to
-            consider all scenes in the archive
+            consider all mapper in the archive
         :param use_latest_pdgs_baseline:
             if True (default) forces *eodal* to use the latest processing
             baseline in case a scene is available in different processing levels
         :param tile_selection:
             optional list of Sentinel-2 tiles (e.g., ['T32TMT','T32TGM']) to use for
-            filtering. Only scenes belonging to these tiles are returned then
+            filtering. Only mapper belonging to these tiles are returned then
         :param args:
             arguments to pass to the constructor of the ``Mapper`` super class
         :param kwargs:
@@ -106,25 +106,25 @@ class Sentinel2Mapper(Mapper):
         NOTE:
             By passing a list of Sentinel-2 tiles you can explicitly control
             which Sentinel-2 tiles are considered. This might be useful for
-            scenes tasks where your feature collection lies completely within
+            mapper tasks where your feature collection lies completely within
             a single Sentinel-2 tile but also overlaps with neighboring tiles.
 
         The scene selection and processing workflow contains several steps:
 
-        1.  Query the metadata catalog for **ALL** available scenes that overlap
+        1.  Query the metadata catalog for **ALL** available mapper that overlap
             the bounding box of a given ``Polygon`` or ``MultiPolygon``
             feature. **IMPORTANT**: By passing a list of Sentinel-2 tiles
             to consider (``tile_ids``) you can explicitly control which
             Sentinel-2 tiles are considered!
-        2.  Check if for a single sensing date several scenes are available
+        2.  Check if for a single sensing date several mapper are available
         3.  If yes check if that's due to Sentinel-2 data take or tiling grid
-            design. If yes flag these scenes as potential merge candidates. A
-            second reason for multiple scenes are differences in PDGS baseline,
+            design. If yes flag these mapper as potential merge candidates. A
+            second reason for multiple mapper are differences in PDGS baseline,
             i.e., the dataset builds upon the **same** Sentinel-2 data but
             was processed by different base-line version.
-        4.  If the scenes found have different spatial coordinate systems (CRS)
+        4.  If the mapper found have different spatial coordinate systems (CRS)
             (usually different UTM zones) flag the data accordingly. The target
-            CRS is defined as that CRS the majority of scenes shares.
+            CRS is defined as that CRS the majority of mapper shares.
         """
         self._get_scenes(sensor='sentinel2')
 
@@ -167,7 +167,7 @@ class Sentinel2Mapper(Mapper):
         is available for a given sensing date and feature (area of interest)
 
         :param scenes_date:
-            `DataFrame` with all Sentinel-2 scenes of a single date
+            `DataFrame` with all Sentinel-2 mapper of a single date
         :param feature_id:
             ID of the feature for which to extract data
         :param kwargs:
@@ -214,7 +214,7 @@ class Sentinel2Mapper(Mapper):
                     res['sensing_time'] = candidate_scene['sensing_time']
                     res["scene_id"] = candidate_scene["scene_id"]
                 break
-        # in case of a (Multi-)Polygon: check if one of the candidate scenes complete
+        # in case of a (Multi-)Polygon: check if one of the candidate mapper complete
         # contains the feature (i.e., its bounding box). If that's the case and the
         # returned data is not black-filled, we can take that data set. If none of the
         # candidate contains the scene complete, merging and (depending on the CRS)
@@ -232,7 +232,7 @@ class Sentinel2Mapper(Mapper):
                     in_dir = updated_scenes["assets"].iloc[0]
                 else:
                     in_dir = updated_scenes["real_path"].iloc[0]
-                # if there were only two input scenes we're done
+                # if there were only two input mapper we're done
                 # otherwise we have to check if we have to merge data
                 if scenes_date.shape[0] == 2:
                     res = Sentinel2.from_safe(
@@ -242,14 +242,14 @@ class Sentinel2Mapper(Mapper):
                     )
                     self._resample_s2_scene(s2_scene=res)
                     return res
-            # if updated scenes is not empty update the scenes_date DataFrame
+            # if updated mapper is not empty update the scenes_date DataFrame
             if not updated_scenes.empty:
-                # drop "out-dated" scenes
+                # drop "out-dated" mapper
                 appended = pd.concat([scenes_date, old_scenes])
                 appended.drop_duplicates(subset=['product_uri', 'tile_id'], keep=False, inplace=True)
                 scenes_date = appended.copy()
                 # if there is a single scene from a another tile in the
-                # "old" scenes append it to the scenes_date
+                # "old" mapper append it to the scenes_date
                 old_scenes_grouped = old_scenes.groupby(by='tile_id')
                 for tile_scenes in old_scenes_grouped:
                     if tile_scenes[0] not in scenes_date.tile_id.unique():
@@ -336,7 +336,7 @@ class Sentinel2Mapper(Mapper):
         """
         Returns the scene data (observations) for a selected feature and date.
 
-        If for the date provided no scenes are found, the data from the scene(s)
+        If for the date provided no mapper are found, the data from the scene(s)
         closest in time is returned
 
         :param feature_id:
@@ -356,7 +356,7 @@ class Sentinel2Mapper(Mapper):
         # call super class method for getting the observation
         res = self._get_observation(feature_id=feature_id, sensing_date=sensing_date,
                                     sensor='sentinel2', **kwargs)
-        # for multiple scenes a Sentinel-2 specific class must be called
+        # for multiple mapper a Sentinel-2 specific class must be called
         if isinstance(res, tuple):
             _, scenes_date, _ = res
             res = self._read_multiple_scenes(
@@ -371,15 +371,15 @@ class Sentinel2Mapper(Mapper):
         """
         Extracts all observation with a time period for a feature collection.
 
-        This function takes the Sentinel-2 scenes retrieved from the metadata DB query
+        This function takes the Sentinel-2 mapper retrieved from the metadata DB query
         in `~Mapper.get_sentinel2_scenes` and extracts the Sentinel-2 data from the
-        original .SAFE archives for all available scenes.
+        original .SAFE archives for all available mapper.
 
         :param feature_selection:
             optional subset of features ids (you can only select features included
             in the current feature collection)
         :param drop_blackfilled_scenes:
-            drop scenes having no data values only (default)
+            drop mapper having no data values only (default)
         :param kwargs:
             optional key-word arguments to pass to `~eodal.core.band.Band.from_rasterio`
         """
@@ -396,8 +396,8 @@ class Sentinel2Mapper(Mapper):
                 if feature not in feature_selection:
                     continue
 
-            # loop over scenes, they are already ordered by date (ascending)
-            # and check for each date which scenes are relevant and require
+            # loop over mapper, they are already ordered by date (ascending)
+            # and check for each date which mapper are relevant and require
             # potential reprojection or merging
             sensing_dates = scenes_df.sensing_date.unique()
             n_sensing_dates = len(sensing_dates)
@@ -433,7 +433,7 @@ class Sentinel2Mapper(Mapper):
             if isinstance(res, gpd.GeoDataFrame):
                 assets[feature] = pd.concat(feature_res)
             else:
-                # order scenes by acquisition time
+                # order mapper by acquisition time
                 timestamps = [x.scene_properties.acquisition_time for x in feature_res]
                 sorted_indices = np.argsort(np.array(timestamps))
                 feature_res_ordered = [feature_res[idx] for idx in sorted_indices]

@@ -1,12 +1,12 @@
 """
-Example script to extract a time series of Sentinel-1 scenes for a
+Example script to extract a time series of Sentinel-1 mapper for a
 custom area of interest (AOI).
 
 The script shows how to use the Sentinel1Mapper class that takes over
 data handling such as
 
     * querying of spatio-temporal metadata catalogs to identify
-      available Sentinel-1 scenes
+      available Sentinel-1 mapper
     * merging data from different Sentinel-1 tiles if required
     * re-projection of imagery from one UTM zone into another
       if required
@@ -60,7 +60,7 @@ collection = 'sentinel-1-rtc'
 
 
 #%% executable part
-# get a new scenes instance
+# get a new mapper instance
 mapper = Sentinel1Mapper(
     date_start=date_start,
     date_end=date_end,
@@ -68,7 +68,7 @@ mapper = Sentinel1Mapper(
     collection=collection
 )
 
-# retrieve metadata of scenes found (no reading)
+# retrieve metadata of mapper found (no reading)
 mapper.get_scenes()
 mapper.observations
 

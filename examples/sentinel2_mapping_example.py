@@ -1,16 +1,16 @@
 """
-Example script to extract a time series of Sentinel-2 scenes for a
+Example script to extract a time series of Sentinel-2 mapper for a
 custom area of interest (AOI).
 
 The script shows how to use the Sentinel2Mapper class that takes over
 data handling such as
 
 	* querying of spatio-temporal metadata catalogs to identify
-	  available Sentinel-2 scenes
+	  available Sentinel-2 mapper
 	* merging data from different Sentinel-2 tiles if required
 	* re-projection of imagery from one UTM zone into another
 	  if required
-	* removal of black-filled scenes
+	* removal of black-filled mapper
 
 This script works either using local data sources or by retrieving Sentinel-2
 imagery from Microsoft Planetary Computer (https://planetarycomputer.microsoft.com).
@@ -65,13 +65,13 @@ date_end: date = date(2022,4,14)   		# year, month, day (incl.)
 aoi: Path = Path('../data/sample_polygons/lake_lucerne.gpkg')
 
 #%% executable part
-# Sentinel-2 scenes configuration
+# Sentinel-2 mapper configuration
 mapper_configs = MapperConfigs(
 	spatial_resolution=spatial_resolution,
 	resampling_method=resampling_method,
 )
 
-# get a new scenes instance
+# get a new mapper instance
 mapper = Sentinel2Mapper(
 	date_start=date_start,
 	date_end=date_end,
@@ -81,9 +81,9 @@ mapper = Sentinel2Mapper(
 	feature_collection=aoi
 )
 
-# retrieve metadata of scenes found (no reading)
+# retrieve metadata of mapper found (no reading)
 mapper.get_scenes()
-mapper.observations # displays scenes found
+mapper.observations # displays mapper found
 
 # read data into eodal's RasterCollection objects
 s2_data = mapper.get_complete_timeseries()

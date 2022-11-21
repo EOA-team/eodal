@@ -254,11 +254,11 @@ class Mapper(object):
 
     def _get_scenes(self, sensor: str) -> None:
         """
-        Method to query available scenes. Works sensor-agnostic but requires a
+        Method to query available mapper. Works sensor-agnostic but requires a
         sensor to be specified to select the correct metadata queries
 
         :param sensor:
-            name of the sensor for which to search for scenes
+            name of the sensor for which to search for mapper
         """
         # prepare features
         aoi_features = self._prepare_features()
@@ -329,7 +329,7 @@ class Mapper(object):
             # check if the satellite data is in different projections
             in_single_crs = scenes_df.epsg.unique().shape[0] == 1
 
-            # check if there are several scenes available for a single sensing date
+            # check if there are several mapper available for a single sensing date
             # in this case merging of different datasets might be necessary
             scenes_df_split = identify_split_scenes(scenes_df)
             scenes_df["is_split"] = False
@@ -339,10 +339,10 @@ class Mapper(object):
                     scenes_df.product_uri.isin(scenes_df_split.product_uri), "is_split"
                 ] = True
 
-            # in case the scenes have different projections (most likely different UTM
+            # in case the mapper have different projections (most likely different UTM
             # zone numbers) figure out which will be target UTM zone. To avoid too many
             # reprojection operations of raster data later, the target CRS is that CRS
-            # most scenes have (expressed as EPSG code)
+            # most mapper have (expressed as EPSG code)
             scenes_df["target_crs"] = scenes_df.epsg
             if not in_single_crs:
                 most_common_epsg = scenes_df.epsg.mode().values
@@ -446,7 +446,7 @@ class Mapper(object):
 
     def get_feature_scenes(self, feature_identifier: Any) -> DataFrame:
         """
-        Returns a ``DataFrame`` with all scenes found for a
+        Returns a ``DataFrame`` with all mapper found for a
         feature in the feature collection
 
         NOTE:
@@ -458,7 +458,7 @@ class Mapper(object):
             unique identifier of the aoi. Must be the same identifier
             used during the database query
         :returns:
-            ``DataFrame`` with all scenes found for a given
+            ``DataFrame`` with all mapper found for a given
             set of search parameters
         """
         try:
@@ -472,7 +472,7 @@ class Mapper(object):
         """
         Returns the scene data (observations) for a selected feature and date.
 
-        If for the date provided no scenes are found, the data from the scene(s)
+        If for the date provided no mapper are found, the data from the scene(s)
         closest in time is returned
 
         :param feature_id:
@@ -490,7 +490,7 @@ class Mapper(object):
             ``GeoDataFrame`` (geometry type: ``Point``) or ``Sentinel2Handler``
             (geometry types ``Polygon`` or ``MultiPolygon``) is returned. if
             the observation contains nodata, only, None is returned. If multiple
-            scenes must be read to get a single observation, the status 'multiple'
+            mapper must be read to get a single observation, the status 'multiple'
             is returned.
         """
         # define variable for returning results
@@ -499,7 +499,7 @@ class Mapper(object):
         scenes_df = self.observations.get(feature_id, None)
         if scenes_df is None:
             raise DataNotFoundError(
-                f'Could not find any scenes for feature with ID "{feature_id}"'
+                f'Could not find any mapper for feature with ID "{feature_id}"'
             )
 
         # get scene(s) closest to the sensing_date provided
@@ -516,7 +516,7 @@ class Mapper(object):
                 )
             except Exception as e:
                 raise DataNotFoundError(
-                    f"Cannot find the scenes on the file system: {e}"
+                    f"Cannot find the mapper on the file system: {e}"
                 )
         # get properties and geometry of the current feature from the collection
         feature_dict = self.get_feature(feature_id)
@@ -525,7 +525,7 @@ class Mapper(object):
         # parse feature geometry in kwargs so that only a spatial subset is read
         # in addition parse the S2 gain factor as "scale" argument
         kwargs.update({"vector_features": feature_gdf})
-        # multiple scenes for a single date
+        # multiple mapper for a single date
         # check what to do (re-projection, merging)
         if scenes_date.shape[0] > 1:
             return ('multiple', scenes_date, feature_gdf)

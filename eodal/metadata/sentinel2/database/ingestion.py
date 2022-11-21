@@ -42,7 +42,7 @@ def meta_df_to_database(
     meta_df: pd.DataFrame, raw_metadata: Optional[bool] = True
 ) -> None:
     """
-    Once the metadata from one or more scenes have been extracted
+    Once the metadata from one or more mapper have been extracted
     the data can be ingested into the metadata base (strongly
     recommended).
 
@@ -52,7 +52,7 @@ def meta_df_to_database(
     sql-methods into the database.
 
     :param meta_df:
-        data frame with metadata of one or more scenes to insert
+        data frame with metadata of one or more mapper to insert
     :param raw_metadata:
         If set to False, assumes the metadata is about processed
         products

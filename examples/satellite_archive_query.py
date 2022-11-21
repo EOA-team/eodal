@@ -1,6 +1,6 @@
 """
 sample script showing how to perform a simple metadata query to identify the
-number of available scenes for a Sentinel-2 tile below a user-defined cloud
+number of available mapper for a Sentinel-2 tile below a user-defined cloud
 cover threshold on data already downloaded and ingested into the metadata base
 (offline mode)
 

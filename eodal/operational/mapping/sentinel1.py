@@ -18,7 +18,7 @@ settings = get_settings()
 
 class Sentinel1Mapper(Mapper):
     """
-    Spatial scenes class for Sentinel-1 data.
+    Spatial mapper class for Sentinel-1 data.
     """
     def __init__(
         self,
@@ -44,15 +44,15 @@ class Sentinel1Mapper(Mapper):
 
         The scene selection and processing workflow contains several steps:
 
-        1.  Query the metadata catalog for **ALL** available scenes that overlap
+        1.  Query the metadata catalog for **ALL** available mapper that overlap
             the bounding box of a given ``Polygon`` or ``MultiPolygon``
             feature.
-        2.  Check if for a single sensing date several scenes are available
+        2.  Check if for a single sensing date several mapper are available
         3.  If yes check if that's due to Sentinel-1 tiling grid design. If yes
-            flag these scenes as potential merge candidates.
-        4.  If the scenes found have different spatial coordinate systems (CRS)
+            flag these mapper as potential merge candidates.
+        4.  If the mapper found have different spatial coordinate systems (CRS)
             (usually different UTM zones) flag the data accordingly. The target
-            CRS is defined as that CRS the majority of scenes shares.
+            CRS is defined as that CRS the majority of mapper shares.
         """
         self._get_scenes(sensor='sentinel1')
 
@@ -62,7 +62,7 @@ class Sentinel1Mapper(Mapper):
         """
         Returns the scene data (observations) for a selected feature and date.
 
-        If for the date provided no scenes are found, the data from the scene(s)
+        If for the date provided no mapper are found, the data from the scene(s)
         closest in time is returned
 
         :param feature_id:

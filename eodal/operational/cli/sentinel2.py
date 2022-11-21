@@ -186,7 +186,7 @@ def cli_s2_creodias_update(
     :param processing_level:
         Sentinel-2 processing level (L1C or L2A) to check.
     :param cloud_cover_threshold:
-        optional cloud cover threshold to filter out to cloudy scenes as integer
+        optional cloud cover threshold to filter out to cloudy mapper as integer
         between 0 and 100%.
     :param path_options:
         optional dictionary specifying storage_device_ip, storage_device_ip_alias
@@ -350,7 +350,7 @@ def cli_s2_sen2cor_update(
         with different mount points of the NAS share. If not provided, the absolute
         path of the dataset is used in the database.
     """
-    # loop over all scenes (S2*.SAFE)
+    # loop over all mapper (S2*.SAFE)
     for scene_dir in s2_raw_data_archive.rglob("S2*.SAFE"):
 
         try:
@@ -413,10 +413,10 @@ def cli_s2_scene_selection(
     :param out_dir:
         directory where to store the subset metadata CSV file and the cloud cover plot.
     :param cloud_cover_threshold:
-        optional cloud cover threshold to filter out to cloudy scenes as integer
+        optional cloud cover threshold to filter out to cloudy mapper as integer
         between 0 and 100%.
     :returns:
-        metadata of scenes
+        metadata of mapper
     """
 
     # query metadata from database
@@ -440,7 +440,7 @@ def cli_s2_scene_selection(
     # write out metadata of the query as CSV
     metadata.to_csv(out_dir.joinpath(f"{query_time}_query.csv"), index=False)
 
-    # Plot available scenes for query
+    # Plot available mapper for query
     fig = plt.figure(figsize=(15, 10), dpi=300)
     ax = fig.add_subplot(111)
     ax.plot(
@@ -453,7 +453,7 @@ def cli_s2_scene_selection(
     ax.set_ylabel("Cloud cover [%]")
     ax.set_ylim(0.0, 100.0)
     ax.set_title(
-        f"Tile {tile} - No. of scenes: {metadata.shape[0]}"
+        f"Tile {tile} - No. of mapper: {metadata.shape[0]}"
         + "\n"
         + f"Average cloud cover: {np.round(cc_avg, 2)}%"
     )

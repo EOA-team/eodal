@@ -29,7 +29,7 @@ from xml.dom import minidom
 def _parse_metadata_json(in_file: Path) -> Dict[str, Any]:
     """
     Parses the metadata file (*.json) delivered with the Planet-Scope
-    scenes
+    mapper
 
     :param in_file:
         PlanetScope metadata file-path (*.json)
@@ -69,7 +69,7 @@ def _parse_metadata_json(in_file: Path) -> Dict[str, Any]:
 def _parse_metadata_xml(in_file: Path) -> Dict[str, Any]:
     """
     Parses the metadata file (*.xml) delivered with the Planet-Scope
-    scenes to extract the EPSG code of the scene and the orbit directions
+    mapper to extract the EPSG code of the scene and the orbit directions
 
     :param in_file:
         PlanetScope metadata file-path (*.xml)
@@ -89,7 +89,7 @@ def _parse_metadata_xml(in_file: Path) -> Dict[str, Any]:
 def parse_metadata(in_dir: Path) -> Dict[str, Any]:
     """
     Parses the metadata files (*.json and *.xml) delivered with the Planet-Scope
-    scenes and returns the data in a format ready for DB insert
+    mapper and returns the data in a format ready for DB insert
 
     :param in_dir:
         PS scene directory where metadata and image files are located

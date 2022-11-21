@@ -16,7 +16,7 @@ from eodal.core.sensors import Sentinel2
      (date(2016,12,1), date(2017,1,31), ProcessingLevels.L2A)]
 )
 def test_point_extraction(get_points, date_start, date_end, processing_level):
-    """Extraction of points from Sentinel-2 scenes"""
+    """Extraction of points from Sentinel-2 mapper"""
     points = get_points()
 
     mapping_config = MapperConfigs()
@@ -29,7 +29,7 @@ def test_point_extraction(get_points, date_start, date_end, processing_level):
     )
 
     assert isinstance(mapper.feature_collection, Path), 'expected a path-like object'
-    # query the DB to get all S2 scenes available for the points
+    # query the DB to get all S2 mapper available for the points
     mapper.get_scenes()
     assert isinstance(mapper.feature_collection, dict), 'expected a dict-like object'
     assert len(mapper.get_feature_ids()) == 12, 'wrong number of point features'
@@ -73,7 +73,7 @@ def test_field_parcel_extraction(get_polygons_3, date_start, date_end, processin
         mapper_configs=mapping_config
     )
     assert isinstance(mapper.feature_collection, Path), 'expected a path-like object'
-    # query the DB to get all S2 scenes available for the Polygon
+    # query the DB to get all S2 mapper available for the Polygon
     mapper.get_scenes()
     assert len(mapper.observations) == 1, 'expected a single feature'
     feature_id = mapper.get_feature_ids()[0]
@@ -82,12 +82,12 @@ def test_field_parcel_extraction(get_polygons_3, date_start, date_end, processin
     assert set(obs.tile_id.unique()) == {'T32TLT', 'T31TGN', 'T32TLS'}, \
         'expected three different tiles here'
     # the target CRS should be 32632 (UTM Zone 32N) because the majority of the
-    # scenes is in that projection
+    # mapper is in that projection
     assert (obs.target_crs == 32632).all(), 'wrong target CRS'
     if processing_level == ProcessingLevels.L1C:
         assert set(obs.sensing_date.unique()) == {date(2016,12,1), date(2017,1,3)}, \
             'expected two different dates'
-        assert obs.is_split.all(), 'all scenes must be flagged as "split"'
+        assert obs.is_split.all(), 'all mapper must be flagged as "split"'
 
     # get single observation
     res = mapper.get_observation(

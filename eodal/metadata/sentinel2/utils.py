@@ -31,15 +31,15 @@ def identify_updated_scenes(
     in the ``product_uri`` entry in the scene metadata or .SAFE name).
 
     :param metadata_df:
-        dataframe from metadata base query in which to search for scenes with
+        dataframe from metadata base query in which to search for mapper with
         the same sensing date and data take but different baseline versions
     :param return_highest_baseline:
-        if True (default) return those scenes with the highest baseline. Otherwise
+        if True (default) return those mapper with the highest baseline. Otherwise
         return the baseline most products belong to
     :return:
         Tuple with two entries. The first entries contains a ``DataFrame`` with
-        those S2 scenes belonging to either the highest PDGS baseline or the most
-        common baseline version. The other "older" scenes are in the second
+        those S2 mapper belonging to either the highest PDGS baseline or the most
+        common baseline version. The other "older" mapper are in the second
         tuple item.
     """
 

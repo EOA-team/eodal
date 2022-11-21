@@ -76,7 +76,7 @@ def find_raw_data_by_bbox(
     :param sensor_mode:
         Sentinel-1 sensor mode. 'IW' (Interferometric Wide Swath) by default.
     :returns:
-        `DataFrame` with references to found Sentinel-2 scenes
+        `DataFrame` with references to found Sentinel-2 mapper
     """
     # convert shapely geometry into extended well-known text representation
     if isinstance(bounding_box, Polygon):

@@ -139,7 +139,7 @@ def pull_from_creodias(
     )
     datasets_filtered = datasets[datasets.product_uri.isin(missing_datasets)]
 
-    # download those scenes not available in the local database from Creodias
+    # download those mapper not available in the local database from Creodias
     download_datasets(
         datasets=datasets_filtered,
         download_dir=path_out,

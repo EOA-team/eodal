@@ -72,14 +72,14 @@ def get_pixels(date_start: date, date_end: date, scene_cloud_cover_threshold: in
     :param aois:
         areas of interest (1 to N) for which to extract random pixel observations
     """
-    # setup Sentinel-2 scenes to get the relevant scenes
+    # setup Sentinel-2 mapper to get the relevant mapper
     mapper_configs = MapperConfigs(
         spatial_resolution=10.,
         resampling_method=cv2.INTER_NEAREST_EXACT,
         band_names=['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12']
     )
 
-    # get a new scenes instance
+    # get a new mapper instance
     mapper = Sentinel2Mapper(
         date_start=date_start,
         date_end=date_end,
@@ -88,7 +88,7 @@ def get_pixels(date_start: date, date_end: date, scene_cloud_cover_threshold: in
         mapper_configs=mapper_configs,
         feature_collection=aois
     )
-    # query the available scenes (spatio-temporal query in the metadata catalog)
+    # query the available mapper (spatio-temporal query in the metadata catalog)
     mapper.get_scenes()
     # extract the actual S2 data
     s2_data = mapper.get_complete_timeseries()
@@ -99,9 +99,9 @@ def get_pixels(date_start: date, date_end: date, scene_cloud_cover_threshold: in
     # loop over features and extract scene data
     for idx, feature in enumerate(features):
         feature_id = mapper.get_feature_ids()[idx]
-        # scenes of the actual feature
+        # mapper of the actual feature
         feature_scenes = s2_data[feature_id]
-        # loop over scenes, drop non-cloudfree observations and save spectral values to GeoDataFrame
+        # loop over mapper, drop non-cloudfree observations and save spectral values to GeoDataFrame
         feature_refl_list = []
         for feature_scene in feature_scenes:
             # drop all observations but SCL classes 4 and 5

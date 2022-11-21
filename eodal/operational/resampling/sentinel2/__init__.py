@@ -4,7 +4,7 @@ as part of the ``eodal`` operational processing pipeline:
              
 - resampling from 20 to 10m spatial resolution
 - generation of a RGB preview image per scene
-- merging of split scenes (due to data take issues)
+- merging of split mapper (due to data take issues)
 - resampling of SCL data (L2A processing level, only) and generation of a preview
 - generation of metadata of the processed data (links to the input datasets)
 
@@ -62,7 +62,7 @@ def do_parallel(
     Returns a dict containing the file-paths to the generated datasets.
 
     :param in_df:
-        dataframe containing metadata of S2 scenes (must follow AgripySat convention)
+        dataframe containing metadata of S2 mapper (must follow AgripySat convention)
     :param loopcounter:
         Index to get actual S2 scene in loop.
     :param out_dir:
@@ -118,7 +118,7 @@ def exec_pipeline(
 
     -> resampling from 20 to 10m spatial resolution
     -> generation of a RGB preview image per scene
-    -> merging of split scenes (due to data take issues)
+    -> merging of split mapper (due to data take issues)
     -> resampling of SCL data (L2A processing level, only)
 
     NOTE:
@@ -152,12 +152,12 @@ def exec_pipeline(
         failed datasets in the second tuple item [1]
     """
 
-    # make sub-directory for logging successfully processed scenes in out_dir
+    # make sub-directory for logging successfully processed mapper in out_dir
     log_dir = processed_data_archive.joinpath("log")
     if not log_dir.exists():
         log_dir.mkdir(parents=True, exist_ok=True)
 
-    # query metadata DB for available Sentinel-2 scenes
+    # query metadata DB for available Sentinel-2 mapper
     try:
         metadata = find_raw_data_by_tile(
             date_start=date_start,
@@ -174,13 +174,13 @@ def exec_pipeline(
     num_scenes = metadata.shape[0]
     meta_blackfill = identify_split_scenes(metadata_df=metadata)
 
-    # exclude these duplicated scenes from the main (parallelized) workflow!
+    # exclude these duplicated mapper from the main (parallelized) workflow!
     metadata = metadata[~metadata.product_uri.isin(meta_blackfill["product_uri"])]
     if meta_blackfill.empty:
-        logger.info(f"Found {num_scenes} scenes out of which 0 must be merged")
+        logger.info(f"Found {num_scenes} mapper out of which 0 must be merged")
     else:
         logger.info(
-            f"Found {num_scenes} scenes out of which {meta_blackfill.shape[0]} must be merged"
+            f"Found {num_scenes} mapper out of which {meta_blackfill.shape[0]} must be merged"
         )
 
     t = time.time()
@@ -195,11 +195,11 @@ def exec_pipeline(
     # concatenate the metadata of the stacked image files into a pandas dataframe
     bandstack_meta = pd.DataFrame(result)
 
-    # merge black-fill scenes (data take issue) if any
+    # merge black-fill mapper (data take issue) if any
     if not meta_blackfill.empty:
-        logger.info("Starting merging of blackfill scenes")
+        logger.info("Starting merging of blackfill mapper")
 
-        # after regular scene processsing, process the blackfill scenes single-threaded
+        # after regular scene processsing, process the blackfill mapper single-threaded
         for date in meta_blackfill.sensing_date.unique():
             scenes = meta_blackfill[meta_blackfill.sensing_date == date]
             product_id_1 = scenes.product_uri.iloc[0]
@@ -252,7 +252,7 @@ def exec_pipeline(
         # also the storage location shall be inserted into the database later
         # bandstack_meta['storage_share'] = target_s2_archive
 
-        logger.info("Finished merging of blackfill scenes")
+        logger.info("Finished merging of blackfill mapper")
 
     # check for any empty bandstack paths (indicates that something went wrong
     # during the processing
