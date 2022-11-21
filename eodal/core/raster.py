@@ -322,8 +322,8 @@ class RasterCollection(MutableMapping):
             return 'Empty EOdal RasterCollection'
         else:
             return f'EOdal RasterCollection\n----------------------\n' + \
-                f'# Bands: {len(self)}\n Band names: {", ".join(self.band_names)}\n' +  \
-                f'Is band stack: {self.is_bandstacked}'
+                f'# Bands:    {len(self)}\nBand names:    {", ".join(self.band_names)}\n' +  \
+                f'Band aliases:    {", ".join(self.band_aliases)}'
 
     @property
     def band_names(self) -> List[str]:
