@@ -25,7 +25,6 @@ from collections.abc import MutableMapping
 from numbers import Number
 from typing import Callable, List, Optional
 
-from eodal.core.raster import RasterCollection
 from eodal.utils.constants import ProcessingLevels
 
 class SceneProperties(object):
@@ -154,88 +153,88 @@ class SceneProperties(object):
         self._mode = value
 
 
-class SceneCollection(MutableMapping):
-    """
-    Collection of 0:N scenes where each scene is a RasterCollection with
-    **non-empty** `SceneProperties` as each scene is indexed by its
-    acquistion time.
-    """
-    def __init__(
-        self,
-        scene_constructor: Optional[Callable[..., RasterCollection]] = None,
-        *args,
-        **kwargs
-    ):
-        """
-        Initializes a SceneCollection object with 0 to N scenes.
-
-         :param scene_constructor:
-            optional callable returning an `~eodal.core.raster.RasterCollection`
-            instance.
-        :param args:
-            arguments to pass to `scene_constructor` or one of RasterCollection's
-            class methods (e.g., `RasterCollection.from_multi_band_raster`)
-        :param kwargs:
-            key-word arguments to pass to `scene_constructor` or one of RasterCollection's
-            class methods (e.g., `RasterCollection.from_multi_band_raster`)
-        """
-        # mapper are stored in a dictionary like collection
-        self._frozen = False
-        self.collection = dict()
-        self._frozen = True
-
-        if scene_constructor is not None:
-            scene = scene_constructor.__call__(*args, **kwargs)
-            if not isinstance(scene, RasterCollection):
-                raise TypeError('Only RasterCollection objects can be passed')
-            self.__setitem__(scene)
-
-    def __getitem__(self, key: str) -> RasterCollection:
-        return self.collection[key]
-
-    def __setitem__(self, item: RasterCollection):
-        if not isinstance(item, RasterCollection):
-            raise TypeError("Only RasterCollection objects can be passed")
-        key = item.scene_properties.acquisition_time
-        if key in self.collection.keys():
-            raise KeyError("Duplicate scene names are not permitted")
-        if key is None:
-            raise ValueError("RasterCollection passed must have an acquistion time stamp")
-        value = item.copy()
-        self.collection[key] = value
-
-    def __delitem__(self, key: str):
-        del self.collection[key]
-
-    def __iter__(self):
-        for k, v in self.collection.items():
-            yield k, v
-
-    def __len__(self) -> int:
-        return len(self.collection)
-
-    def __repr__(self) -> str:
-        pass
-
-    @property
-    def scene_names(self) -> List[str]:
-        """scene names in collection"""
-        return list(self.collection.keys())
-
-    def apply(self, func: Callable):
-        pass
-
-    def dump(self):
-        pass
-
-    def filter(self):
-        pass
-
-    def load(self):
-        pass
-
-    def plot(self):
-        pass
-
-    def to_xarray(self):
-        pass
+# class SceneCollection(MutableMapping):
+#     """
+#     Collection of 0:N scenes where each scene is a RasterCollection with
+#     **non-empty** `SceneProperties` as each scene is indexed by its
+#     acquistion time.
+#     """
+#     def __init__(
+#         self,
+#         scene_constructor: Optional[Callable[..., RasterCollection]] = None,
+#         *args,
+#         **kwargs
+#     ):
+#         """
+#         Initializes a SceneCollection object with 0 to N scenes.
+#
+#          :param scene_constructor:
+#             optional callable returning an `~eodal.core.raster.RasterCollection`
+#             instance.
+#         :param args:
+#             arguments to pass to `scene_constructor` or one of RasterCollection's
+#             class methods (e.g., `RasterCollection.from_multi_band_raster`)
+#         :param kwargs:
+#             key-word arguments to pass to `scene_constructor` or one of RasterCollection's
+#             class methods (e.g., `RasterCollection.from_multi_band_raster`)
+#         """
+#         # mapper are stored in a dictionary like collection
+#         self._frozen = False
+#         self.collection = dict()
+#         self._frozen = True
+#
+#         if scene_constructor is not None:
+#             scene = scene_constructor.__call__(*args, **kwargs)
+#             if not isinstance(scene, RasterCollection):
+#                 raise TypeError('Only RasterCollection objects can be passed')
+#             self.__setitem__(scene)
+#
+#     def __getitem__(self, key: str) -> RasterCollection:
+#         return self.collection[key]
+#
+#     def __setitem__(self, item: RasterCollection):
+#         if not isinstance(item, RasterCollection):
+#             raise TypeError("Only RasterCollection objects can be passed")
+#         key = item.scene_properties.acquisition_time
+#         if key in self.collection.keys():
+#             raise KeyError("Duplicate scene names are not permitted")
+#         if key is None:
+#             raise ValueError("RasterCollection passed must have an acquistion time stamp")
+#         value = item.copy()
+#         self.collection[key] = value
+#
+#     def __delitem__(self, key: str):
+#         del self.collection[key]
+#
+#     def __iter__(self):
+#         for k, v in self.collection.items():
+#             yield k, v
+#
+#     def __len__(self) -> int:
+#         return len(self.collection)
+#
+#     def __repr__(self) -> str:
+#         pass
+#
+#     @property
+#     def scene_names(self) -> List[str]:
+#         """scene names in collection"""
+#         return list(self.collection.keys())
+#
+#     def apply(self, func: Callable):
+#         pass
+#
+#     def dump(self):
+#         pass
+#
+#     def filter(self):
+#         pass
+#
+#     def load(self):
+#         pass
+#
+#     def plot(self):
+#         pass
+#
+#     def to_xarray(self):
+#         pass
