@@ -10,13 +10,16 @@ The format is based on `Keep a Changelog`_, and this project adheres to `Semanti
 
 Categories for changes are: Added, Changed, Deprecated, Removed, Fixed, Security.
 
-Version `0.0.2 < https://github.com/remote-sensing-team/eodal/releases/tag/v0.0.2>`__
+Version `0.0.2 < https://github.com/EOA-team/eodal/releases/tag/v0.0.2>`__
 --------------------------------------------------------------------------------
 
 Release date: YYYY-MM-DD
 
+- Added: RasterCollection objects are now iterable (iterate over bands in collection)
+- Added: RasterCollection now have a "apply" method allowing to pass custom functions to RasterCollection objects
 
-Version `0.0.1 < https://github.com/remote-sensing-team/eodal/releases/tag/v0.0.1>`__
+
+Version `0.0.1 < https://github.com/EOA-team/eodal/releases/tag/v0.0.1>`__
 --------------------------------------------------------------------------------
 
 Release date: 2022-10-31.
