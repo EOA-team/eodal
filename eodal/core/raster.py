@@ -68,6 +68,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import datetime
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
@@ -94,10 +95,134 @@ from typing import Union
 
 from eodal.core.band import Band
 from eodal.core.operators import Operator
-from eodal.core.scene import SceneProperties
 from eodal.core.spectral_indices import SpectralIndices
+from eodal.utils.constants import ProcessingLevels
 from eodal.utils.decorators import check_band_names
 
+class SceneProperties(object):
+    """
+    A class for storing scene-relevant properties
+
+    :attribute acquisition_time:
+        image acquisition time
+    :attribute platform:
+        name of the imaging platform
+    :attribute sensor:
+        name of the imaging sensor
+    :attribute processing_level:
+        processing level of the remotely sensed data (if
+        known and applicable)
+    :attribute product_uri:
+        unique product (scene) identifier
+    :attribute mode:
+        imaging mode of SAR sensors
+    """
+
+    def __init__(
+        self,
+        acquisition_time: Optional[datetime.datetime] = datetime.datetime(2999, 1, 1),
+        platform: Optional[str] = "",
+        sensor: Optional[str] = "",
+        processing_level: Optional[ProcessingLevels] = ProcessingLevels.UNKNOWN,
+        product_uri: Optional[str] = "",
+        mode: Optional[str] = ""
+    ):
+        """
+        Class constructor
+
+        :param acquisition_time:
+            image acquisition time
+        :param platform:
+            name of the imaging platform
+        :param sensor:
+            name of the imaging sensor
+        :param processing_level:
+            processing level of the remotely sensed data (if
+            known and applicable)
+        :param product_uri:
+            unique product (scene) identifier
+        :attribute mode:
+            imaging mode of SAR sensors
+        """
+
+        self.acquisition_time = acquisition_time
+        self.platform = platform
+        self.sensor = sensor
+        self.processing_level = processing_level
+        self.product_uri = product_uri
+        self.mode = mode
+
+    def __repr__(self) -> str:
+        return str(self.__dict__)
+
+    @property
+    def acquisition_time(self) -> datetime.datetime:
+        """acquisition time of the scene"""
+        return self._acquisition_time
+
+    @acquisition_time.setter
+    def acquisition_time(self, time: datetime.datetime) -> None:
+        """acquisition time of the scene"""
+        if not isinstance(time, datetime.datetime):
+            raise TypeError("Expected a datetime.datetime object")
+        self._acquisition_time = time
+
+    @property
+    def platform(self) -> str:
+        """name of the imaging platform"""
+        return self._platform
+
+    @platform.setter
+    def platform(self, value: str) -> None:
+        """name of the imaging plaform"""
+        if not isinstance(value, str):
+            raise TypeError("Expected a str object")
+        self._platform = value
+
+    @property
+    def sensor(self) -> str:
+        """name of the sensor"""
+        return self._sensor
+
+    @sensor.setter
+    def sensor(self, value: str) -> None:
+        """name of the sensor"""
+        if not isinstance(value, str):
+            raise TypeError("Expected a str object")
+        self._sensor = value
+
+    @property
+    def processing_level(self) -> ProcessingLevels:
+        """current processing level"""
+        return self._processing_level
+
+    @processing_level.setter
+    def processing_level(self, value: ProcessingLevels):
+        """current processing level"""
+        self._processing_level = value
+
+    @property
+    def product_uri(self) -> str:
+        """unique product (scene) identifier"""
+        return self._product_uri
+
+    @product_uri.setter
+    def product_uri(self, value: str) -> None:
+        """unique product (scene) identifier"""
+        if not isinstance(value, str):
+            raise TypeError("Expected a str object")
+        self._product_uri = value
+
+    @property
+    def mode(self) -> str:
+        """imaging mode of SAR sensors"""
+        return self._mode
+
+    @mode.setter
+    def mode(self, value: str) -> None:
+        if not isinstance(value, str):
+            raise TypeError("Expected a str object")
+        self._mode = value
 
 class RasterOperator(Operator):
     """
