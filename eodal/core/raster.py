@@ -98,6 +98,7 @@ from eodal.core.operators import Operator
 from eodal.core.spectral_indices import SpectralIndices
 from eodal.utils.constants import ProcessingLevels
 from eodal.utils.decorators import check_band_names
+from eodal.utils.exceptions import BandNotFoundError
 
 class SceneProperties(object):
     """
@@ -384,14 +385,69 @@ class RasterCollection(MutableMapping):
             self._band_aliases.append(band.band_alias)
             self.__setitem__(band)
 
-    def __getitem__(self, key: str) -> Band:
-        # check for band alias if any
-        if self.has_band_aliases:
+    def __getitem__(self, key: str | slice) -> Band:
+
+        def _get_band_from_key(key: str) -> Band:
+            """
+            helper function returning a Band object identified
+            by its name from a RasterCollection
+            """
             if key not in self.band_names:
                 if key in self.band_aliases:
                     band_idx = self.band_aliases.index(key)
                     key = self.band_names[band_idx]
-        return self.collection[key]
+            return self.collection[key]
+
+        # has a single key or slice been passed?
+        if isinstance(key, str):
+            try:
+                return _get_band_from_key(key=key)
+            except IndexError:
+                raise BandNotFoundError(f'Could not find band {key}')
+
+        elif isinstance(key, slice):
+            # find the index of the start and the end of the slice
+            slice_start = key.start
+            slice_end = key.stop
+            # return an empty RasterCollection if start and stop is the same
+            # (numpy array behavior)
+            if slice_start is None and slice_end is None:
+                return RasterCollection()
+            # if start is None use the first band name or its alias
+            if slice_start is None:
+                if slice_end in self.band_names:
+                    slice_start = self.band_names[0]
+                elif slice_end in self.band_aliases:
+                    slice_start = self.band_aliases[0]
+            # if end is None use the last band name or its alias
+            end_increment = 0
+            if slice_end is None:
+                if slice_start in self.band_names:
+                    slice_end = self.band_names[-1]
+                elif slice_start in self.band_aliases:
+                    slice_end = self.band_aliases[-1]
+                # to ensure that the :: operator works, we need to make
+                # sure the last band is also included in the slice
+                end_increment = 1
+            
+            if set([slice_start, slice_end]).issubset(set(self.band_names)):
+                idx_start = self.band_names.index(slice_start)
+                idx_end = self.band_names.index(slice_end) + end_increment
+                bands = self.band_names
+            elif set([slice_start, slice_end]).issubset(set(self.band_aliases)):
+                idx_start = self.band_aliases.index(slice_start)
+                idx_end = self.band_aliases.index(slice_end) + end_increment
+                bands = self.band_aliases
+            else:
+                raise BandNotFoundError(f'Could not find bands in {key}')
+            slice_step = key.step
+            if slice_step is None:
+                slice_step = 1
+            # get an empty RasterCollection for returing the slide
+            out_raster = RasterCollection()
+            for idx in range(idx_start, idx_end, slice_step):
+                out_raster.add_band(_get_band_from_key(key=bands[idx]))
+            return out_raster
 
     def __setitem__(self, item: Band):
         if not isinstance(item, Band):
