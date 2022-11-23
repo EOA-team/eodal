@@ -1,6 +1,7 @@
 """
-A scene is a collection of raster bands with an acquisition date, an unique identifier
-and a (remote sensing) platform that acquired the raster data.
+A SceneCollection is a collection of scenes. A Scene is a RasterCollections with an
+acquisition date, an unique identifier and a (remote sensing) platform that acquired
+the raster data.
 
 Copyright (C) 2022 Lukas Valentin Graf
 
@@ -22,6 +23,7 @@ from collections.abc import MutableMapping
 from typing import Callable, List, Optional
 
 import eodal.core.raster as raster
+from eodal.utils.exceptions import SceneNotFoundError
 
 class SceneCollection(MutableMapping):
     """
@@ -53,23 +55,32 @@ class SceneCollection(MutableMapping):
         self.collection = dict()
         self._frozen = True
 
+        self._identifiers = []
         if scene_constructor is not None:
             scene = scene_constructor.__call__(*args, **kwargs)
+            self._identifiers.append(scene.scene_properties.scene_id)
             if not isinstance(scene, raster.RasterCollection):
                 raise TypeError('Only RasterCollection objects can be passed')
             self.__setitem__(scene)
 
     def __getitem__(self, key: str) -> raster.RasterCollection:
-        return self.collection[key]
+        if key in self.timestamps:
+            return self.collection[key]
+        elif key in self.idenfiers:
+            scene_idx = self.idenfiers.index(key)
+            return self.collection[self.timestamps[scene_idx]]
+        else:
+            raise SceneNotFoundError(f'Could not find a scene for key {key} in collection')
 
     def __setitem__(self, item: raster.RasterCollection):
         if not isinstance(item, raster.RasterCollection):
             raise TypeError("Only RasterCollection objects can be passed")
+        # scenes are index by their acquisition time
         key = item.scene_properties.acquisition_time
         if key in self.collection.keys():
             raise KeyError("Duplicate scene names are not permitted")
         if key is None:
-            raise ValueError("RasterCollection passed must have an acquistion time stamp")
+            raise ValueError("RasterCollection passed must have an acquisition time stamp")
         value = item.copy()
         self.collection[key] = value
 
@@ -84,12 +95,30 @@ class SceneCollection(MutableMapping):
         return len(self.collection)
 
     def __repr__(self) -> str:
-        return ''
+        if self.empty:
+            return 'Empty EOdal SceneCollection'
+        else:
+            return f'EOdal SceneCollection\n----------------------\n' + \
+                f'# Scenes:    {len(self)}\nTimestamps:    {", ".join(self.timestamps)}\n' +  \
+                f'Scene Identifiers:    {", ".join(self.band_aliases)}'
 
     @property
-    def scene_names(self) -> List[str]:
-        """scene names in collection"""
+    def empty(self) -> bool:
+        """Scene Collection is empty"""
+        return len(self) > 0
+
+    @property
+    def timestamps(self) -> List[str]:
+        """acquisition timestamps of scenes in collection"""
         return list(self.collection.keys())
+
+    @property
+    def idenfiers(self) -> List[str]:
+        """list of scene identifiers"""
+        return self._identifiers
+
+    def add_scene(self):
+        pass
 
     def apply(self, func: Callable):
         pass
@@ -97,7 +126,7 @@ class SceneCollection(MutableMapping):
     def dump(self):
         pass
 
-    def filter(self):
+    def get_pixels(self):
         pass
 
     def load(self):
