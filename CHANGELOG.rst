@@ -17,6 +17,7 @@ Release date: YYYY-MM-DD
 
 - Added: RasterCollection objects are now iterable (iterate over bands in collection)
 - Added: RasterCollection now have a "apply" method allowing to pass custom functions to RasterCollection objects
+- Added: RasterCollection now supports numpy-array like slicing using band names or band aliases
 
 
 Version `0.0.1 < https://github.com/EOA-team/eodal/releases/tag/v0.0.1>`__
