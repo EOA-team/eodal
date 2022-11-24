@@ -38,8 +38,7 @@ from shapely.geometry import box
 from typing import Dict, Optional, List, Tuple, Union
 
 from eodal.core.band import Band, WavelengthInfo, GeoInfo
-from eodal.core.raster import RasterCollection
-from eodal.core.scene import SceneProperties
+from eodal.core.raster import RasterCollection, SceneProperties
 from eodal.utils.constants.sentinel2 import (
     band_resolution,
     band_widths,
