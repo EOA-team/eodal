@@ -26,3 +26,10 @@ def test_raster_iterator(get_bandstack):
         idx += 1
 
     assert idx == len(ds.band_names), 'iterator did not cover all bands'
+
+    # test iterating over a slice of a RasterCollection
+    idx = 0
+    for band_name, band_obj in ds['B03':'B05']:
+        assert isinstance(band_obj, Band), 'no band object returned'
+        idx += 1
+    assert idx == len(ds['B03':'B05']), 'iterator did not cover all bands in slice'
