@@ -205,8 +205,6 @@ class SceneProperties(object):
     @processing_level.setter
     def processing_level(self, value: ProcessingLevels | None) -> None:
         if value is not None:
-            if not isinstance(value, ProcessingLevels):
-                raise TypeError('Expected a proper ProcessingLevels object')
             self._processing_level = value
 
     @property
