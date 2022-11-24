@@ -121,18 +121,19 @@ class SceneProperties(object):
 
     def __init__(
         self,
-        acquisition_time: Optional[datetime.datetime] = datetime.datetime(2999, 1, 1),
-        platform: Optional[str] = "",
-        sensor: Optional[str] = "",
+        acquisition_time: Optional[datetime.datetime | Number] = None,
+        platform: Optional[str] = None,
+        sensor: Optional[str] = None,
         processing_level: Optional[ProcessingLevels] = ProcessingLevels.UNKNOWN,
-        product_uri: Optional[str] = "",
-        mode: Optional[str] = ""
+        product_uri: Optional[str] = None,
+        mode: Optional[str] = None
     ):
         """
         Class constructor
 
         :param acquisition_time:
-            image acquisition time
+            image acquisition time. Can be a timestamp or any kind of numeric
+            index.
         :param platform:
             name of the imaging platform
         :param sensor:
@@ -162,35 +163,39 @@ class SceneProperties(object):
         return self._acquisition_time
 
     @acquisition_time.setter
-    def acquisition_time(self, time: datetime.datetime) -> None:
+    def acquisition_time(self, time: datetime.datetime | None) -> None:
         """acquisition time of the scene"""
-        if not isinstance(time, datetime.datetime):
-            raise TypeError("Expected a datetime.datetime object")
-        self._acquisition_time = time
+        if time is not None:
+            if not isinstance(time, datetime.datetime) and \
+                not isinstance(time, Number):
+                raise TypeError("Expected a datetime.datetime or Number object")
+            self._acquisition_time = time
 
     @property
-    def platform(self) -> str:
+    def platform(self) -> str | None:
         """name of the imaging platform"""
         return self._platform
 
     @platform.setter
-    def platform(self, value: str) -> None:
+    def platform(self, value: str | None) -> None:
         """name of the imaging plaform"""
-        if not isinstance(value, str):
-            raise TypeError("Expected a str object")
-        self._platform = value
+        if value is not None:
+            if not isinstance(value, str):
+                raise TypeError("Expected a str object")
+            self._platform = value
 
     @property
-    def sensor(self) -> str:
+    def sensor(self) -> str | None:
         """name of the sensor"""
         return self._sensor
 
     @sensor.setter
-    def sensor(self, value: str) -> None:
+    def sensor(self, value: str | None) -> None:
         """name of the sensor"""
-        if not isinstance(value, str):
-            raise TypeError("Expected a str object")
-        self._sensor = value
+        if value is not None:
+            if not isinstance(value, str):
+                raise TypeError("Expected a str object")
+            self._sensor = value
 
     @property
     def processing_level(self) -> ProcessingLevels:
@@ -198,32 +203,45 @@ class SceneProperties(object):
         return self._processing_level
 
     @processing_level.setter
-    def processing_level(self, value: ProcessingLevels):
-        """current processing level"""
-        self._processing_level = value
+    def processing_level(self, value: ProcessingLevels | None) -> None:
+        if value is not None:
+            if not isinstance(value, ProcessingLevels):
+                raise TypeError('Expected a proper ProcessingLevels object')
+            self._processing_level = value
 
     @property
-    def product_uri(self) -> str:
+    def product_uri(self) -> str | None:
         """unique product (scene) identifier"""
         return self._product_uri
 
     @product_uri.setter
-    def product_uri(self, value: str) -> None:
+    def product_uri(self, value: str | None) -> None:
         """unique product (scene) identifier"""
-        if not isinstance(value, str):
-            raise TypeError("Expected a str object")
-        self._product_uri = value
+        if value is not None:
+            if not isinstance(value, str):
+                raise TypeError("Expected a str object")
+            self._product_uri = value
 
     @property
-    def mode(self) -> str:
+    def mode(self) -> str | None:
         """imaging mode of SAR sensors"""
         return self._mode
 
     @mode.setter
-    def mode(self, value: str) -> None:
-        if not isinstance(value, str):
-            raise TypeError("Expected a str object")
-        self._mode = value
+    def mode(self, value: str | None) -> None:
+        if value is not None:
+            if not isinstance(value, str):
+                raise TypeError("Expected a str object")
+            self._mode = value
+
+    def are_populated(self) -> bool:
+        """
+        returns a Boolean flag indicating if the class attributes
+        have been populated with actual data or still equal defaults.
+
+        A scene must have at least a time stamp.
+        """
+        return hasattr(self, 'acquisition_time')
 
 class RasterOperator(Operator):
     """
@@ -522,11 +540,6 @@ class RasterCollection(MutableMapping):
         return len(self.collection) == 0
 
     @property
-    def has_band_aliases(self) -> bool:
-        """collection supports aliasing"""
-        return len(self.band_aliases) > 0
-
-    @property
     def collection(self) -> MutableMapping:
         """collection of the bands currently loaded"""
         return self._collection
@@ -540,6 +553,16 @@ class RasterCollection(MutableMapping):
             raise ValueError("Existing collections cannot be overwritten")
         if not self._frozen:
             self._collection = value
+
+    @property
+    def has_band_aliases(self) -> bool:
+        """collection supports aliasing"""
+        return len(self.band_aliases) > 0
+
+    @property
+    def is_scene(self) -> bool:
+        """is the RasterCollection a scene"""
+        return self.scene_properties.are_populated()
 
     @check_band_names
     def get_band_alias(self, band_name: str) -> Union[Dict[str, str], None]:
