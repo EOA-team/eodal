@@ -19,10 +19,13 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import dateutil.parser
+
 from collections.abc import MutableMapping
+from copy import deepcopy
 from typing import Callable, List, Optional
 
-import eodal.core.raster as raster
+from eodal.core.raster import RasterCollection
 from eodal.utils.exceptions import SceneNotFoundError
 
 class SceneCollection(MutableMapping):
@@ -33,7 +36,7 @@ class SceneCollection(MutableMapping):
     """
     def __init__(
         self,
-        scene_constructor: Optional[Callable[..., raster.RasterCollection]] = None,
+        scene_constructor: Optional[Callable[..., RasterCollection]] = None,
         *args,
         **kwargs
     ):
@@ -58,30 +61,40 @@ class SceneCollection(MutableMapping):
         self._identifiers = []
         if scene_constructor is not None:
             scene = scene_constructor.__call__(*args, **kwargs)
-            self._identifiers.append(scene.scene_properties.scene_id)
-            if not isinstance(scene, raster.RasterCollection):
-                raise TypeError('Only RasterCollection objects can be passed')
             self.__setitem__(scene)
 
-    def __getitem__(self, key: str) -> raster.RasterCollection:
+    def __getitem__(self, key: str) -> RasterCollection:
         if key in self.timestamps:
+            # most likely time stamps are passed as strings
+            if isinstance(key, str):
+                # we infer the format using dateutil
+                key = dateutil.parser.parse(key)
             return self.collection[key]
-        elif key in self.idenfiers:
-            scene_idx = self.idenfiers.index(key)
-            return self.collection[self.timestamps[scene_idx]]
+        elif key in self.identifiers:
+            scene_idx = self.identifiers.index(key)
+            return self.__getitem__(self.timestamps[scene_idx])
         else:
             raise SceneNotFoundError(f'Could not find a scene for key {key} in collection')
 
-    def __setitem__(self, item: raster.RasterCollection):
-        if not isinstance(item, raster.RasterCollection):
+    def __setitem__(self, item: RasterCollection):
+        if not isinstance(item, RasterCollection):
             raise TypeError("Only RasterCollection objects can be passed")
+        if not item.is_scene:
+            raise ValueError(
+                'Only RasterCollection with timestamps in their scene_properties can be passed'
+            )
+        # use the scene uri as an alias if available
+        if hasattr(item.scene_properties, 'product_uri'):
+            self._identifiers.append(item.scene_properties.product_uri)
         # scenes are index by their acquisition time
         key = item.scene_properties.acquisition_time
         if key in self.collection.keys():
             raise KeyError("Duplicate scene names are not permitted")
         if key is None:
             raise ValueError("RasterCollection passed must have an acquisition time stamp")
-        value = item.copy()
+        # it's important to make a copy of the scene before adding it
+        # to the collection
+        value = deepcopy(item)
         self.collection[key] = value
 
     def __delitem__(self, key: str):
@@ -100,25 +113,54 @@ class SceneCollection(MutableMapping):
         else:
             return f'EOdal SceneCollection\n----------------------\n' + \
                 f'# Scenes:    {len(self)}\nTimestamps:    {", ".join(self.timestamps)}\n' +  \
-                f'Scene Identifiers:    {", ".join(self.band_aliases)}'
+                f'Scene Identifiers:    {", ".join(self.identifiers)}'
 
     @property
     def empty(self) -> bool:
         """Scene Collection is empty"""
-        return len(self) > 0
+        return len(self) == 0
 
     @property
     def timestamps(self) -> List[str]:
         """acquisition timestamps of scenes in collection"""
-        return list(self.collection.keys())
+        return [str(x) for x in list(self.collection.keys())]
 
     @property
-    def idenfiers(self) -> List[str]:
+    def identifiers(self) -> List[str]:
         """list of scene identifiers"""
         return self._identifiers
 
-    def add_scene(self):
-        pass
+    def add_scene(
+        self, scene_constructor: Callable[...,RasterCollection] | RasterCollection, *args, **kwargs
+    ):
+        """
+        Adds a Scene to the collection of scenes.
+
+        Raises an error if a scene with the same timestamp already exists (unique
+        timestamp constraint)
+
+        :param scene_constructor:
+            callable returning a `~eodal.core.raster.RasterCollection` instance or
+            existing `RasterCollection` instance
+        :param args:
+            positional arguments to pass to `scene_constructor`
+        :param kwargs:
+            keyword arguments to pass to `scene_constructor`
+        """
+        # if a RasterCollection is passed no constructor call is required
+        try:
+            if isinstance(scene_constructor, RasterCollection):
+                scene = scene_constructor
+            else:
+                scene = scene_constructor.__call__(*args, **kwargs)
+        except Exception as e:
+            raise ValueError(f'Cannot initialize new Scene instance: {e}')
+        # try to add the scene to the SceneCollection
+        try:
+            self.__setitem__(scene)
+        except Exception as e:
+            raise KeyError(f'Cannot add scene: {e}')
+
 
     def apply(self, func: Callable):
         pass
