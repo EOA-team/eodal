@@ -11,7 +11,6 @@ from eodal.core.raster import RasterCollection
 from eodal.utils.constants.planet_scope import super_dove_band_mapping, super_dove_gain_factor
 from eodal.utils.exceptions import BandNotFoundError
 
-# TODO: opening tiff-files and reading quality masks
 class PlanetScope(RasterCollection):
 
     @staticmethod

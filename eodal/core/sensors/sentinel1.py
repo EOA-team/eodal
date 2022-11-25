@@ -34,8 +34,7 @@ from typing import Dict, List, Optional
 
 from eodal.config import get_settings
 from eodal.core.band import Band
-from eodal.core.raster import RasterCollection
-from eodal.core.scene import SceneProperties
+from eodal.core.raster import RasterCollection, SceneProperties
 from eodal.utils.decorators import prepare_point_features
 from eodal.utils.sentinel1 import get_S1_platform_from_safe, \
     get_S1_acquistion_time_from_safe, _url_to_safe_name, \

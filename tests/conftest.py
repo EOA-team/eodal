@@ -72,7 +72,7 @@ def get_s2_safe_l2a(get_project_root_path):
                     fd.write(chunk)
         
             # unzip dataset
-            unzip_datasets(download_dir=testdata_dir)
+            unzip_datasets(download_dir=testdata_dir, platform='S2')
             
         return testdata_fname
 
@@ -106,7 +106,7 @@ def get_s2_safe_l1c(get_project_root_path):
                     fd.write(chunk)
         
             # unzip dataset
-            unzip_datasets(download_dir=testdata_dir)
+            unzip_datasets(download_dir=testdata_dir, platform='S2')
             
         return testdata_fname
 
