@@ -38,7 +38,7 @@ from eodal.utils.exceptions import (
     DataNotFoundError
 )
 from eodal.metadata.sentinel2.utils import identify_updated_scenes
-from eodal.core.scene import SceneProperties
+from eodal.core.raster import SceneProperties
 
 settings = get_settings()
 logger = settings.logger
