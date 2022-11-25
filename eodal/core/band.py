@@ -498,6 +498,9 @@ class Band(object):
     def __lt__(self, other):
         return BandOperator.calc(a=self, other=other, operator="<")
 
+    def __repr__(self) -> str:
+        return f'EOdal Band\n---------.\nName:    {self.band_name}\nGeoInfo:    {self.geo_info}'
+
     @property
     def alias(self) -> Union[str, None]:
         """Alias of the band name (if available)"""
