@@ -660,8 +660,7 @@ class RasterCollection(MutableMapping):
         """
         Returns a copy of the current ``RasterCollection``
         """
-        attrs = deepcopy(self.__dict__)
-        return RasterCollection(**attrs)
+        return deepcopy(self)
 
     @classmethod
     def from_multi_band_raster(
