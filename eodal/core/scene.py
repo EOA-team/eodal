@@ -19,6 +19,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import datetime
 import dateutil.parser
 
 from collections.abc import MutableMapping
@@ -63,18 +64,84 @@ class SceneCollection(MutableMapping):
             scene = scene_constructor.__call__(*args, **kwargs)
             self.__setitem__(scene)
 
-    def __getitem__(self, key: str) -> RasterCollection:
-        if key in self.timestamps:
-            # most likely time stamps are passed as strings
-            if isinstance(key, str):
-                # we infer the format using dateutil
-                key = dateutil.parser.parse(key)
-            return self.collection[key]
-        elif key in self.identifiers:
-            scene_idx = self.identifiers.index(key)
-            return self.__getitem__(self.timestamps[scene_idx])
-        else:
-            raise SceneNotFoundError(f'Could not find a scene for key {key} in collection')
+    def __getitem__(self, key: str | slice) -> RasterCollection:
+
+        def _get_scene_from_key(key: str) -> RasterCollection:
+            if key in self.timestamps:
+                # most likely time stamps are passed as strings
+                if isinstance(key, str):
+                    # we infer the format using dateutil
+                    key = dateutil.parser.parse(key)
+                return self.__getitem__(key)
+            elif key in self.identifiers:
+                scene_idx = self.identifiers.index(key)
+                return self.__getitem__(self.timestamps[scene_idx])
+
+        # has a single key or slice been passed?
+        if isinstance(key, str):
+            try:
+                return _get_scene_from_key(key=key)
+            except IndexError:
+                raise SceneNotFoundError(
+                    f'Could not find a scene for key {key} in collection'
+                )
+
+        elif isinstance(key, slice):
+            # find the index of the start and the end of the slice
+            slice_start = key.start
+            slice_end = key.stop
+            # return an empty SceneCollection if start and stop is the same
+            # (numpy array behavior)
+            if slice_start is None and slice_end is None:
+                return SceneCollection()
+            # if start is None use the first scene
+            if slice_start is None:
+                if isinstance(slice_end, datetime.date):
+                    slice_start = self.timestamps[0].date()
+                else:
+                    if slice_end in self.identifiers:
+                        slice_start = self.identifiers[0]
+                    else:
+                        slice_start = self.timestamps[0]
+            # if end is None use the last scene
+            end_increment = 0
+            if slice_end is None:
+                if isinstance(slice_start, datetime.date):
+                    slice_end = self.timestamps[-1].date()
+                else:
+                    if slice_start in self.identifiers:
+                        slice_end = self.identifiers[-1]
+                    else:
+                        slice_end = self.timestamps[-1]
+                # to ensure that the :: operator works, we need to make
+                # sure the last band is also included in the slice
+                end_increment = 1
+            
+            if set([slice_start, slice_end]).issubset(set(self.timestamps)):
+                idx_start = self.timestamps.index(slice_start)
+                idx_end = self.timestamps.index(slice_end) + end_increment
+                scenes = self.timestamps
+            elif set([slice_start, slice_end]).issubset(set(self.identifiers)):
+                idx_start = self.identifiers.index(slice_start)
+                idx_end = self.identifiers.index(slice_end) + end_increment
+                scenes = self.identifiers
+            # allow selection by date range
+            elif isinstance(slice_start, datetime.date) and isinstance(slice_end, datetime.date):
+                out_scoll = SceneCollection()
+                for timestamp, scene in self:
+                    if slice_start <= timestamp < slice_end:
+                        out_scoll.add_scene(scene.copy())
+                return out_scoll
+            else:
+                raise SceneNotFoundError(f'Could not find scenes in {key}')
+            slice_step = key.step
+            if slice_step is None:
+                slice_step = 1
+            # get an empty SceneCollection for returning the slide
+            out_scoll = SceneCollection()
+            for idx in range(idx_start, idx_end, slice_step):
+                out_scoll.add_scene(_get_scene_from_key(key=scenes[idx]))
+            return out_scoll
 
     def __setitem__(self, item: RasterCollection):
         if not isinstance(item, RasterCollection):
