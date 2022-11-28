@@ -21,10 +21,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import datetime
 import dateutil.parser
+import geopandas as gpd
 import numpy as np
 
 from collections.abc import MutableMapping
 from copy import deepcopy
+from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 
 from eodal.core.raster import RasterCollection
@@ -330,7 +332,10 @@ class SceneCollection(MutableMapping):
     def dump(self):
         pass
 
-    def get_pixels(self):
+    def get_feature_timeseries(
+        self,
+        vector_features: Path | gpd.GeoDataFrame
+    ) -> gpd.GeoDataFrame:
         pass
 
     def load(self):
