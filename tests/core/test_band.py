@@ -376,3 +376,15 @@ def test_from_vector(get_polygons):
     assert band_from_points.values.dtype == 'uint32', 'wrong data type'
     assert band_from_points.reduce(method='max')['max'] == \
         point_gdf.GIS_ID.values.astype(int).max(), 'miss-match in band statistics'
+
+def test_clip_band(get_test_band):
+    """
+    test clipping a band by a rectangle (spatial sub-setting)
+    """
+    band = get_test_band()
+    # define a polygon to clip the band to
+    # first case: the polygon is smaller than the band and lies within its bounds
+    band_bounds = band.bounds
+    clip_bounds = band_bounds.buffer(-20)
+    band_clipped = band.clip(clipping_bounds=clip_bounds)
+    
