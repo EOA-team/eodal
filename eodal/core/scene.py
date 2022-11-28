@@ -21,10 +21,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import datetime
 import dateutil.parser
+import numpy as np
 
 from collections.abc import MutableMapping
 from copy import deepcopy
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Tuple
 
 from eodal.core.raster import RasterCollection
 from eodal.utils.exceptions import SceneNotFoundError
@@ -58,6 +59,7 @@ class SceneCollection(MutableMapping):
         self._frozen = False
         self.collection = dict()
         self._frozen = True
+        self._is_sorted = True
 
         self._identifiers = []
         if scene_constructor is not None:
@@ -67,12 +69,12 @@ class SceneCollection(MutableMapping):
     def __getitem__(self, key: str | slice) -> RasterCollection:
 
         def _get_scene_from_key(key: str) -> RasterCollection:
-            if key in self.timestamps:
+            if str(key) in self.timestamps:
                 # most likely time stamps are passed as strings
                 if isinstance(key, str):
                     # we infer the format using dateutil
                     key = dateutil.parser.parse(key)
-                return self.__getitem__(key)
+                return self.collection[key]
             elif key in self.identifiers:
                 scene_idx = self.identifiers.index(key)
                 return self.__getitem__(self.timestamps[scene_idx])
@@ -87,6 +89,8 @@ class SceneCollection(MutableMapping):
                 )
 
         elif isinstance(key, slice):
+            if not self.is_sorted:
+                raise ValueError('Slices are not permitted on unsorted SceneCollections')
             # find the index of the start and the end of the slice
             slice_start = key.start
             slice_end = key.stop
@@ -97,7 +101,7 @@ class SceneCollection(MutableMapping):
             # if start is None use the first scene
             if slice_start is None:
                 if isinstance(slice_end, datetime.date):
-                    slice_start = self.timestamps[0].date()
+                    slice_start = list(self.collection.keys())[0].date()
                 else:
                     if slice_end in self.identifiers:
                         slice_start = self.identifiers[0]
@@ -107,7 +111,7 @@ class SceneCollection(MutableMapping):
             end_increment = 0
             if slice_end is None:
                 if isinstance(slice_start, datetime.date):
-                    slice_end = self.timestamps[-1].date()
+                    slice_end = list(self.collection.keys())[-1].date()
                 else:
                     if slice_start in self.identifiers:
                         slice_end = self.identifiers[-1]
@@ -129,8 +133,12 @@ class SceneCollection(MutableMapping):
             elif isinstance(slice_start, datetime.date) and isinstance(slice_end, datetime.date):
                 out_scoll = SceneCollection()
                 for timestamp, scene in self:
-                    if slice_start <= timestamp < slice_end:
-                        out_scoll.add_scene(scene.copy())
+                    if end_increment == 0:
+                        if slice_start <= timestamp.date() < slice_end:
+                            out_scoll.add_scene(scene.copy())
+                    else:
+                        if slice_start <= timestamp.date() <= slice_end:
+                            out_scoll.add_scene(scene.copy())
                 return out_scoll
             else:
                 raise SceneNotFoundError(f'Could not find scenes in {key}')
@@ -150,9 +158,6 @@ class SceneCollection(MutableMapping):
             raise ValueError(
                 'Only RasterCollection with timestamps in their scene_properties can be passed'
             )
-        # use the scene uri as an alias if available
-        if hasattr(item.scene_properties, 'product_uri'):
-            self._identifiers.append(item.scene_properties.product_uri)
         # scenes are index by their acquisition time
         key = item.scene_properties.acquisition_time
         if key in self.collection.keys():
@@ -163,9 +168,18 @@ class SceneCollection(MutableMapping):
         # to the collection
         value = deepcopy(item)
         self.collection[key] = value
+        # last, use the scene uri as an alias if available
+        if hasattr(item.scene_properties, 'product_uri'):
+            self._identifiers.append(item.scene_properties.product_uri)
 
-    def __delitem__(self, key: str):
+    def __delitem__(self, key: str | datetime.datetime):
+        # get index of the scene to be deleted to also delete its identifier
+        idx = self.timestamps.index(str(key))
+        # casts strings back to datetime objects
+        if isinstance(key, str):
+            key = dateutil.parser.parse(key)
         del self.collection[key]
+        _ = self.identifiers.pop(idx)
 
     def __iter__(self):
         for k, v in self.collection.items():
@@ -182,6 +196,25 @@ class SceneCollection(MutableMapping):
                 f'# Scenes:    {len(self)}\nTimestamps:    {", ".join(self.timestamps)}\n' +  \
                 f'Scene Identifiers:    {", ".join(self.identifiers)}'
 
+    @staticmethod
+    def _sort_keys(
+        sort_direction: str,
+        raster_collections: List[RasterCollection] | Tuple[RasterCollection]
+    ) -> np.ndarray:
+        """
+        Returns sorted indices from a list/ tuple of RasterCollections.
+        """
+        # check sort_direction passed
+        if sort_direction not in ['asc', 'desc']:
+            raise ValueError('Sort direction must be one of: `asc`, `desc`')
+        # get timestamps of the scenes and use np.argsort to bring them into the desired order
+        timestamps = [x.scene_properties.acquisition_time for x in raster_collections]
+        if sort_direction == 'asc':
+            sort_idx = np.argsort(timestamps)
+        elif sort_direction == 'desc':
+            sort_idx = np.argsort(timestamps)[::-1]
+        return sort_idx
+
     @property
     def empty(self) -> bool:
         """Scene Collection is empty"""
@@ -197,9 +230,66 @@ class SceneCollection(MutableMapping):
         """list of scene identifiers"""
         return self._identifiers
 
-    def add_scene(
-        self, scene_constructor: Callable[...,RasterCollection] | RasterCollection, *args, **kwargs
+    @property
+    def is_sorted(self) -> bool:
+        """are the scenes sorted by their timstamps?"""
+        return self._is_sorted
+
+    @is_sorted.setter
+    def is_sorted(self, value: bool) -> None:
+        """are the scenes sorted by their timestamps?"""
+        if not type(value) == bool:
+            raise TypeError('Only boolean types are accepted')
+        self._is_sorted = value
+
+    @classmethod
+    def from_raster_collections(
+        cls,
+        raster_collections: List[RasterCollection] | Tuple[RasterCollection],
+        sort_scenes: Optional[bool] = True,
+        sort_direction: Optional[str] = 'asc'
     ):
+        """
+        Create a SceneCollection from a list/tuple of N RasterCollection objects.
+
+        :param raster_collections:
+            list or tuple of RasterCollections from which to create a new scene
+            collection.
+        :param sort_scenes:
+            if True (default) scenes are order in chronological order by their
+            acquisition time.
+        :param sort_direction:
+            direction of sorting. Must be either 'asc' (ascending) or 'desc'
+            (descending). Ignored if `sort_scenes` is False.
+        :returns:
+            SceneCollection instance
+        """
+        # check inputs
+        if not isinstance(raster_collections, list) and not isinstance(raster_collections, tuple):
+            raise TypeError(f'Can only handle lists or tuples of RasterCollections')
+        if not np.array([isinstance(x, RasterCollection) for x in raster_collections]).all():
+            raise TypeError(f'All items passed must be RasterCollection instances')
+        if not np.array([x.is_scene for x in raster_collections]).all():
+            raise TypeError(f'All items passed must have an acquisition timestamp')
+        # check if scenes shall be sorted
+        if sort_scenes:
+            sort_idx = cls._sort_keys(sort_direction, raster_collections)
+            is_sorted = True
+        else:
+            sort_idx = np.array([x for x in range(len(raster_collections))])
+            is_sorted = False
+        # open a SceneCollection instance and add the scenes
+        scoll = cls()
+        scoll.is_sorted = is_sorted
+        for idx in sort_idx:
+            scoll.add_scene(scene_constructor=raster_collections[idx].copy())
+        return scoll
+
+    def add_scene(
+        self,
+        scene_constructor: Callable[...,RasterCollection] | RasterCollection,
+        *args, **kwargs
+    ) -> None:
         """
         Adds a Scene to the collection of scenes.
 
@@ -225,12 +315,17 @@ class SceneCollection(MutableMapping):
         # try to add the scene to the SceneCollection
         try:
             self.__setitem__(scene)
+            
         except Exception as e:
             raise KeyError(f'Cannot add scene: {e}')
 
 
     def apply(self, func: Callable):
         pass
+
+    def copy(self):
+        """returns a true copy of the SceneCollection"""
+        return deepcopy(self)
 
     def dump(self):
         pass
@@ -243,6 +338,30 @@ class SceneCollection(MutableMapping):
 
     def plot(self):
         pass
+
+    def sort(
+        self,
+        sort_direction: Optional[str] = 'asc'
+    ):
+        """
+        Returns a sorted copy of the SceneCollection.
+
+        :param sort_direction:
+            direction of sorting. Must be either 'asc' (ascending) or 'desc'
+            (descending). Ignored if `sort_scenes` is False.
+        :returns:
+            sorted SceneCollection.
+        """
+        # empty SceneCollections cannot be sorted
+        if self.empty:
+            return self.copy()
+        # get a list of all scenes in the collection and sort them
+        scenes = [v for _, v in self]
+        sort_idx = self._sort_keys(sort_direction, raster_collections=scenes)
+        scoll = SceneCollection()
+        for idx in sort_idx:
+            scoll.add_scene(scenes[idx].copy())
+        return scoll
 
     def to_xarray(self):
         pass
