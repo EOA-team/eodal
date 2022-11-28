@@ -1124,6 +1124,36 @@ class Band(object):
         attrs = deepcopy(self.__dict__)
         return Band(**attrs)
 
+    def clip(
+        self,
+        clipping_bounds: Path | gpd.GeoDataFrame | Tuple[float,float,float,float]
+    ):
+        """
+        Clip a band object to a spatial extent.
+
+        :param clipping_bounds:
+            spatial bounds to clip the Band to. Only clipping to rectangular shapes
+            is supported. Can be either a vector file, a `GeoDataFrame` or a tuple
+            with (xmin, ymin, xmax, ymax). Vector files and `GeoDataFrame` are
+            reprojected into the bands' coordinate system if required, while the
+            coordinate tuple MUST be provided in the CRS of the band.
+        :returns:
+            clipped band instance.
+        """
+        if isinstance(clipping_bounds, Path):
+            clipping_bounds = gpd.read_file(clipping_bounds)
+        # check inputs
+        if isinstance(clipping_bounds, tuple):
+            if len(clipping_bounds) != 4:
+                raise ValueError('Expected four coordinates (xmin, ymin, xmax, ymax)')
+            xmin, ymin, xmax, ymax = clipping_bounds
+        elif isinstance(clipping_bounds, gpd.GeoDataFrame):
+            # get the bounding box of the FIRST feature
+            _clipping_bounds = clipping_bounds.copy()
+            _clipping_bounds = _clipping_bounds.bounds
+            xmin, ymin, xmax, ymax = list(clipping_bounds)
+        
+
     def get_attributes(self, **kwargs) -> Dict[str, Any]:
         """
         Returns raster data attributes in ``rasterio`` compatible way
