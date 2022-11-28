@@ -1126,17 +1126,18 @@ class Band(object):
 
     def clip(
         self,
-        clipping_bounds: Path | gpd.GeoDataFrame | Tuple[float,float,float,float]
+        clipping_bounds: Path | gpd.GeoDataFrame | Tuple[float,float,float,float] | Polygon
     ):
         """
         Clip a band object to a spatial extent.
 
         :param clipping_bounds:
             spatial bounds to clip the Band to. Only clipping to rectangular shapes
-            is supported. Can be either a vector file, a `GeoDataFrame` or a tuple
-            with (xmin, ymin, xmax, ymax). Vector files and `GeoDataFrame` are
-            reprojected into the bands' coordinate system if required, while the
-            coordinate tuple MUST be provided in the CRS of the band.
+            is supported. Can be either a vector file, a shapely `Polygon`, a
+            `GeoDataFrame` or a coordinate tuple with (xmin, ymin, xmax, ymax).
+            Vector files and `GeoDataFrame` are reprojected into the bands' coordinate
+            system if required, while the coordinate tuple and shapely geometry **MUST**
+            be provided in the CRS of the band.
         :returns:
             clipped band instance.
         """
@@ -1152,6 +1153,18 @@ class Band(object):
             _clipping_bounds = clipping_bounds.copy()
             _clipping_bounds = _clipping_bounds.bounds
             xmin, ymin, xmax, ymax = list(clipping_bounds)
+        elif isinstance(clipping_bounds, Polygon):
+            xmin, ymin, xmax, ymax = clipping_bounds.bounds
+        else:
+            raise TypeError(f'{type(clipping_bounds)} is not supported')
+        # actual clipping operation. Calculate the rows and columns where to clip
+        # the band
+        x_coords, y_coords = self.coordinates['x'],  self.coordinates['y']
+
+        if xmin > x_coords[0]:
+            min_col = np.argmin(abs(xmin - x_coords))
+        else:
+            xmin = x_coords[0]
         
 
     def get_attributes(self, **kwargs) -> Dict[str, Any]:
