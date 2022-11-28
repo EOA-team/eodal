@@ -615,7 +615,7 @@ class Band(object):
         of the raster band and extraction of centroid coordinates if
         the vector features are of type ``Polygon`` or ``MultiPolygon``
 
-        :param vector_features:
+        :param vector_features: 
             passed vector features to calling instance or class method
         :param fpath_raster:
             optional file path to the raster dataset. To be used when
@@ -1161,11 +1161,50 @@ class Band(object):
         # the band
         x_coords, y_coords = self.coordinates['x'],  self.coordinates['y']
 
+        # left column index
         if xmin > x_coords[0]:
             min_col = np.argmin(abs(xmin - x_coords))
         else:
-            xmin = x_coords[0]
-        
+            min_col = x_coords[0]
+        # right column index
+        if xmax < x_coords[-1]:
+            max_col = np.argmin(abs(xmax - x_coords))
+        else:
+            max_col = x_coords[-1]
+        # lower row index
+        if ymin > y_coords[0]:
+            min_row = np.argmin(abs(ymin - y_coords))
+        else:
+            min_row = y_coords[0]
+        # upper row index
+        if ymax < y_coords[-1]:
+            max_row = np.argmin(abs(ymax - y_coords))
+        else:
+            max_row = y_coords[-1]
+
+        # get attributes of the raster
+        attrs = self.get_attributes()
+        # get its GeoInfo and update it accordingly
+        geo_info = self.geo_info
+        new_geo_info = GeoInfo(
+            epsg=geo_info.epsg,
+            ulx=min_col,
+            uly=max_row,
+            pixres_x=geo_info.pixres_x,
+            pixres_y=geo_info.pixres_y
+        )
+        values = self.values.copy()
+        new_values = values[min_col:max_col+1, min_row:max_row+1]
+        attrs.update({
+            'geo_info': new_geo_info,
+            'values': new_values,
+            'band_name': self.band_name,
+            'band_alias': self.band_alias,
+            'wavelength_info': self.wavelength_info
+        })
+        # open a new Band instance and add the sliced array
+        out_band = Band(**attrs)
+        return out_band
 
     def get_attributes(self, **kwargs) -> Dict[str, Any]:
         """
