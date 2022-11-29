@@ -24,7 +24,7 @@ def test_ndarray_constructor():
 
     handler = RasterCollection()
     assert handler.empty, 'RasterCollection is not empty'
-    assert handler.scene_properties.acquisition_time == datetime.datetime(2999,1,1)
+    assert not handler.is_scene, 'empty RasterCollection cannot be a Scene'
     assert len(handler) == 0, 'there should not be any items so far'
     assert handler.is_bandstack() is None, 'cannot check for bandstack without bands'
 
@@ -78,7 +78,7 @@ def test_ndarray_constructor():
             values=zeros,
             geo_info=geo_info
         )
-
+    handler.scene_properties.acquisition_time = datetime.datetime.now()
     # mask the second band based on the first one
     masked = handler.mask(mask='random', mask_values=[0.15988288, 0.38599023])
     assert masked.band_names == handler.band_names, 'band names not passed on correctly'
