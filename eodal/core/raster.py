@@ -1615,6 +1615,12 @@ class RasterCollection(MutableMapping):
     def to_xarray(self, band_selection: Optional[List[str]] = None) -> xr.DataArray:
         """
         Converts bands in collection a ``xarray.DataArray``
+
+        :param band_selection:
+            selection of bands to process. If not provided uses all
+            bands
+        :returns:
+            `xarray.DataArray` created from RasterCollection.
         """
         if band_selection is None:
             band_selection = self.band_names
