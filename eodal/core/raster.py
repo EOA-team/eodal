@@ -936,6 +936,41 @@ class RasterCollection(MutableMapping):
             raise KeyError(f"Cannot add raster band: {e}")
 
     @check_band_names
+    def clip_bands(
+        self,
+        band_selection: Optional[List[str]] = None,
+        inplace: Optional[bool] = False,
+        **kwargs
+    ):
+        """
+        Clip bands in RasterCollection to a user-defined spatial bounds.
+        """
+        if band_selection is None:
+            band_selection = self.band_names
+        # loop over bands and try to subset them spatially
+        # initialize a new raster collection if inplace is False
+        collection = None
+        if inplace:
+            kwargs.update({'inplace': True})
+        if not inplace:
+            attrs = deepcopy(self.__dict__)
+            attrs.pop("_collection")
+            collection = RasterCollection(**attrs)
+
+        # loop over band reproject the selected ones
+        for band_name in band_selection:
+            if inplace:
+                self.collection[band_name].reproject(**kwargs)
+            else:
+                band = self.get_band(band_name)
+                collection.add_band(band_constructor=band.clip, **kwargs)
+
+        if not inplace:
+            return collection
+
+            if 
+
+    @check_band_names
     def plot_band(self, band_name: str, **kwargs) -> Figure:
         """
         Plots a band in the collection of raster bands.
