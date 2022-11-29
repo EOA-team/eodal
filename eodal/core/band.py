@@ -1127,7 +1127,8 @@ class Band(object):
 
     def clip(
         self,
-        clipping_bounds: Path | gpd.GeoDataFrame | Tuple[float,float,float,float] | Polygon
+        clipping_bounds: Path | gpd.GeoDataFrame | Tuple[float,float,float,float] | Polygon,
+        inplace: Optional[bool] = False
     ):
         """
         Clip a band object to a spatial extent.
@@ -1139,6 +1140,10 @@ class Band(object):
             Vector files and `GeoDataFrame` are reprojected into the bands' coordinate
             system if required, while the coordinate tuple and shapely geometry **MUST**
             be provided in the CRS of the band.
+        :param inplace:
+            if False (default) returns a copy of the ``Band`` instance
+            with the changes applied. If True overwrites the values
+            in the current instance.
         :returns:
             clipped band instance.
         """
@@ -1208,21 +1213,14 @@ class Band(object):
         )
         values = self.values.copy()
         new_values = values[min_row:max_row,min_col:max_col]
-        attrs = {
-            'geo_info': new_geo_info,
-            'values': new_values,
-            'band_name': self.band_name,
-            'band_alias': self.band_alias,
-            'wavelength_info': self.wavelength_info,
-            'nodata': self.nodata,
-            'scale': self.scale,
-            'offset': self.offset,
-            'unit': self.unit,
-            'is_tiled': self.is_tiled
-        }
-        # open a new Band instance and add the sliced array
-        out_band = Band(**attrs)
-        return out_band
+
+        if inplace:
+            object.__setattr__(self, "values", new_values)
+            object.__setattr__(self, "geo_info", new_geo_info)
+        else:
+            attrs = deepcopy(self.__dict__)
+            attrs.update({"values": new_values, "geo_info": new_geo_info})
+            return Band(**attrs)
 
     def get_attributes(self, **kwargs) -> Dict[str, Any]:
         """
