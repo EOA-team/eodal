@@ -387,4 +387,68 @@ def test_clip_band(get_test_band):
     band_bounds = band.bounds
     clip_bounds = band_bounds.buffer(-20)
     band_clipped = band.clip(clipping_bounds=clip_bounds)
-    
+    assert isinstance(band_clipped, Band), 'expected a band object'
+    assert band_clipped.band_name == band.band_name, 'band name not copied'
+    assert band_clipped.alias == band.alias, 'band alias not copied'
+    assert band_clipped.unit == band.unit, 'unit not copied'
+    assert band_clipped.scale == band.scale, 'scale not copied'
+    assert band_clipped.offset == band.offset, 'offset not copied'
+    assert band_clipped.transform != band.transform, 'the transformation must not be the same'
+    assert band_clipped.nrows < band.nrows, 'number of rows of clipped band must be smaller'
+    assert band_clipped.ncols < band.ncols, 'number of columns of clipped band must be smaller'
+    expected_shape = (
+        int(band.nrows - 4), #  -4 because of 20m inwards buffering (resolution is 10m)
+        int(band.ncols - 4) #  -4 because of 20m inwards buffering (resolution is 10m)
+    )
+    assert band_clipped.values.shape == expected_shape, 'wrong shape of clipped band'
+
+    # second case: clip to a polygon larger than the Band -> should return the same Band
+    clip_bounds = band.bounds.buffer(20)
+    band_clipped = band.clip(clip_bounds)
+    assert (band_clipped == band).values.all(), 'the bands must be the same'
+
+    # third case: bounding box outside the Band -> should raise an error
+    clip_bounds = (100, 100, 300, 300)
+    with pytest.raises(ValueError):
+        band_clipped = band.clip(clip_bounds)
+
+    # fourth case: bounding box is the same as the bounds of the Band
+    clip_bounds = band.bounds
+    band_clipped = band.clip(clip_bounds)
+    assert (band_clipped == band).values.all(), 'the bands must be the same'
+
+    # fifth case: bounding box partially overlaps the Band (different test cases)
+    band_bounds_xy = clip_bounds.exterior.xy
+    clip_bounds = (
+        min(band_bounds_xy[0]) - 100, # xmin
+        min(band_bounds_xy[1]) - 231, # ymin
+        max(band_bounds_xy[0]) - 44,  # xmax
+        max(band_bounds_xy[1]) - 85   # ymax
+    )
+    band_clipped = band.clip(clip_bounds)
+    assert band_clipped.nrows < band.nrows, 'number of rows must not be the same'
+    assert band_clipped.ncols < band.ncols, 'number of columns must not be the same'
+    # all rows should be the same but not the columns
+    clip_bounds = (
+        min(band_bounds_xy[0]) - 1000, # xmin
+        min(band_bounds_xy[1]), # ymin
+        max(band_bounds_xy[0]) - 1000,  # xmax
+        max(band_bounds_xy[1])   # ymax
+    )
+    band_clipped = band.clip(clip_bounds)
+    assert band_clipped.nrows == band.nrows, 'number of rows must be the same'
+    assert band_clipped.ncols < band.ncols, 'number of columns must not be the same'
+    assert band_clipped.geo_info.ulx == band.geo_info.ulx, 'upper left x should be the same'
+    assert band_clipped.geo_info.uly == band.geo_info.uly, 'upper left y should be the same'
+    # all columns should be the same but not the rows
+    clip_bounds = (
+        min(band_bounds_xy[0]), # xmin
+        min(band_bounds_xy[1]) - 2000, # ymin
+        max(band_bounds_xy[0]),  # xmax
+        max(band_bounds_xy[1]) - 2000  # ymax
+    )
+    band_clipped = band.clip(clip_bounds)
+    assert band_clipped.nrows < band.nrows, 'number of rows must not be the same'
+    assert band_clipped.ncols == band.ncols, 'number of columns must be the same'
+    assert band_clipped.geo_info.ulx == band.geo_info.ulx, 'upper left x should be the same'
+    assert band_clipped.geo_info.uly == band.geo_info.uly - 2000, 'wrong upper left y coordinate'
