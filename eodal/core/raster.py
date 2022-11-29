@@ -960,15 +960,13 @@ class RasterCollection(MutableMapping):
         # loop over band reproject the selected ones
         for band_name in band_selection:
             if inplace:
-                self.collection[band_name].reproject(**kwargs)
+                self.collection[band_name].clip(**kwargs)
             else:
                 band = self.get_band(band_name)
                 collection.add_band(band_constructor=band.clip, **kwargs)
 
         if not inplace:
             return collection
-
-            if 
 
     @check_band_names
     def plot_band(self, band_name: str, **kwargs) -> Figure:
