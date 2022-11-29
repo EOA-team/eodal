@@ -452,3 +452,11 @@ def test_clip_band(get_test_band):
     assert band_clipped.ncols == band.ncols, 'number of columns must be the same'
     assert band_clipped.geo_info.ulx == band.geo_info.ulx, 'upper left x should be the same'
     assert band_clipped.geo_info.uly == band.geo_info.uly - 2000, 'wrong upper left y coordinate'
+
+    # test with inplace == True
+    band_before_clip = band.copy()
+    band.clip(clip_bounds, inplace=True)
+    assert band_clipped.nrows < band_before_clip.nrows, 'number of rows must not be the same'
+    assert band_clipped.ncols == band_before_clip.ncols, 'number of columns must be the same'
+    assert band_clipped.geo_info.ulx == band_before_clip.geo_info.ulx, 'upper left x should be the same'
+    assert band_clipped.geo_info.uly == band_before_clip.geo_info.uly - 2000, 'wrong upper left y coordinate'
