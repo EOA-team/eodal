@@ -23,11 +23,12 @@ import datetime
 import dateutil.parser
 import geopandas as gpd
 import numpy as np
+import pandas as pd
+import xarray as xr
 
 from collections.abc import MutableMapping
 from copy import deepcopy
-from pathlib import Path
-from typing import Callable, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 from eodal.core.raster import RasterCollection
 from eodal.utils.exceptions import SceneNotFoundError
@@ -41,15 +42,19 @@ class SceneCollection(MutableMapping):
     def __init__(
         self,
         scene_constructor: Optional[Callable[..., RasterCollection]] = None,
+        indexed_by_timestamps: Optional[bool] = True,
         *args,
         **kwargs
     ):
         """
         Initializes a SceneCollection object with 0 to N scenes.
 
-         :param scene_constructor:
+        :param scene_constructor:
             optional callable returning an `~eodal.core.raster.RasterCollection`
             instance.
+        :param indexed_by_timestamps:
+            if True, all scene indices are interpreted as timestamps (`datetime.datetime`).
+            Set to False if scene indices should be treated as different data types
         :param args:
             arguments to pass to `scene_constructor` or one of RasterCollection's
             class methods (e.g., `RasterCollection.from_multi_band_raster`)
@@ -63,6 +68,8 @@ class SceneCollection(MutableMapping):
         self._frozen = True
         self._is_sorted = True
 
+        object.__setattr__(self, 'indexed_by_timestamps', indexed_by_timestamps)
+
         self._identifiers = []
         if scene_constructor is not None:
             scene = scene_constructor.__call__(*args, **kwargs)
@@ -70,19 +77,22 @@ class SceneCollection(MutableMapping):
 
     def __getitem__(self, key: str | slice) -> RasterCollection:
 
-        def _get_scene_from_key(key: str) -> RasterCollection:
-            if str(key) in self.timestamps:
-                # most likely time stamps are passed as strings
-                if isinstance(key, str):
+        def _get_scene_from_key(key: str | Any) -> RasterCollection:
+            if self.indexed_by_timestamps:
+                if str(key) in self.timestamps:
+                    # most likely time stamps are passed as strings
                     # we infer the format using dateutil
                     key = dateutil.parser.parse(key)
-                return self.collection[key]
-            elif key in self.identifiers:
+                    return self.collection[key]
+            else:
+                if key in self.timestamps:
+                    return self.collection[key]
+            if key in self.identifiers:
                 scene_idx = self.identifiers.index(key)
                 return self.__getitem__(self.timestamps[scene_idx])
 
         # has a single key or slice been passed?
-        if isinstance(key, str):
+        if not isinstance(key, slice):
             try:
                 return _get_scene_from_key(key=key)
             except IndexError:
@@ -90,7 +100,7 @@ class SceneCollection(MutableMapping):
                     f'Could not find a scene for key {key} in collection'
                 )
 
-        elif isinstance(key, slice):
+        else:
             if not self.is_sorted:
                 raise ValueError('Slices are not permitted on unsorted SceneCollections')
             # find the index of the start and the end of the slice
@@ -103,6 +113,10 @@ class SceneCollection(MutableMapping):
             # if start is None use the first scene
             if slice_start is None:
                 if isinstance(slice_end, datetime.date):
+                    if not self.indexed_by_timestamps:
+                        raise ValueError(
+                            'Cannot slice on timestamps when `indexed_by_timestamps` is False'
+                        )
                     slice_start = list(self.collection.keys())[0].date()
                 else:
                     if slice_end in self.identifiers:
@@ -113,6 +127,10 @@ class SceneCollection(MutableMapping):
             end_increment = 0
             if slice_end is None:
                 if isinstance(slice_start, datetime.date):
+                    if not self.indexed_by_timestamps:
+                        raise ValueError(
+                            'Cannot slice on timestamps when `indexed_by_timestamps` is False'
+                        )
                     slice_end = list(self.collection.keys())[-1].date()
                 else:
                     if slice_start in self.identifiers:
@@ -133,6 +151,10 @@ class SceneCollection(MutableMapping):
                 scenes = self.identifiers
             # allow selection by date range
             elif isinstance(slice_start, datetime.date) and isinstance(slice_end, datetime.date):
+                if not self.indexed_by_timestamps:
+                    raise ValueError(
+                        'Cannot slice on timestamps when `indexed_by_timestamps` is False'
+                    )
                 out_scoll = SceneCollection()
                 for timestamp, scene in self:
                     if end_increment == 0:
@@ -194,8 +216,12 @@ class SceneCollection(MutableMapping):
         if self.empty:
             return 'Empty EOdal SceneCollection'
         else:
+            if self.indexed_by_timestamps:  
+                timestamps = ', '.join(self.timestamps)
+            else:
+                timestamps = ', '.join([str(x) for x in self.timestamps])
             return f'EOdal SceneCollection\n----------------------\n' + \
-                f'# Scenes:    {len(self)}\nTimestamps:    {", ".join(self.timestamps)}\n' +  \
+                f'# Scenes:    {len(self)}\nTimestamps:    {timestamps}\n' +  \
                 f'Scene Identifiers:    {", ".join(self.identifiers)}'
 
     @staticmethod
@@ -223,9 +249,12 @@ class SceneCollection(MutableMapping):
         return len(self) == 0
 
     @property
-    def timestamps(self) -> List[str]:
+    def timestamps(self) -> List[str | Any]:
         """acquisition timestamps of scenes in collection"""
-        return [str(x) for x in list(self.collection.keys())]
+        if self.indexed_by_timestamps:
+            return [str(x) for x in list(self.collection.keys())]
+        else:
+            return list(self.collection.keys())
 
     @property
     def identifiers(self) -> List[str]:
@@ -249,7 +278,8 @@ class SceneCollection(MutableMapping):
         cls,
         raster_collections: List[RasterCollection] | Tuple[RasterCollection],
         sort_scenes: Optional[bool] = True,
-        sort_direction: Optional[str] = 'asc'
+        sort_direction: Optional[str] = 'asc',
+        **kwargs
     ):
         """
         Create a SceneCollection from a list/tuple of N RasterCollection objects.
@@ -263,6 +293,8 @@ class SceneCollection(MutableMapping):
         :param sort_direction:
             direction of sorting. Must be either 'asc' (ascending) or 'desc'
             (descending). Ignored if `sort_scenes` is False.
+        :param kwargs:
+            key word arguments to pass to `SceneCollection` constructor call.
         :returns:
             SceneCollection instance
         """
@@ -281,7 +313,7 @@ class SceneCollection(MutableMapping):
             sort_idx = np.array([x for x in range(len(raster_collections))])
             is_sorted = False
         # open a SceneCollection instance and add the scenes
-        scoll = cls()
+        scoll = cls(**kwargs)
         scoll.is_sorted = is_sorted
         for idx in sort_idx:
             scoll.add_scene(scene_constructor=raster_collections[idx].copy())
@@ -334,9 +366,23 @@ class SceneCollection(MutableMapping):
 
     def get_feature_timeseries(
         self,
-        vector_features: Path | gpd.GeoDataFrame
+        **kwargs
     ) -> gpd.GeoDataFrame:
-        pass
+        """
+        Get a time series for 1:N vector features from SceneCollection.
+
+        :param kwargs:
+            key word arguments to pass to `~RasterCollection.get_pixels()`.
+        :returns:
+            ``GeoDataFrame`` with extracted raster values per feature and time stamp
+        """
+        # loop over scenes in collection and get the feature values
+        gdf_list = []
+        for timestamp, scene in self:
+            _gdf = scene.get_pixels(**kwargs)
+            _gdf['acquisition_time'] = timestamp
+            gdf_list.append(_gdf)
+        return pd.concat(gdf_list)
 
     def load(self):
         pass
@@ -368,5 +414,21 @@ class SceneCollection(MutableMapping):
             scoll.add_scene(scenes[idx].copy())
         return scoll
 
-    def to_xarray(self):
-        pass
+    def to_xarray(self, **kwargs) -> xr.DataArray:
+        """
+        Converts all scenes in a SceneCollection to a single `xarray.DataArray`.
+
+        :param kwargs:
+            key word arguments to pass to `~RasterCollection.to_xarray`
+        :returns:
+            SceneCollection as `xarray.DataArray`
+        """
+        # loop over scenes in Collection and convert them to xarray.DataArray
+        xarray_list = []
+        for timestamp, scene in self:
+            _xr = scene.to_xarray(**kwargs)
+            # _xr = _xr.to_dataset()
+            _xr = _xr.expand_dims(time=[timestamp])
+            xarray_list.append(_xr)
+        # concatenate into a single xarray along the time dimension
+        return xr.concat(xarray_list, dim='time')
