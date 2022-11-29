@@ -159,5 +159,3 @@ def test_scene_collection_to_xarray(get_scene_collection):
     assert (xarr.time.values == scoll.timestamps).all(), 'wrong timestamps in DataArray'
     for idx in range(len(scoll)):
         assert (xarr.values[idx,:,:,:] == scoll[scoll.timestamps[idx]].get_values()).all(), 'wrong '
-    
-    
