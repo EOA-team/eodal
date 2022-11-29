@@ -8,14 +8,10 @@ import pytest
 import matplotlib.pyplot as plt
 import numpy as np
 
-from pathlib import Path
-
 from eodal.core.band import GeoInfo
 from eodal.core.band import Band
-from eodal.core.raster import SceneProperties
 from eodal.core.raster import RasterCollection
 from eodal.utils.exceptions import BandNotFoundError
-
 
 def test_ndarray_constructor():
     """
@@ -236,3 +232,26 @@ def test_resampling(datadir,get_bandstack):
     fpath_out = datadir.joinpath('test.jp2')
     resampled.to_rasterio(fpath_out)
     assert fpath_out.exists(), 'output-file not created'
+
+def test_clipping(get_bandstack):
+    """Spatial clipping (subsetting) of RasterCollections"""
+    fpath_raster = get_bandstack()
+    rcoll = RasterCollection.from_multi_band_raster(
+        fpath_raster=fpath_raster
+    )
+    # clip the collection to a Polygon buffered 100m inwards of the
+    # bounding box of the first band
+    clipping_bounds = rcoll[rcoll.band_names[0]].bounds.buffer(-100)
+    rcoll_clipped = rcoll.clip_bands(clipping_bounds=clipping_bounds)
+    assert isinstance(rcoll_clipped, RasterCollection), 'expected a RasterCollection'
+    assert rcoll_clipped[rcoll_clipped.band_names[0]].bounds != \
+        rcoll[rcoll.band_names[0]].bounds, 'band was not clipped'
+    # do the same inplace
+    rcoll.clip_bands(clipping_bounds=clipping_bounds, inplace=True)
+    assert rcoll_clipped[rcoll_clipped.band_names[0]].bounds == \
+        rcoll[rcoll.band_names[0]].bounds, 'band was not clipped'
+    # clipping outside the boundaries of the RasterCollection -> should throw an error
+    clipping_bounds = (0, 0, 100, 100)
+    with pytest.raises(ValueError):
+        rcoll.clip_bands(clipping_bounds=clipping_bounds, inplace=True)
+    
