@@ -72,6 +72,7 @@ from eodal.utils.exceptions import (
     ReprojectionError,
 )
 from eodal.utils.reprojection import reproject_raster_dataset, check_aoi_geoms
+from _ast import Or
 
 
 class BandOperator(Operator):
@@ -1160,48 +1161,65 @@ class Band(object):
         # actual clipping operation. Calculate the rows and columns where to clip
         # the band
         x_coords, y_coords = self.coordinates['x'],  self.coordinates['y']
-
+        # check for overlap first
+        clip_shape = Polygon(
+            zip(
+                np.arange(xmin, xmax, abs(self.geo_info.pixres_x)),
+                np.arange(ymin, ymax, abs(self.geo_info.pixres_y))
+            )
+        )
+        if not (clip_shape.overlaps(self.bounds) or self.bounds.covers(clip_shape)
+                or self.bounds.equals(clip_shape) or self.bounds.overlaps(clip_shape)
+            ):
+            raise ValueError(f'Clipping bounds do not overlap Band')
         # left column index
         if xmin > x_coords[0]:
             min_col = np.argmin(abs(xmin - x_coords))
+            ulx = x_coords[min_col]
         else:
-            min_col = x_coords[0]
+            min_col = 0
+            ulx = x_coords[0]
         # right column index
         if xmax < x_coords[-1]:
             max_col = np.argmin(abs(xmax - x_coords))
         else:
-            max_col = x_coords[-1]
-        # lower row index
-        if ymin > y_coords[0]:
-            min_row = np.argmin(abs(ymin - y_coords))
+            max_col = len(x_coords)
+        # lower row index (y coordinates are sorted descending!)
+        if ymin > y_coords[-1]:
+            min_row = np.argmin(abs(ymin - y_coords[::-1]))
         else:
-            min_row = y_coords[0]
+            min_row = 0
         # upper row index
-        if ymax < y_coords[-1]:
-            max_row = np.argmin(abs(ymax - y_coords))
+        if ymax < y_coords[0]:
+            max_row = np.argmin(abs(ymax - y_coords[::-1]))
+            uly = y_coords[::-1][max_row]
         else:
-            max_row = y_coords[-1]
+            max_row = len(y_coords)
+            uly = y_coords[0]
 
-        # get attributes of the raster
-        attrs = self.get_attributes()
         # get its GeoInfo and update it accordingly
         geo_info = self.geo_info
         new_geo_info = GeoInfo(
             epsg=geo_info.epsg,
-            ulx=min_col,
-            uly=max_row,
+            ulx=ulx,
+            uly=uly,
             pixres_x=geo_info.pixres_x,
             pixres_y=geo_info.pixres_y
         )
         values = self.values.copy()
-        new_values = values[min_col:max_col+1, min_row:max_row+1]
-        attrs.update({
+        new_values = values[min_row:max_row,min_col:max_col]
+        attrs = {
             'geo_info': new_geo_info,
             'values': new_values,
             'band_name': self.band_name,
             'band_alias': self.band_alias,
-            'wavelength_info': self.wavelength_info
-        })
+            'wavelength_info': self.wavelength_info,
+            'nodata': self.nodata,
+            'scale': self.scale,
+            'offset': self.offset,
+            'unit': self.unit,
+            'is_tiled': self.is_tiled
+        }
         # open a new Band instance and add the sliced array
         out_band = Band(**attrs)
         return out_band
