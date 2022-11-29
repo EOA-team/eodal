@@ -6,6 +6,7 @@ Created on Nov 24, 2022
 
 import pytest
 import datetime
+import xarray as xr
 
 from datetime import date
 
@@ -13,6 +14,7 @@ from eodal.core.band import Band
 from eodal.core.raster import RasterCollection
 from eodal.core.scene import SceneCollection
 from eodal.core.sensors import Sentinel2
+
 
 def test_raster_is_scene(get_bandstack):
     """test the is_scene attribute of RasterCollections"""
@@ -146,4 +148,16 @@ def test_scene_collection(get_s2_safe_l2a, get_polygons_2, get_bandstack):
     scoll_sorted_desc = scoll.sort(sort_direction='desc')
     assert scoll_sorted_desc.is_sorted, 'expected a sorted SceneCollection'
     assert scoll_sorted_desc.timestamps[-1] == str(test_time), 'expected a different timestamp'
+
+def test_scene_collection_to_xarray(get_scene_collection):
+    """convert SceneCollection to xarray"""
+    scoll = get_scene_collection()
+    xarr = scoll.to_xarray()
+    assert isinstance(scoll[1000], RasterCollection), 'expected a RasterCollection'
+    assert isinstance(xarr, xr.DataArray), 'expected a DataArray'
+    assert len(xarr) == len(scoll), 'wrong length of DataArray'
+    assert (xarr.time.values == scoll.timestamps).all(), 'wrong timestamps in DataArray'
+    for idx in range(len(scoll)):
+        assert (xarr.values[idx,:,:,:] == scoll[scoll.timestamps[idx]].get_values()).all(), 'wrong '
+    
     
