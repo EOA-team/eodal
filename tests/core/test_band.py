@@ -158,18 +158,18 @@ def test_bandstatistics(get_test_band):
     # get band statistics
     stats = band.reduce(method=['mean', 'min', 'max'])
     mean_stats = band.reduce(method='mean')
-    assert mean_stats['mean'] == stats['mean'], 'miss-match of metrics'
-    assert stats['min'] == band.values.min(), 'minimum not calculated correctly'
-    assert stats['max'] == band.values.max(), 'maximum not calculated correctly'
+    assert mean_stats[0]['mean'] == stats[0]['mean'], 'miss-match of metrics'
+    assert stats[0]['min'] == band.values.min(), 'minimum not calculated correctly'
+    assert stats[0]['max'] == band.values.max(), 'maximum not calculated correctly'
 
     # convert to GeoDataFrame
     gdf = band.to_dataframe()
     assert (gdf.geometry.type == 'Point').all(), 'wrong geometry type'
     assert set(gdf.columns) == {'geometry', 'B02'}, 'wrong column labels'
     assert gdf.shape[0] == 29674, 'wrong number of pixels converted'
-    assert gdf.B02.max() == stats['max'], 'band statistics not the same after conversion'
-    assert gdf.B02.min() == stats['min'], 'band statistics not the same after conversion'
-    assert gdf.B02.mean() == stats['mean'], 'band statistics not the same after conversion'
+    assert gdf.B02.max() == stats[0]['max'], 'band statistics not the same after conversion'
+    assert gdf.B02.min() == stats[0]['min'], 'band statistics not the same after conversion'
+    assert gdf.B02.mean() == stats[0]['mean'], 'band statistics not the same after conversion'
 
 def test_to_xarray(get_test_band):
     band = get_test_band()
@@ -374,7 +374,7 @@ def test_from_vector(get_polygons):
         dtype_src='uint32'
     )
     assert band_from_points.values.dtype == 'uint32', 'wrong data type'
-    assert band_from_points.reduce(method='max')['max'] == \
+    assert band_from_points.reduce(method='max')[0]['max'] == \
         point_gdf.GIS_ID.values.astype(int).max(), 'miss-match in band statistics'
 
 def test_clip_band(get_test_band):
@@ -460,3 +460,13 @@ def test_clip_band(get_test_band):
     assert band_clipped.ncols == band_before_clip.ncols, 'number of columns must be the same'
     assert band_clipped.geo_info.ulx == band_before_clip.geo_info.ulx, 'upper left x should be the same'
     assert band_clipped.geo_info.uly == band_before_clip.geo_info.uly - 2000, 'wrong upper left y coordinate'
+
+def test_reduce_band_by_polygons(get_polygons, get_test_band):
+    """reduction of band raster values by polygons"""
+    # test reduction by external features
+    polys = get_polygons()
+    band = get_test_band()
+    method = ['mean', 'median', 'max']
+    poly_stats = band.reduce(method=method, by=polys)
+    assert len(poly_stats) == gpd.read_file(polys).shape[0], 'wrong number of polygons returned'
+    assert list(poly_stats[0].keys()) == method, 'expected different naming of results'
