@@ -1908,7 +1908,7 @@ class Band(object):
         :param by:
             define optional vector features by which to reduce the band. By passing
             `'self'` the method uses the features with which the band was read, otherwise
-            specify a file-path to vector features or provide a GeoDataFrame
+            specify a file-path to vector features or provide a GeoDataFrame.
         :returns:
             list of dictionaries with scalar results per feature
         """
@@ -1988,8 +1988,9 @@ class Band(object):
                 vals = self.values.copy()
                 # cast array to float to set masked arrays to NaN; then we can call np.nan-something
                 # and force rasterstats to return the correct values
-                vals = vals.astype(float)
-                vals = vals.filled(np.nan)
+                if self.is_masked_array:
+                    vals = vals.astype(float)
+                    vals = vals.filled(np.nan)
                 # unfortunately, rasterstats always calculates some default statistcs. We therefore
                 # trick it by calling only the count method and delete the result afterwards
                 # Also, there seems to be a bug in rasterstats preventing more than a single
@@ -2008,6 +2009,11 @@ class Band(object):
                 for odx, operator in enumerate(method):
                     feature_stats[operator] = stats_operator_list[odx][idx][operator]
                 stats.append(feature_stats)
+
+        # save the geometries and all other attributes of the feature(s) used
+        for idx in range(features.shape[0]):
+            stats[idx].update(features.iloc[idx].to_dict())
+            stats[idx].update({'crs': features.crs})
         return stats
 
     def scale_data(
