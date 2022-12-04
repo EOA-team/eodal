@@ -469,7 +469,8 @@ def test_reduce_band_by_polygons(get_polygons, get_test_band):
     method = ['mean', 'median', 'max']
     poly_stats = band.reduce(method=method, by=polys)
     assert len(poly_stats) == gpd.read_file(polys).shape[0], 'wrong number of polygons returned'
-    assert list(poly_stats[0].keys()) == method, 'expected different naming of results'
+    assert set(method).issubset(poly_stats[0].keys()), 'expected different naming of results'
+    assert 'geometry' in poly_stats[0].keys(), 'geometry attribute was lost'
 
     # reduce by a limited number of polygons
     polys_reduced = gpd.read_file(polys).iloc[0:10]
