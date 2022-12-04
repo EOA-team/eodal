@@ -80,6 +80,7 @@ import zarr
 
 from collections.abc import MutableMapping
 from copy import deepcopy
+from itertools import chain
 from matplotlib.axes import Axes
 from matplotlib.pyplot import Figure
 from numbers import Number
@@ -1199,26 +1200,42 @@ class RasterCollection(MutableMapping):
         self,
         band_selection: Optional[List[str]] = None,
         methods: Optional[List[str]] = ["nanmin", "nanmean", "nanstd", "nanmax"],
-    ) -> pd.DataFrame:
+        **kwargs
+    ) -> gpd.GeoDataFrame:
         """
-        Descriptive band statistics
+        Descriptive band statistics by calling `Band.reduce` for bands in a collection.
 
         :param band_selection:
             selection of bands to process. If not provided uses all
             bands
         :param methods:
             descriptive metrics to compute for each band
+        :param kwargs:
+            optional keyword arguments to pass to `~eodal.core.band.Band.reduce`. Use
+            `by` to get descriptive statistics by selected geometry features (e.g.,
+            single polygons).
         :returns:
-            ``DataFrame`` with descriptive statistics for all bands selected
+            ``GeoDataFrame`` with descriptive statistics for all bands selected and geometry
+            features passed (optional)
         """
         stats = []
         if band_selection is None:
             band_selection = self.band_names
         for band_name in band_selection:
-            band_stats = self[band_name].reduce(method=methods)
-            band_stats["band_name"] = band_name
+            band_stats = self[band_name].reduce(method=methods, **kwargs)
+            # band_stats is a list of 1:N entries (one per feature on which reduce
+            # was called); we add the band name as attribute
+            for idx in range(len(band_stats)):
+                band_stats[idx].update({'band_name': band_name})
             stats.append(band_stats)
-        return pd.DataFrame(stats)
+        # since the geometry information was passed on, a GeoDataFrame can be returned
+        df = pd.DataFrame(list(chain(*stats)))
+        gdf = gpd.GeoDataFrame(df, geometry=df['geometry'], crs=df['crs'].iloc[0])
+        # cast columns to float; otherwise pandas throws an error:
+        # TypeError: unhashable type: 'MaskedConstant'
+        gdf[methods] = gdf[methods].astype(float)
+        gdf.drop(columns=['crs'], inplace=True)
+        return gdf
 
     @check_band_names
     def reproject(
@@ -1458,6 +1475,7 @@ class RasterCollection(MutableMapping):
         Spatial join of one ``RasterCollection`` instance with another
         instance
         """
+        pass
 
     def calc_si(
         self, si_name: str, inplace: Optional[bool] = False
