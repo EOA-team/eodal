@@ -270,4 +270,8 @@ def test_band_summaries(get_bandstack, get_polygons):
     assert 'band_name' in band_stats.columns, 'expected the band name as column'
     assert band_stats.crs == rcoll[rcoll.band_names[0]].crs, 'mis-match of CRS'
 
+    # get statistics of complete RasterCollection
+    band_stats_all = rcoll.band_summaries()
+    assert isinstance(band_stats, gpd.GeoDataFrame), 'expected a GeoDataFrame'
+    assert band_stats_all.shape[0] == len(rcoll), 'wrong number of items in statistics'
     
