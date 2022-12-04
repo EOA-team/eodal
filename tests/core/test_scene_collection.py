@@ -6,15 +6,40 @@ Created on Nov 24, 2022
 
 import pytest
 import datetime
+import geopandas as gpd
+import random
 import xarray as xr
 
 from datetime import date
+from shapely.geometry import Point, Polygon
+from typing import List
 
 from eodal.core.band import Band
 from eodal.core.raster import RasterCollection
 from eodal.core.scene import SceneCollection
 from eodal.core.sensors import Sentinel2
 
+@pytest.fixture()
+def generate_random_points():
+    def _generate_random(number: int, polygon: Polygon) -> List[Point]:
+        """
+        Generates random points within a polygon
+    
+        :param number:
+            number of random points to create
+        :param polygon:
+            polygon within to sample the points
+        :returns:
+            list of randomly sampled points within the polygon bounds
+        """
+        points = []
+        minx, miny, maxx, maxy = polygon.bounds
+        while len(points) < number:
+            pnt = Point(random.uniform(minx, maxx), random.uniform(miny, maxy))
+            if polygon.contains(pnt):
+                points.append(pnt)
+        return points
+    return _generate_random
 
 def test_raster_is_scene(get_bandstack):
     """test the is_scene attribute of RasterCollections"""
@@ -159,3 +184,18 @@ def test_scene_collection_to_xarray(get_scene_collection):
     assert (xarr.time.values == scoll.timestamps).all(), 'wrong timestamps in DataArray'
     for idx in range(len(scoll)):
         assert (xarr.values[idx,:,:,:] == scoll[scoll.timestamps[idx]].get_values()).all(), 'wrong '
+
+def test_scene_collection_time_series(get_scene_collection, generate_random_points):
+    """time series extraction from scene collection"""
+    scoll = get_scene_collection()
+    # sample pixels randomly distributed within the scene collection's spatial extent
+    bounds = scoll[1000]['B02'].bounds
+    crs = scoll[1000]['B02'].crs
+    # get 20 random points for which to extract the time series
+    random_points = generate_random_points(20, bounds)
+    random_points_gdf = gpd.GeoDataFrame(geometry=random_points, crs=crs)
+    points_ts = scoll.get_feature_timeseries(vector_features=random_points_gdf)
+    assert isinstance(points_ts, gpd.GeoDataFrame), 'expected a GeoDataFrame'
+    assert 'acquisition_time' in points_ts.columns, 'missing time column'
+    assert points_ts.shape == (60, 12), 'wrong shape of returned GeoDataFrame object'
+    
