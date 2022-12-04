@@ -366,11 +366,16 @@ class SceneCollection(MutableMapping):
 
     def get_feature_timeseries(
         self,
+        reindex_dataframe: Optional[bool] = False,
         **kwargs
     ) -> gpd.GeoDataFrame:
         """
         Get a time series for 1:N vector features from SceneCollection.
 
+        :param reindex_dataframe:
+            boolean flag whether to reindex the resulting GeoDataFrame after extracting
+            data from all scenes. Set to `True` to ensure that the returned GeoDataFrame
+            has a unique index. `False` by default.
         :param kwargs:
             key word arguments to pass to `~RasterCollection.get_pixels()`.
         :returns:
@@ -382,7 +387,14 @@ class SceneCollection(MutableMapping):
             _gdf = scene.get_pixels(**kwargs)
             _gdf['acquisition_time'] = timestamp
             gdf_list.append(_gdf)
-        return pd.concat(gdf_list)
+        # reindex the resulting GeoDataFrame if required
+        if reindex_dataframe:
+            gdf = pd.concat(gdf_list)
+            # reindexing is done by counting the features starting from zero
+            gdf.index = [x for x in range(gdf.shape[0])]
+            return gdf
+        else:
+            return pd.concat(gdf_list)
 
     def load(self):
         pass
