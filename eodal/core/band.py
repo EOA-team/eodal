@@ -44,21 +44,15 @@ from matplotlib.figure import figaspect
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from numbers import Number
 from pathlib import Path
-from rasterio import Affine
-from rasterio import features
+from rasterio import Affine, features
 from rasterio.coords import BoundingBox
 from rasterio.crs import CRS
 from rasterio.drivers import driver_from_extension
 from rasterio.enums import Resampling
-from shapely.geometry import box
-from shapely.geometry import Point
-from shapely.geometry import Polygon
-from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
+from rasterstats import zonal_stats
+from rasterstats.utils import check_stats
+from shapely.geometry import box, Point, Polygon
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from eodal.core.operators import Operator
 from eodal.core.utils.geometry import check_geometry_types
@@ -72,8 +66,6 @@ from eodal.utils.exceptions import (
     ReprojectionError,
 )
 from eodal.utils.reprojection import reproject_raster_dataset, check_aoi_geoms
-from _ast import Or
-
 
 class BandOperator(Operator):
     """
@@ -1906,28 +1898,44 @@ class Band(object):
     def reduce(
         self,
         method: Union[str, List[str]],
-        by: Optional[Union[Path, gpd.GeoDataFrame]] = None,
-        method_args: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Union[int, float]]:
+        by: Optional[Path | gpd.GeoDataFrame | str] = None,
+    ) -> List[Dict[str, int | float]]:
         """
-        Reduces the raster data to scalar values.
+        Reduces the raster data to scalar values by calling `rasterstats`.
+
+        The reduction can be done on the whole band or by using vector features.
 
         :param method:
             any ``numpy`` function taking a two-dimensional array as input
             and returning a single scalar. Can be a single function name
             (e.g., "mean") or a list of function names (e.g., ["mean", "median"])
         :param by:
-            define by what to reduce the band values (not implemented yet!!)
-        :param method_args:
-            optional dictionary with arguments to pass to the single methods in
-            case the reducer method requires extra arguments to function properly
-            (e.g., `np.quantile`)
+            define optional vector features by which to reduce the band. By passing
+            `'self'` the method uses the features with which the band was read, otherwise
+            specify a file-path to vector features or provide a GeoDataFrame
         :returns:
-            a dictionary with scalar results
+            list of dictionaries with scalar results per feature
         """
+        # check by what features the Band should be reduced spatially
+        # if `by` is None use the full spatial extent of the band
+        if by is None:
+            features = gpd.GeoDataFrame(geometry=[self.bounds], crs=self.crs)
+        else:
+            if by == 'self':
+                features = self.features
+            elif isinstance(by, Path):
+                features = gpd.read_file(by)
+            elif isinstance(by, gpd.GeoDataFrame):
+                features = by.copy()
+            else:
+                raise TypeError(
+                    f'by expected "self", Path and GeoDataFrame objects - got {type(by)} instead'
+                )
+        # check if features has the same CRS as the band. Reproject features if required
+        if not features.crs == self.crs:
+            features.to_crs(crs=self.crs, inplace=True)
 
-        # TODO: implement reduce by vector features
-
+        # check method string passed
         if isinstance(method, str):
             method = [method]
 
@@ -1939,27 +1947,68 @@ class Band(object):
         elif self.is_zarr:
             raise NotImplemented()
 
-        # compute statistics
-        stats = {}
-        for operator in method:
-            # formulate numpy expression
-            expression = f"{numpy_prefix}.{operator}"
-            # numpy.ma has some different function names to consider
-            if operator.startswith("nan"):
-                expression = f"{numpy_prefix}.{operator[3::]}"
-            elif operator.endswith("nonzero"):
-                expression = f"{numpy_prefix}.count"
-            try:
-                # get function object and use its __call__ method
-                numpy_function = eval(expression)
-                # check if there are any function arguments
-                args = []
-                if method_args is not None:
-                    args = method_args.get(method, None)
-                stats[operator] = numpy_function.__call__(self.values, *args)
-            except TypeError:
-                raise Exception(f"Unknown function name for {numpy_prefix}: {operator}")
-
+        # compute statistics by calling rasterstats. rasterstats needs the
+        # Affine transformation matrix to work on numpy arrays
+        affine = self.geo_info.as_affine()
+        # check if the passed methods are all within the default list supported
+        # by rasterstats. If not a ValueError is raised meaning we have to define
+        # these metrics as additional statistics.
+        # When the array is masked we also have to define custom functions
+        default_stats = True
+        try:
+            check_stats(stats=method, categorical=False)
+        except ValueError:
+            default_stats = False
+        # default rasterstats call
+        if default_stats and not self.is_masked_array:
+            stats = zonal_stats(features, self.values, affine=affine, stats=method)
+        else:
+            stats_operator_list = []
+            # loop over operators in method list and make them rasterstats compatible
+            for operator in method:
+                expression = f"{numpy_prefix}.{operator}"
+                # When the array is masked, we have to set masked arrays to NaN
+                _operator = operator
+                if self.is_masked_array:
+                    _operator = 'nan' + operator
+                # numpy.ma has some different function names to consider
+                if operator.startswith("nan"):
+                    expression = f"{numpy_prefix}.{_operator[3::]}"
+                elif operator.endswith("nonzero"):
+                    expression = f"{numpy_prefix}.count"
+                
+                def _fun_prototype(x: np.ndarray | np.ma.MaskedArray):
+                    """
+                    a function prototype to by-pass custom numpy functions
+                    to rasterstats
+                    """
+                    return eval(f'{expression}(x)')
+                add_stats = {operator: deepcopy(_fun_prototype)}
+                # work-around for masked arrays (unfortunately, rasterstats works not that
+                # nicely)
+                vals = self.values.copy()
+                # cast array to float to set masked arrays to NaN; then we can call np.nan-something
+                # and force rasterstats to return the correct values
+                vals = vals.astype(float)
+                vals = vals.filled(np.nan)
+                # unfortunately, rasterstats always calculates some default statistcs. We therefore
+                # trick it by calling only the count method and delete the result afterwards
+                # Also, there seems to be a bug in rasterstats preventing more than a single
+                # operator to be passed in add_stats (otherwise the values are returned are wrong)
+                stats = zonal_stats(
+                    features, vals, affine=affine, stats='count', add_stats=add_stats
+                )
+                # delete the count entry
+                for item in stats:
+                    del item['count']
+                stats_operator_list.append(stats)
+            # combine the list of stats into a format consistent with the standard zonal_stats call
+            stats = []
+            for idx in range(features.shape[0]):
+                feature_stats = {}
+                for odx, operator in enumerate(method):
+                    feature_stats[operator] = stats_operator_list[odx][idx][operator]
+                stats.append(feature_stats)
         return stats
 
     def scale_data(
