@@ -525,17 +525,6 @@ class Band(object):
         return CRS.from_epsg(self.geo_info.epsg)
 
     @property
-    def features(self) -> None | gpd.GeoDataFrame:
-        """vector features used for reading or reducing band data"""
-        return self.vector_features
-
-    @features.setter
-    def features(self, features: Optional[gpd.GeoDataFrame]):
-        """set vector features for reducing band data"""
-        self._check_vector_features(vector_features=features)
-        object.__setattr__(self, "vector_features", features)
-
-    @property
     def has_alias(self) -> bool:
         """Checks if a color name can be used for aliasing"""
         return self.band_alias != ""
@@ -591,6 +580,8 @@ class Band(object):
         Asserts that passed GeoDataFrame has a CRS
         """
         if vector_features is not None:
+            if isinstance(vector_features, Path):
+                vector_features = gpd.read_file(vector_features)
             if vector_features.crs is None:
                 raise ValueError(
                     f'Cannot handle vector features without spatial coordinate reference system'
@@ -802,6 +793,11 @@ class Band(object):
             nodata, nodata_vals = None, attrs.get("nodatavals", None)
             if nodata_vals is not None:
                 nodata = nodata_vals[band_idx - 1]
+
+        if masking:
+            # make sure to set the EPSG code
+            gdf_aoi.set_crs(epsg=epsg, inplace=True)
+            kwargs.update({'vector_features': gdf_aoi})
 
         # is_tiled can only be retrived from the raster attribs
         is_tiled = attrs.get("is_tiled", 0)
@@ -1921,12 +1917,15 @@ class Band(object):
         if by is None:
             features = gpd.GeoDataFrame(geometry=[self.bounds], crs=self.crs)
         else:
-            if by == 'self':
-                features = self.features
+            if isinstance(by, str):
+                if by == 'self':
+                    features = deepcopy(self.vector_features)
+                else:
+                    raise ValueError('When passing a string you must pass `self`')
             elif isinstance(by, Path):
                 features = gpd.read_file(by)
             elif isinstance(by, gpd.GeoDataFrame):
-                features = by.copy()
+                features = deepcopy(by)
             else:
                 raise TypeError(
                     f'by expected "self", Path and GeoDataFrame objects - got {type(by)} instead'
