@@ -470,3 +470,18 @@ def test_reduce_band_by_polygons(get_polygons, get_test_band):
     poly_stats = band.reduce(method=method, by=polys)
     assert len(poly_stats) == gpd.read_file(polys).shape[0], 'wrong number of polygons returned'
     assert list(poly_stats[0].keys()) == method, 'expected different naming of results'
+
+    # reduce by a limited number of polygons
+    polys_reduced = gpd.read_file(polys).iloc[0:10]
+    poly_stats_reduced = band.reduce(method=method, by=polys_reduced)
+    assert len(poly_stats_reduced) == polys_reduced.shape[0], 'wrong number of polygons returned'
+    assert poly_stats_reduced == poly_stats[0:10], 'wrong order of results'
+
+    # reduce by passing the "self" keyword (features must be set)
+    poly_stats_self = band.reduce(method=method, by='self')
+    assert len(poly_stats_self) == band.vector_features.shape[0], 'wrong number of polygons'
+    assert poly_stats_self == poly_stats, 'both approaches should return exactly the same'
+
+    # call reduce without passing "by" -> should return a single result
+    all_stats = band.reduce(method=method)
+    assert len(all_stats) == 1, 'there must not be more than a single result'
