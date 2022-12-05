@@ -185,7 +185,7 @@ def test_scene_collection_to_xarray(get_scene_collection):
     for idx in range(len(scoll)):
         assert (xarr.values[idx,:,:,:] == scoll[scoll.timestamps[idx]].get_values()).all(), 'wrong '
 
-def test_scene_collection_time_series(get_scene_collection, generate_random_points):
+def test_scene_collection_time_series(get_scene_collection, generate_random_points, get_polygons):
     """time series extraction from scene collection"""
     scoll = get_scene_collection()
     # sample pixels randomly distributed within the scene collection's spatial extent
@@ -198,4 +198,9 @@ def test_scene_collection_time_series(get_scene_collection, generate_random_poin
     assert isinstance(points_ts, gpd.GeoDataFrame), 'expected a GeoDataFrame'
     assert 'acquisition_time' in points_ts.columns, 'missing time column'
     assert points_ts.shape == (60, 12), 'wrong shape of returned GeoDataFrame object'
-    
+
+    # test time series extraction using polygons and custom statistics
+    methods = ['nanmedian', 'nanmin']
+    polys = get_polygons()
+    polygons_ts = scoll.get_feature_timeseries(vector_features=polys, method=methods)
+    # TODO: find out why nanmedian contains NaNs but nanmin not
