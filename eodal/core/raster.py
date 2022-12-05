@@ -1199,7 +1199,6 @@ class RasterCollection(MutableMapping):
     def band_summaries(
         self,
         band_selection: Optional[List[str]] = None,
-        methods: Optional[List[str]] = ["nanmin", "nanmean", "nanstd", "nanmax"],
         **kwargs
     ) -> gpd.GeoDataFrame:
         """
@@ -1208,8 +1207,6 @@ class RasterCollection(MutableMapping):
         :param band_selection:
             selection of bands to process. If not provided uses all
             bands
-        :param methods:
-            descriptive metrics to compute for each band
         :param kwargs:
             optional keyword arguments to pass to `~eodal.core.band.Band.reduce`. Use
             `by` to get descriptive statistics by selected geometry features (e.g.,
@@ -1222,7 +1219,7 @@ class RasterCollection(MutableMapping):
         if band_selection is None:
             band_selection = self.band_names
         for band_name in band_selection:
-            band_stats = self[band_name].reduce(method=methods, **kwargs)
+            band_stats = self[band_name].reduce(**kwargs)
             # band_stats is a list of 1:N entries (one per feature on which reduce
             # was called); we add the band name as attribute
             for idx in range(len(band_stats)):
@@ -1233,6 +1230,7 @@ class RasterCollection(MutableMapping):
         gdf = gpd.GeoDataFrame(df, geometry=df['geometry'], crs=df['crs'].iloc[0])
         # cast columns to float; otherwise pandas throws an error:
         # TypeError: unhashable type: 'MaskedConstant'
+        methods = kwargs.get('method', ["nanmin", "nanmean", "nanstd", "nanmax"])
         gdf[methods] = gdf[methods].astype(float)
         gdf.drop(columns=['crs'], inplace=True)
         return gdf
