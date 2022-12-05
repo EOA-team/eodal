@@ -28,6 +28,7 @@ import xarray as xr
 
 from collections.abc import MutableMapping
 from copy import deepcopy
+from pathlib import Path
 from typing import Any, Callable, List, Optional, Tuple
 
 from eodal.core.raster import RasterCollection
@@ -366,25 +367,56 @@ class SceneCollection(MutableMapping):
 
     def get_feature_timeseries(
         self,
+        vector_features: Path | gpd.GeoDataFrame | str,
         reindex_dataframe: Optional[bool] = False,
         **kwargs
     ) -> gpd.GeoDataFrame:
         """
         Get a time series for 1:N vector features from SceneCollection.
 
+        :param vector_features:
+            vector features for which to extract time series data. If `Point` geometries
+            are provided calls `~RasterCollection.get_pixels()` on all scenes in the
+            collection. If `Polygon` (or `MultiPolygons`) are provided, calls
+            `~RasterCollection.band_summaries()` on all scenes in the collection.
         :param reindex_dataframe:
             boolean flag whether to reindex the resulting GeoDataFrame after extracting
             data from all scenes. Set to `True` to ensure that the returned GeoDataFrame
             has a unique index. `False` by default.
         :param kwargs:
-            key word arguments to pass to `~RasterCollection.get_pixels()`.
+            key word arguments to pass to `~RasterCollection.get_pixels()` or
+            `~RasterCollection.band_summaries()` depending on the type of the input geometries.
         :returns:
             ``GeoDataFrame`` with extracted raster values per feature and time stamp
         """
+        # check spatial datatypes
+        if not isinstance(vector_features, str):
+            if isinstance(vector_features, Path):
+                gdf = gpd.read_file(vector_features)
+            elif isinstance(vector_features, gpd.GeoDataFrame):
+                gdf = vector_features.copy()
+            else:
+                raise ValueError('Can only handle pathlibo objects, GeoDataFrames or "self"')
+            if set(gdf.geometry.geom_type.unique()).issubset(set(['Point', 'MulitPoint'])):
+                pixels = True
+            elif set(gdf.geometry.geom_type.unique()).issubset(set(['Polygon', 'MultiPolygon'])):
+                pixels = False
+            else:
+                raise ValueError('Can only handle (Multi)Point or (Multi)Polygon geometries')
+        else:
+            if vector_features == 'self':
+                gdf = 'self'
+                pixels = False
+            else:
+                raise ValueError('When passing a string only "self" is permitted')
+
         # loop over scenes in collection and get the feature values
         gdf_list = []
         for timestamp, scene in self:
-            _gdf = scene.get_pixels(**kwargs)
+            if pixels:
+                _gdf = scene.get_pixels(vector_features=gdf, **kwargs)
+            else:
+                _gdf = scene.band_summaries(by=gdf, **kwargs)
             _gdf['acquisition_time'] = timestamp
             gdf_list.append(_gdf)
         # reindex the resulting GeoDataFrame if required
