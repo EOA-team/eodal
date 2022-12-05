@@ -10,7 +10,7 @@ The format is based on `Keep a Changelog`_, and this project adheres to `Semanti
 
 Categories for changes are: Added, Changed, Deprecated, Removed, Fixed, Security.
 
-Version `0.0.2 < https://github.com/EOA-team/eodal/releases/tag/v0.1.0>`__
+Version `0.1.0 < https://github.com/EOA-team/eodal/releases/tag/v0.1.0>`__
 --------------------------------------------------------------------------------
 
 Release date: YYYY-MM-DD
@@ -19,6 +19,7 @@ Release date: YYYY-MM-DD
 - Added: RasterCollection now have a "apply" method allowing to pass custom functions to RasterCollection objects
 - Added: RasterCollection now supports numpy-array like slicing using band names or band aliases
 - Added: Band and RasterCollection objects now support clipping to rectangular bounds (i.e., spatial sub-setting)
+- Changed: Band.reduce() and RasterCollection.band_summaries() now support creating statistics per Polygon features
 - Added: SceneCollections are collections of 0 to N Scenes (RasterCollection + timestamp) and allow to store multiple Scenes over time
 
 
