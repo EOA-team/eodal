@@ -210,3 +210,12 @@ def test_scene_collection_time_series(get_scene_collection, generate_random_poin
     assert polygons_ts.iloc[1]['median'] == \
         scoll[1000]['B02'].reduce(by=polygons_ts.iloc[1].geometry, method='median')[0]['median'], \
             'values are not the same'
+
+def test_dump_and_load(get_scene_collection):
+    """dumping and loading SceneCollections to and from disk"""
+    scoll = get_scene_collection()
+    scoll_dumped = scoll.to_pickle()
+    assert isinstance(scoll_dumped, bytes), 'expected a binary oject'
+    scoll_reloaded = SceneCollection.from_pickle(scoll_dumped)
+    assert scoll_reloaded.collection == scoll.collection, 'data in collection should be the same'
+    assert scoll_reloaded.identifiers == scoll.identifiers, 'lost identifiers'
