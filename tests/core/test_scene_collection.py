@@ -202,6 +202,9 @@ def test_scene_collection_time_series(get_scene_collection, generate_random_poin
     # test time series extraction using polygons and custom statistics
     methods = ['median', 'min']
     polys = get_polygons()
+    # make sure there's an error raised when numpy nan functions are passed
+    with pytest.raises(ValueError):
+        scoll.get_feature_timeseries(vector_features=polys, method=['nanmedian'])
     polygons_ts = scoll.get_feature_timeseries(vector_features=polys, method=methods)
     assert isinstance(polygons_ts, gpd.GeoDataFrame), 'expected a GeoDataFrame'
     assert polygons_ts.iloc[1]['median'] == \
