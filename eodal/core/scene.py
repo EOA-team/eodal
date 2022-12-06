@@ -282,16 +282,24 @@ class SceneCollection(MutableMapping):
         self._is_sorted = value
 
     @classmethod
-    def from_pickle(cls, stream: bytes):
+    def from_pickle(cls, stream: bytes | Path):
         """
         Load SceneCollection from pickled binary stream.
 
         :param stream:
-            pickled binary stream to load into a SceneCollection.
+            pickled binary stream to load into a SceneCollection or
+            file-path to pickled binary on disk.
         :returns:
             `SceneCollection` instance.
         """
-        reloaded = pickle.loads(stream)
+        if isinstance(stream, Path):
+            with open(stream, 'rb') as f:
+                reloaded = pickle.load(f)
+        elif isinstance(stream, bytes):
+            reloaded = pickle.loads(stream)
+        else:
+            raise TypeError(f'{type(stream)} is not a supported data type')
+        # open empty scene collection and add scenes one by one
         scoll_out = cls()
         for _, scene in reloaded['collection'].items():
             scoll_out.add_scene(scene)
