@@ -51,7 +51,7 @@ from rasterio.drivers import driver_from_extension
 from rasterio.enums import Resampling
 from rasterstats import zonal_stats
 from rasterstats.utils import check_stats
-from shapely.geometry import box, Point, Polygon
+from shapely.geometry import box, MultiPolygon, Point, Polygon
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from eodal.core.operators import Operator
@@ -1893,18 +1893,25 @@ class Band(object):
 
     def reduce(
         self,
-        method: Union[str, List[str]],
-        by: Optional[Path | gpd.GeoDataFrame | str] = None,
+        method: Optional[str | List[str]] = ['min', 'mean', 'std', 'max', 'count'],
+        by: Optional[Path | gpd.GeoDataFrame | Polygon | str] = None,
     ) -> List[Dict[str, int | float]]:
         """
         Reduces the raster data to scalar values by calling `rasterstats`.
 
         The reduction can be done on the whole band or by using vector features.
 
+        IMPORTANT:
+            NaNs in the data are handled by `rasterstats` internally. Therefore, passing
+            numpy nan-functions (e.g., `nanmedian`) is **NOT** necessary and users are
+            **discouraged** from doing so as passing `nanmedian` will ignore existing
+            masks.
+
         :param method:
             any ``numpy`` function taking a two-dimensional array as input
             and returning a single scalar. Can be a single function name
-            (e.g., "mean") or a list of function names (e.g., ["mean", "median"])
+            (e.g., "mean") or a list of function names (e.g., ["mean", "median"]).
+            By default ['min', 'mean', 'std', 'max', 'count'] are returned.
         :param by:
             define optional vector features by which to reduce the band. By passing
             `'self'` the method uses the features with which the band was read, otherwise
@@ -1926,9 +1933,12 @@ class Band(object):
                 features = gpd.read_file(by)
             elif isinstance(by, gpd.GeoDataFrame):
                 features = deepcopy(by)
+            elif (isinstance(by, Polygon) or isinstance(by, MultiPolygon)):
+                features = gpd.GeoDataFrame(geometry=[by], crs=self.crs)
             else:
                 raise TypeError(
-                    f'by expected "self", Path and GeoDataFrame objects - got {type(by)} instead'
+                    'by expected "self", Path, (Multi)Polygon and GeoDataFrame ' + \
+                    f'objects - got {type(by)} instead'
                 )
         # check if features has the same CRS as the band. Reproject features if required
         if not features.crs == self.crs:
@@ -1965,13 +1975,19 @@ class Band(object):
             stats_operator_list = []
             # loop over operators in method list and make them rasterstats compatible
             for operator in method:
+                # check if operator stats with 'nan' -> this is discouraged to avoid
+                # errors in rasterstats as rasterstats checks for NaNs internally
+                if operator.startswith('nan'):
+                    raise ValueError(
+                        'The usage of numpy-nan functions is discouraged and therefore raises an error.' + \
+                        '\nThe handling of NaNs is done by `rasterstats` internally and therefore does not' + \
+                        '\n need to be specified. Please pass operators by their standard numpy names (e.g., "mean")'
+                    )
                 expression = f"{numpy_prefix}.{operator}"
                 # When the array is masked, we have to set masked arrays to NaN
-                _operator = operator
                 if self.is_masked_array:
+                    _operator = operator
                     _operator = 'nan' + operator
-                # numpy.ma has some different function names to consider
-                if operator.startswith("nan"):
                     expression = f"{numpy_prefix}.{_operator[3::]}"
                 elif operator.endswith("nonzero"):
                     expression = f"{numpy_prefix}.count"
@@ -1996,11 +2012,8 @@ class Band(object):
                 # Also, there seems to be a bug in rasterstats preventing more than a single
                 # operator to be passed in add_stats (otherwise the values are returned are wrong)
                 stats = zonal_stats(
-                    features, vals, affine=affine, stats='count', add_stats=add_stats
+                    features, vals, affine=affine, stats='median', add_stats=add_stats
                 )
-                # delete the count entry
-                for item in stats:
-                    del item['count']
                 stats_operator_list.append(stats)
             # combine the list of stats into a format consistent with the standard zonal_stats call
             stats = []
