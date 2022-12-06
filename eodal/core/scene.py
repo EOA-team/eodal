@@ -24,6 +24,7 @@ import dateutil.parser
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import pickle
 import xarray as xr
 
 from collections.abc import MutableMapping
@@ -176,6 +177,9 @@ class SceneCollection(MutableMapping):
                 out_scoll.add_scene(_get_scene_from_key(key=scenes[idx]))
             return out_scoll
 
+    def __getstate__(self):
+        return self.__dict__.copy()
+
     def __setitem__(self, item: RasterCollection):
         if not isinstance(item, RasterCollection):
             raise TypeError("Only RasterCollection objects can be passed")
@@ -196,6 +200,9 @@ class SceneCollection(MutableMapping):
         # last, use the scene uri as an alias if available
         if hasattr(item.scene_properties, 'product_uri'):
             self._identifiers.append(item.scene_properties.product_uri)
+
+    def __setstate__(self, d):
+        self.collection = d
 
     def __delitem__(self, key: str | datetime.datetime):
         # get index of the scene to be deleted to also delete its identifier
@@ -275,6 +282,22 @@ class SceneCollection(MutableMapping):
         self._is_sorted = value
 
     @classmethod
+    def from_pickle(cls, stream: bytes):
+        """
+        Load SceneCollection from pickled binary stream.
+
+        :param stream:
+            pickled binary stream to load into a SceneCollection.
+        :returns:
+            `SceneCollection` instance.
+        """
+        reloaded = pickle.loads(stream)
+        scoll_out = cls()
+        for _, scene in reloaded['collection'].items():
+            scoll_out.add_scene(scene)
+        return scoll_out
+
+    @classmethod
     def from_raster_collections(
         cls,
         raster_collections: List[RasterCollection] | Tuple[RasterCollection],
@@ -350,20 +373,40 @@ class SceneCollection(MutableMapping):
         # try to add the scene to the SceneCollection
         try:
             self.__setitem__(scene)
-            
         except Exception as e:
             raise KeyError(f'Cannot add scene: {e}')
 
+    def apply(self, func: Callable, *args, **kwargs) -> Any:
+        """
+        Apply a custom function to a SceneCollection.
 
-    def apply(self, func: Callable):
-        pass
+        :param func:
+            custom callable taking the ``SceneCollection`` as first
+            argument
+        :param args:
+            optional arguments to pass to `func`
+        :param kwargs:
+            optional keyword arguments to pass to `func`
+        :returns:
+            results of `func`
+        """
+        try:
+            return func.__call__(self, *args, **kwargs)
+        except Exception as e:
+            raise ValueError from e
 
     def copy(self):
         """returns a true copy of the SceneCollection"""
         return deepcopy(self)
 
-    def dump(self):
-        pass
+    def to_pickle(self) -> bytes:
+        """
+        Dumps a scene collection as pickled object
+
+        :returns:
+            pickled binary object
+        """
+        return pickle.dumps(self.__dict__.copy())
 
     def get_feature_timeseries(
         self,
@@ -427,12 +470,6 @@ class SceneCollection(MutableMapping):
             return gdf
         else:
             return pd.concat(gdf_list)
-
-    def load(self):
-        pass
-
-    def plot(self):
-        pass
 
     def sort(
         self,
