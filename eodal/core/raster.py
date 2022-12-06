@@ -1230,7 +1230,7 @@ class RasterCollection(MutableMapping):
         gdf = gpd.GeoDataFrame(df, geometry=df['geometry'], crs=df['crs'].iloc[0])
         # cast columns to float; otherwise pandas throws an error:
         # TypeError: unhashable type: 'MaskedConstant'
-        methods = kwargs.get('method', ["nanmin", "nanmean", "nanstd", "nanmax"])
+        methods = kwargs.get('method', ['min', 'mean', 'std', 'max', 'count'])
         gdf[methods] = gdf[methods].astype(float)
         gdf.drop(columns=['crs'], inplace=True)
         return gdf
