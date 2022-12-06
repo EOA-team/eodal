@@ -252,7 +252,7 @@ class RasterOperator(Operator):
     def calc(
         cls,
         a,
-        other: Union[Band, Number, np.ndarray],
+        other: Band | Number | np.ndarray,
         operator: str,
         inplace: Optional[bool] = False,
         band_selection: Optional[List[str]] = None,
@@ -263,8 +263,8 @@ class RasterOperator(Operator):
         :param a:
             `RasterCollection` object with values (non-empty)
         :param other:
-            `Band` object, scalar,  or 3-dimensional `numpy.array` to use on the
-            right-hand side of the operator. If a `numpy.array` is passed the array
+            `Band` object, scalar, 3-dimensional `numpy.array`, or RasterCollection to use
+            on the right-hand side of the operator. If a `numpy.array` is passed the array
             must have either shape `(1,nrows,ncols)` or `(nband,nrows,ncols)`
             where `nrows` is the number of rows in `a`, ncols the number of columns
             in `a` and `nbands` the number of bands in a or the selection thereof.
@@ -312,24 +312,31 @@ class RasterOperator(Operator):
         elif isinstance(other, RasterCollection):
             _other = other.copy()
             _other = other.get_values(band_selection=band_selection)
-            # other_is_raster = True
+        elif (isinstance(other, int) or isinstance(other, float)):
+            _other = other
+        else:
+            raise TypeError(f'{type(other)} is not supported')
+
         # perform the operation
         try:
-            expr = f"a.get_values(band_selection) {operator} other"
+            expr = f"a.get_values(band_selection) {operator} _other"
             res = eval(expr)
         except Exception as e:
             raise cls.BandMathError(f"Could not execute {expr}: {e}")
         # return result or overwrite band data
-        if inplace:
-            if band_selection is None:
-                band_selection = a.band_names()
-            for idx, band_name in enumerate(band_selection):
-                object.__setattr__(cls.collection[band_name], "values", res[idx, :, :])
-        else:
-            # TODO: return a new RasterCollection instance
-            # TODO: think about multiple slices
-            raise NotImplementedError()
-
+        if band_selection is None:
+            band_selection = a.band_names
+        if not inplace:
+            rcoll_out = RasterCollection()
+        for idx, band_name in enumerate(band_selection):
+            if inplace:
+                object.__setattr__(a.collection[band_name], "values", res[idx,:,:])
+            else:
+                attrs = a.collection[band_name].__dict__
+                attrs.update({'values': res[idx,:,:]})
+                rcoll_out.add_band(band_constructor=Band, **attrs)
+        if not inplace:
+            return rcoll_out
 
 class RasterCollection(MutableMapping):
     """
