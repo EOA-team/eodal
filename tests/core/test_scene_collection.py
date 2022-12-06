@@ -200,7 +200,10 @@ def test_scene_collection_time_series(get_scene_collection, generate_random_poin
     assert points_ts.shape == (60, 12), 'wrong shape of returned GeoDataFrame object'
 
     # test time series extraction using polygons and custom statistics
-    methods = ['nanmedian', 'nanmin']
+    methods = ['median', 'min']
     polys = get_polygons()
     polygons_ts = scoll.get_feature_timeseries(vector_features=polys, method=methods)
-    # TODO: find out why nanmedian contains NaNs but nanmin not
+    assert isinstance(polygons_ts, gpd.GeoDataFrame), 'expected a GeoDataFrame'
+    assert polygons_ts.iloc[1]['median'] == \
+        scoll[1000]['B02'].reduce(by=polygons_ts.iloc[1].geometry, method='median')[0]['median'], \
+            'values are not the same'
