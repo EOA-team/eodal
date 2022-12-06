@@ -21,6 +21,8 @@ Release date: YYYY-MM-DD
 - Added: Band and RasterCollection objects now support clipping to rectangular bounds (i.e., spatial sub-setting)
 - Changed: Band.reduce() and RasterCollection.band_summaries() now support creating statistics per Polygon features
 - Added: SceneCollections are collections of 0 to N Scenes (RasterCollection + timestamp) and allow to store multiple Scenes over time
+- Fixed: Map algebra now also works on RasterCollection supporting multiple cases (i.e., RasterCollection with other RasterCollection, scaler, etc.)
+- Added: SceneCollection objects can be saved as pickled objects and loaded from pickled binary objects to make SceneCollections persistent
 
 
 Version `0.0.1 < https://github.com/EOA-team/eodal/releases/tag/v0.0.1>`__
