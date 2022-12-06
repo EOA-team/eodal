@@ -211,11 +211,20 @@ def test_scene_collection_time_series(get_scene_collection, generate_random_poin
         scoll[1000]['B02'].reduce(by=polygons_ts.iloc[1].geometry, method='median')[0]['median'], \
             'values are not the same'
 
-def test_dump_and_load(get_scene_collection):
-    """dumping and loading SceneCollections to and from disk"""
+def test_dump_and_load(get_scene_collection, datadir):
+    """dumping and loading SceneCollections to and from disk as pickled objects"""
     scoll = get_scene_collection()
     scoll_dumped = scoll.to_pickle()
     assert isinstance(scoll_dumped, bytes), 'expected a binary oject'
     scoll_reloaded = SceneCollection.from_pickle(scoll_dumped)
     assert scoll_reloaded.collection == scoll.collection, 'data in collection should be the same'
     assert scoll_reloaded.identifiers == scoll.identifiers, 'lost identifiers'
+
+    # check saving to file and reading from it again
+    fpath = datadir.joinpath('scene_collection.pkl')
+    with open(fpath, 'wb') as f:
+        f.write(scoll_dumped)
+
+    scoll_reloaded_from_file = SceneCollection.from_pickle(fpath)
+    assert scoll_reloaded_from_file.collection == scoll.collection, \
+        'data in collection should be the same'
