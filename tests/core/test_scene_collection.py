@@ -7,6 +7,7 @@ Created on Nov 24, 2022
 import pytest
 import datetime
 import geopandas as gpd
+import matplotlib.pyplot as plt
 import random
 import xarray as xr
 
@@ -228,3 +229,13 @@ def test_dump_and_load(get_scene_collection, datadir):
     scoll_reloaded_from_file = SceneCollection.from_pickle(fpath)
     assert scoll_reloaded_from_file.collection == scoll.collection, \
         'data in collection should be the same'
+
+def test_plot_scene_collection(get_scene_collection):
+    """plot scenes in collection"""
+    scoll = get_scene_collection()
+    # plot multiple bands
+    f = scoll.plot(band_selection=['B02', 'B04', 'B05'])
+    assert isinstance(f, plt.Figure), 'expected a matplotlib figure'
+    # plot single band
+    f = scoll.plot(band_selection=['B8A'], eodal_plot_kwargs={'colormap': 'viridis'})
+    assert isinstance(f, plt.Figure), 'expected a matplotlib figure'
