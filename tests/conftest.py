@@ -234,7 +234,7 @@ def get_polygons_3(get_project_root_path):
         
         testdata_dir = get_project_root_path.joinpath('data')
         testdata_polys = testdata_dir.joinpath(
-            Path('sample_polygons').joinpath('western_switzerland.gpkg')
+            Path('sample_polygons').joinpath('lake_lucerne.gpkg')
         )
         return testdata_polys
     return _get_polygons
