@@ -266,7 +266,7 @@ def test_band_summaries(get_bandstack, get_polygons):
     polys = get_polygons()
     band_stats = rcoll.band_summaries(by=polys)
     assert isinstance(band_stats, gpd.GeoDataFrame), 'expected a GeoDataFrame'
-    assert 'nanmean' in band_stats.columns, 'expected the mean value'
+    assert 'mean' in band_stats.columns, 'expected the mean value'
     assert 'band_name' in band_stats.columns, 'expected the band name as column'
     assert band_stats.crs == rcoll[rcoll.band_names[0]].crs, 'mis-match of CRS'
 
