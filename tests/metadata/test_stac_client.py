@@ -22,7 +22,7 @@ def test_mspc_sentinel1(get_polygons):
     res_s1 = sentinel1(
         date_start=date_start,
         date_end=date_end,
-        vector_features=polys
+        bounding_box=polys
     )
 
     assert not res_s1.empty, 'no mapper found'
@@ -35,7 +35,7 @@ def test_mspc_sentinel1(get_polygons):
     res_grd_s1 = sentinel1(
         date_start=date_start,
         date_end=date_end,
-        vector_features=polys,
+        bounding_box=polys,
         collection='sentinel-1-grd'
     )
 
@@ -65,7 +65,7 @@ def test_mspc_sentinel2(get_polygons):
         date_end=date_end,
         processing_level=processing_level,
         cloud_cover_threshold=cloud_cover_threshold,
-        vector_features=polys,
+        bounding_box=polys
     )
     assert not res_s2.empty, 'no results found'
     assert 'assets' in res_s2.columns, 'no assets provided'
