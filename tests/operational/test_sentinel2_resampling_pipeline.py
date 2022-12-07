@@ -3,8 +3,13 @@ import cv2
 import pytest
 import rasterio as rio
 
+from eodal.config import get_settings
 from eodal.core.sensors import Sentinel2
 from eodal.operational.resampling.sentinel2 import resample_and_stack_s2
+
+# testing with local files requires USE_STAC to be set to False
+settings = get_settings()
+settings.USE_STAC = False
 
 @pytest.mark.parametrize('interpolation_method', [(cv2.INTER_CUBIC), (cv2.INTER_NEAREST_EXACT)])
 def test_resample_and_stack_s2(datadir, get_s2_safe_l2a, interpolation_method):
