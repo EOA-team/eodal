@@ -22,6 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import datetime
 import dateutil.parser
 import geopandas as gpd
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pickle
@@ -30,7 +31,7 @@ import xarray as xr
 from collections.abc import MutableMapping
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from eodal.core.raster import RasterCollection
 from eodal.utils.exceptions import SceneNotFoundError
@@ -407,15 +408,6 @@ class SceneCollection(MutableMapping):
         """returns a true copy of the SceneCollection"""
         return deepcopy(self)
 
-    def to_pickle(self) -> bytes:
-        """
-        Dumps a scene collection as pickled object
-
-        :returns:
-            pickled binary object
-        """
-        return pickle.dumps(self.__dict__.copy())
-
     def get_feature_timeseries(
         self,
         vector_features: Path | gpd.GeoDataFrame | str,
@@ -479,6 +471,98 @@ class SceneCollection(MutableMapping):
         else:
             return pd.concat(gdf_list)
 
+    def plot(
+        self,
+        band_selection: str | List[str],
+        max_scenes_in_row: Optional[int] = 6,
+        eodal_plot_kwargs: Optional[Dict] = {},
+        **kwargs
+    ) -> plt.Figure:
+        """
+        Plots scenes in a `SceneCollection`
+
+        :param band_selection:
+            selection of band(s) to use for plotting. Must be either a single
+            band or a set of three bands
+        :param max_scenes_in_row:
+            number of scenes in a row. Set to 6 by default.
+        :param eodal_plot_kwargs:
+            optional keyword arguments to pass on to `eodal.core.band.Band.plot()`
+        :param kwargs:
+            optional keyword arguments to pass to `matplotlib.subplots()`.
+        :returns:
+            `Figure` object
+        """
+        # check number of passed bands
+        if isinstance(band_selection, str):
+            band_selection = [band_selection]
+        if not len(band_selection) == 1 and not len(band_selection) == 3:
+            raise ValueError('You must pass a single band name or three band names')
+
+        plot_multiple_bands = True
+        if len(band_selection) == 1:
+            plot_multiple_bands = False
+
+        # check number of mapper in feature_scenes and determine figure size
+        n_scenes = len(self)
+        nrows = 1
+        ncols = 1
+        if self.empty:
+            raise ValueError('No scenes available for plotting')
+        elif n_scenes == 1:
+            f, ax = plt.subplots(**kwargs)
+            # cast to array to allow indexing
+            ax = np.array([ax]).reshape(1,1)
+        else:
+            if n_scenes <= max_scenes_in_row:
+                ncols = n_scenes
+                f, ax = plt.subplots(ncols=ncols, nrows=nrows, **kwargs)
+                # reshape to match the shape of ax array with >1 rows
+                ax = ax.reshape(1, ax.size)
+            else:
+                nrows = int(np.ceil(n_scenes / max_scenes_in_row))
+                ncols = max_scenes_in_row
+                f, ax = plt.subplots(ncols=ncols, nrows=nrows, **kwargs)
+        # get scene labels
+        scene_labels = list(self.collection.keys())
+
+        row_idx, col_idx = 0, 0
+        idx = 0
+        for idx, _scene in enumerate(self):
+            scene = _scene[1]
+            if plot_multiple_bands:
+                scene.plot_multiple_bands(
+                    band_selection=band_selection,
+                    ax=ax[row_idx, col_idx],
+                    **eodal_plot_kwargs
+                )
+            else:
+                scene[band_selection[0]].plot(
+                    ax=ax[row_idx, col_idx],
+                    **eodal_plot_kwargs
+                )
+            ax[row_idx, col_idx].set_title(scene_labels[idx])
+            idx += 1
+
+            # switch off axes labels if sharex == True and sharey=True
+            if kwargs.get('sharex', False) and kwargs.get('sharey', False) \
+            and n_scenes > 1:
+                if nrows > 1:
+                    if row_idx < (nrows - 1): ax[row_idx, col_idx].set_xlabel('')
+                if nrows > 1:
+                    if col_idx > 0: ax[row_idx, col_idx].set_ylabel('')
+
+            # increase column (and row) counter accordingly
+            col_idx += 1
+            # begin a new row when all columns are filled
+            if col_idx == max_scenes_in_row:
+                col_idx = 0
+                row_idx += 1
+
+        # make sure sub-plot labels do not overlap
+        f.tight_layout()
+        return f
+
     def sort(
         self,
         sort_direction: Optional[str] = 'asc'
@@ -502,6 +586,15 @@ class SceneCollection(MutableMapping):
         for idx in sort_idx:
             scoll.add_scene(scenes[idx].copy())
         return scoll
+
+    def to_pickle(self) -> bytes:
+        """
+        Dumps a scene collection as pickled object
+
+        :returns:
+            pickled binary object
+        """
+        return pickle.dumps(self.__dict__.copy())
 
     def to_xarray(self, **kwargs) -> xr.DataArray:
         """
