@@ -482,6 +482,9 @@ class Band(object):
     def __mul__(self, other):
         return BandOperator.calc(a=self, other=other, operator="*")
 
+    def __ne__(self, other):
+        return BandOperator.calc(a=self, other=other, operator="!=")
+
     def __eq__(self, other):
         return BandOperator.calc(a=self, other=other, operator="==")
 
