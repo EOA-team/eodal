@@ -20,7 +20,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import geopandas as gpd
 import json
 
-from shapely.geometry import box, Polygon
+from copy import deepcopy
+from shapely.geometry import box, Point, Polygon
 
 def box_to_geojson(gdf: gpd.GeoDataFrame | Polygon) -> str:
     """
@@ -34,10 +35,11 @@ def box_to_geojson(gdf: gpd.GeoDataFrame | Polygon) -> str:
     """
     # GeoJSON should be in geographic coordinates
     if isinstance(gdf, gpd.GeoDataFrame):
+        _gdf = deepcopy(gdf)
         gdf_wgs84 = gdf.to_crs(epsg=4326)
         bbox = gdf_wgs84.total_bounds
         bbox_poly = box(*bbox)
-    elif isinstance(gdf, Polygon):
-        bbox_poly = gdf
+    elif (isinstance(gdf, Polygon) or isinstance(gdf, Point)):
+        bbox_poly = deepcopy(gdf)
     bbox_json = gpd.GeoSeries([bbox_poly]).to_json()
     return json.loads(bbox_json)['features'][0]['geometry']
