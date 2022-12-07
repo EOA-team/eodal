@@ -38,8 +38,6 @@ repos:
         args: ["--profile=black"]
       - id: nbqa-black
         args:
-            - "--target-version=py38"
-            - "--target-version=py39"
             - "--target-version=py310"
         additional_dependencies: ["black==22.3.0"]
       - id: nbqa-flake8
