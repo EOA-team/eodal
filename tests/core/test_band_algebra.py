@@ -22,6 +22,8 @@ def test_band_algrebra_scalar(get_test_band):
     # test comparison operators (band <-> band)
     band_eq = band == scalar
     assert not band_eq.values.all(), 'wrong result'
+    band_ne = band != scalar
+    assert band_ne.values.any(), 'wrong result'
     band_gt = band > scalar
     assert band_gt.values.all(), 'wrong result'
     band_ge = band >= scalar
