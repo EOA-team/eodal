@@ -388,7 +388,7 @@ class Mapper(object):
         else:
             aoi_features = self.feature_collection.copy()
 
-        # for the DB query, the geometries are required in geographic coordinates
+        # for the query, the geometries are required in geographic coordinates
         # however, we keep the original coordinates as well to avoid to many reprojections
         aoi_features["geometry_wgs84"] = aoi_features["geometry"].to_crs(4326)
 
@@ -404,6 +404,7 @@ class Mapper(object):
             aoi_features[self.unique_id_attribute] = [
                 str(uuid.uuid4()) for _ in aoi_features.iterrows()
             ]
+
         return aoi_features
 
     def get_feature_ids(self) -> List:
