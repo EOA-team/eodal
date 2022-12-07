@@ -12,7 +12,6 @@ from typing import List, Optional
 
 from eodal.core.band import Band
 from eodal.core.raster import RasterCollection
-from build.lib.eodal.core import raster
 
 def sqrt_per_band(
     raster_collection: RasterCollection,
