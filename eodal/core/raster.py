@@ -282,12 +282,14 @@ class RasterOperator(Operator):
             `numpy.ndarray` if inplace is False, None instead
         """
         cls.check_operator(operator=operator)
+        # make a copy of a to avoid overwriting the original values
+        _a = deepcopy(a)
         # if `other` is a Band object get its values
         if isinstance(other, Band):
-            _other = other.copy()
-            _other = _other.values()
+            _other = deepcopy(other)
+            _other = _other.values
         # check if `other` matches the shape
-        if isinstance(other, np.ndarray) or isinstance(other, np.ma.MaskedArray):
+        elif isinstance(other, np.ndarray) or isinstance(other, np.ma.MaskedArray):
             # check if passed array is 2-d
             if len(other.shape) == 2:
                 if other.shape != a.get_values(band_selection).shape[1::]:
@@ -310,7 +312,7 @@ class RasterOperator(Operator):
                 )
             _other = other.copy()
         elif isinstance(other, RasterCollection):
-            _other = other.copy()
+            _other = deepcopy(other)
             _other = other.get_values(band_selection=band_selection)
         elif (isinstance(other, int) or isinstance(other, float)):
             _other = other
@@ -319,7 +321,7 @@ class RasterOperator(Operator):
 
         # perform the operation
         try:
-            expr = f"a.get_values(band_selection) {operator} _other"
+            expr = f"_a.get_values(band_selection) {operator} _other"
             res = eval(expr)
         except Exception as e:
             raise cls.BandMathError(f"Could not execute {expr}: {e}")
@@ -332,7 +334,7 @@ class RasterOperator(Operator):
             if inplace:
                 object.__setattr__(a.collection[band_name], "values", res[idx,:,:])
             else:
-                attrs = a.collection[band_name].__dict__
+                attrs = _a.collection[band_name].__dict__
                 attrs.update({'values': res[idx,:,:]})
                 rcoll_out.add_band(band_constructor=Band, **attrs)
         if not inplace:
@@ -512,6 +514,9 @@ class RasterCollection(MutableMapping):
 
     def __mul__(self, other):
         return RasterOperator.calc(a=self, other=other, operator="*")
+
+    def __ne__(self, other):
+        return RasterOperator.calc(a=self, other=other, operator="!=")
 
     def __eq__(self, other):
         return RasterOperator.calc(a=self, other=other, operator="==")
