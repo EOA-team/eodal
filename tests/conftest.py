@@ -9,6 +9,7 @@ import requests
 from distutils import dir_util
 from pathlib import Path
 
+from eodal.core.band import Band
 from eodal.core.raster import RasterCollection
 from eodal.core.scene import SceneCollection
 from eodal.downloader.utils import unzip_datasets
@@ -46,6 +47,24 @@ def get_project_root_path() -> Path:
     returns the project root path
     """
     return Path(os.path.dirname(os.path.abspath(__file__))).parent
+
+@pytest.fixture
+def get_test_band(get_bandstack, get_polygons):
+    """Fixture returning Band object from rasterio"""
+    def _get_test_band():
+        fpath_raster = get_bandstack()
+        vector_features = get_polygons()
+    
+        band = Band.from_rasterio(
+            fpath_raster=fpath_raster,
+            band_idx=1,
+            band_name_dst='B02',
+            vector_features=vector_features,
+            full_bounding_box_only=False,
+            nodata=0
+        )
+        return band
+    return _get_test_band
 
 @pytest.fixture()
 def get_s2_safe_l2a(get_project_root_path):
