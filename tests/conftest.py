@@ -8,6 +8,9 @@ import requests
 
 from distutils import dir_util
 from pathlib import Path
+
+from eodal.core.raster import RasterCollection
+from eodal.core.scene import SceneCollection
 from eodal.downloader.utils import unzip_datasets
 
 @pytest.fixture
@@ -216,3 +219,18 @@ def get_polygons_3(get_project_root_path):
         )
         return testdata_polys
     return _get_polygons
+
+@pytest.fixture()
+def get_scene_collection(get_bandstack):
+    """fixture returing a SceneCollection with three scenes"""
+    def _get_scene_collection():
+        fpath_raster = get_bandstack()
+        # open three scenes
+        scene_list = []
+        for i in range(3):
+            ds = RasterCollection.from_multi_band_raster(fpath_raster=fpath_raster)
+            ds.scene_properties.acquisition_time = 1000 * (i+1)
+            scene_list.append(ds)
+        scoll = SceneCollection.from_raster_collections(scene_list, indexed_by_timestamps=False)
+        return scoll
+    return _get_scene_collection

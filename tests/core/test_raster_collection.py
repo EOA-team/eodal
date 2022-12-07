@@ -5,17 +5,14 @@ Tests for the `RasterCollection` class
 import datetime
 import pytest
 
+import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 
-from pathlib import Path
-
 from eodal.core.band import GeoInfo
 from eodal.core.band import Band
-from eodal.core.raster import SceneProperties
 from eodal.core.raster import RasterCollection
 from eodal.utils.exceptions import BandNotFoundError
-
 
 def test_ndarray_constructor():
     """
@@ -24,7 +21,7 @@ def test_ndarray_constructor():
 
     handler = RasterCollection()
     assert handler.empty, 'RasterCollection is not empty'
-    assert handler.scene_properties.acquisition_time == datetime.datetime(2999,1,1)
+    assert not handler.is_scene, 'empty RasterCollection cannot be a Scene'
     assert len(handler) == 0, 'there should not be any items so far'
     assert handler.is_bandstack() is None, 'cannot check for bandstack without bands'
 
@@ -78,7 +75,7 @@ def test_ndarray_constructor():
             values=zeros,
             geo_info=geo_info
         )
-
+    handler.scene_properties.acquisition_time = datetime.datetime.now()
     # mask the second band based on the first one
     masked = handler.mask(mask='random', mask_values=[0.15988288, 0.38599023])
     assert masked.band_names == handler.band_names, 'band names not passed on correctly'
@@ -236,3 +233,45 @@ def test_resampling(datadir,get_bandstack):
     fpath_out = datadir.joinpath('test.jp2')
     resampled.to_rasterio(fpath_out)
     assert fpath_out.exists(), 'output-file not created'
+
+def test_clipping(get_bandstack):
+    """Spatial clipping (subsetting) of RasterCollections"""
+    fpath_raster = get_bandstack()
+    rcoll = RasterCollection.from_multi_band_raster(
+        fpath_raster=fpath_raster
+    )
+    # clip the collection to a Polygon buffered 100m inwards of the
+    # bounding box of the first band
+    clipping_bounds = rcoll[rcoll.band_names[0]].bounds.buffer(-100)
+    rcoll_clipped = rcoll.clip_bands(clipping_bounds=clipping_bounds)
+    assert isinstance(rcoll_clipped, RasterCollection), 'expected a RasterCollection'
+    assert rcoll_clipped[rcoll_clipped.band_names[0]].bounds != \
+        rcoll[rcoll.band_names[0]].bounds, 'band was not clipped'
+    # do the same inplace
+    rcoll.clip_bands(clipping_bounds=clipping_bounds, inplace=True)
+    assert rcoll_clipped[rcoll_clipped.band_names[0]].bounds == \
+        rcoll[rcoll.band_names[0]].bounds, 'band was not clipped'
+    # clipping outside the boundaries of the RasterCollection -> should throw an error
+    clipping_bounds = (0, 0, 100, 100)
+    with pytest.raises(ValueError):
+        rcoll.clip_bands(clipping_bounds=clipping_bounds, inplace=True)
+
+def test_band_summaries(get_bandstack, get_polygons):
+    """test band summary statistics"""
+    fpath_raster = get_bandstack()
+    rcoll = RasterCollection.from_multi_band_raster(
+        fpath_raster=fpath_raster
+    )
+    # try band summary statistics for polygons
+    polys = get_polygons()
+    band_stats = rcoll.band_summaries(by=polys)
+    assert isinstance(band_stats, gpd.GeoDataFrame), 'expected a GeoDataFrame'
+    assert 'nanmean' in band_stats.columns, 'expected the mean value'
+    assert 'band_name' in band_stats.columns, 'expected the band name as column'
+    assert band_stats.crs == rcoll[rcoll.band_names[0]].crs, 'mis-match of CRS'
+
+    # get statistics of complete RasterCollection
+    band_stats_all = rcoll.band_summaries()
+    assert isinstance(band_stats, gpd.GeoDataFrame), 'expected a GeoDataFrame'
+    assert band_stats_all.shape[0] == len(rcoll), 'wrong number of items in statistics'
+    

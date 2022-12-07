@@ -80,6 +80,7 @@ import zarr
 
 from collections.abc import MutableMapping
 from copy import deepcopy
+from itertools import chain
 from matplotlib.axes import Axes
 from matplotlib.pyplot import Figure
 from numbers import Number
@@ -251,7 +252,7 @@ class RasterOperator(Operator):
     def calc(
         cls,
         a,
-        other: Union[Band, Number, np.ndarray],
+        other: Band | Number | np.ndarray,
         operator: str,
         inplace: Optional[bool] = False,
         band_selection: Optional[List[str]] = None,
@@ -262,8 +263,8 @@ class RasterOperator(Operator):
         :param a:
             `RasterCollection` object with values (non-empty)
         :param other:
-            `Band` object, scalar,  or 3-dimensional `numpy.array` to use on the
-            right-hand side of the operator. If a `numpy.array` is passed the array
+            `Band` object, scalar, 3-dimensional `numpy.array`, or RasterCollection to use
+            on the right-hand side of the operator. If a `numpy.array` is passed the array
             must have either shape `(1,nrows,ncols)` or `(nband,nrows,ncols)`
             where `nrows` is the number of rows in `a`, ncols the number of columns
             in `a` and `nbands` the number of bands in a or the selection thereof.
@@ -311,24 +312,31 @@ class RasterOperator(Operator):
         elif isinstance(other, RasterCollection):
             _other = other.copy()
             _other = other.get_values(band_selection=band_selection)
-            # other_is_raster = True
+        elif (isinstance(other, int) or isinstance(other, float)):
+            _other = other
+        else:
+            raise TypeError(f'{type(other)} is not supported')
+
         # perform the operation
         try:
-            expr = f"a.get_values(band_selection) {operator} other"
+            expr = f"a.get_values(band_selection) {operator} _other"
             res = eval(expr)
         except Exception as e:
             raise cls.BandMathError(f"Could not execute {expr}: {e}")
         # return result or overwrite band data
-        if inplace:
-            if band_selection is None:
-                band_selection = a.band_names()
-            for idx, band_name in enumerate(band_selection):
-                object.__setattr__(cls.collection[band_name], "values", res[idx, :, :])
-        else:
-            # TODO: return a new RasterCollection instance
-            # TODO: think about multiple slices
-            raise NotImplementedError()
-
+        if band_selection is None:
+            band_selection = a.band_names
+        if not inplace:
+            rcoll_out = RasterCollection()
+        for idx, band_name in enumerate(band_selection):
+            if inplace:
+                object.__setattr__(a.collection[band_name], "values", res[idx,:,:])
+            else:
+                attrs = a.collection[band_name].__dict__
+                attrs.update({'values': res[idx,:,:]})
+                rcoll_out.add_band(band_constructor=Band, **attrs)
+        if not inplace:
+            return rcoll_out
 
 class RasterCollection(MutableMapping):
     """
@@ -936,6 +944,39 @@ class RasterCollection(MutableMapping):
             raise KeyError(f"Cannot add raster band: {e}")
 
     @check_band_names
+    def clip_bands(
+        self,
+        band_selection: Optional[List[str]] = None,
+        inplace: Optional[bool] = False,
+        **kwargs
+    ):
+        """
+        Clip bands in RasterCollection to a user-defined spatial bounds.
+        """
+        if band_selection is None:
+            band_selection = self.band_names
+        # loop over bands and try to subset them spatially
+        # initialize a new raster collection if inplace is False
+        collection = None
+        if inplace:
+            kwargs.update({'inplace': True})
+        if not inplace:
+            attrs = deepcopy(self.__dict__)
+            attrs.pop("_collection")
+            collection = RasterCollection(**attrs)
+
+        # loop over band reproject the selected ones
+        for band_name in band_selection:
+            if inplace:
+                self.collection[band_name].clip(**kwargs)
+            else:
+                band = self.get_band(band_name)
+                collection.add_band(band_constructor=band.clip, **kwargs)
+
+        if not inplace:
+            return collection
+
+    @check_band_names
     def plot_band(self, band_name: str, **kwargs) -> Figure:
         """
         Plots a band in the collection of raster bands.
@@ -1165,27 +1206,41 @@ class RasterCollection(MutableMapping):
     def band_summaries(
         self,
         band_selection: Optional[List[str]] = None,
-        methods: Optional[List[str]] = ["nanmin", "nanmean", "nanstd", "nanmax"],
-    ) -> pd.DataFrame:
+        **kwargs
+    ) -> gpd.GeoDataFrame:
         """
-        Descriptive band statistics
+        Descriptive band statistics by calling `Band.reduce` for bands in a collection.
 
         :param band_selection:
             selection of bands to process. If not provided uses all
             bands
-        :param methods:
-            descriptive metrics to compute for each band
+        :param kwargs:
+            optional keyword arguments to pass to `~eodal.core.band.Band.reduce`. Use
+            `by` to get descriptive statistics by selected geometry features (e.g.,
+            single polygons).
         :returns:
-            ``DataFrame`` with descriptive statistics for all bands selected
+            ``GeoDataFrame`` with descriptive statistics for all bands selected and geometry
+            features passed (optional)
         """
         stats = []
         if band_selection is None:
             band_selection = self.band_names
         for band_name in band_selection:
-            band_stats = self[band_name].reduce(method=methods)
-            band_stats["band_name"] = band_name
+            band_stats = self[band_name].reduce(**kwargs)
+            # band_stats is a list of 1:N entries (one per feature on which reduce
+            # was called); we add the band name as attribute
+            for idx in range(len(band_stats)):
+                band_stats[idx].update({'band_name': band_name})
             stats.append(band_stats)
-        return pd.DataFrame(stats)
+        # since the geometry information was passed on, a GeoDataFrame can be returned
+        df = pd.DataFrame(list(chain(*stats)))
+        gdf = gpd.GeoDataFrame(df, geometry=df['geometry'], crs=df['crs'].iloc[0])
+        # cast columns to float; otherwise pandas throws an error:
+        # TypeError: unhashable type: 'MaskedConstant'
+        methods = kwargs.get('method', ['min', 'mean', 'std', 'max', 'count'])
+        gdf[methods] = gdf[methods].astype(float)
+        gdf.drop(columns=['crs'], inplace=True)
+        return gdf
 
     @check_band_names
     def reproject(
@@ -1425,6 +1480,7 @@ class RasterCollection(MutableMapping):
         Spatial join of one ``RasterCollection`` instance with another
         instance
         """
+        pass
 
     def calc_si(
         self, si_name: str, inplace: Optional[bool] = False
@@ -1582,6 +1638,12 @@ class RasterCollection(MutableMapping):
     def to_xarray(self, band_selection: Optional[List[str]] = None) -> xr.DataArray:
         """
         Converts bands in collection a ``xarray.DataArray``
+
+        :param band_selection:
+            selection of bands to process. If not provided uses all
+            bands
+        :returns:
+            `xarray.DataArray` created from RasterCollection.
         """
         if band_selection is None:
             band_selection = self.band_names

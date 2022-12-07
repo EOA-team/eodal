@@ -158,18 +158,18 @@ def test_bandstatistics(get_test_band):
     # get band statistics
     stats = band.reduce(method=['mean', 'min', 'max'])
     mean_stats = band.reduce(method='mean')
-    assert mean_stats['mean'] == stats['mean'], 'miss-match of metrics'
-    assert stats['min'] == band.values.min(), 'minimum not calculated correctly'
-    assert stats['max'] == band.values.max(), 'maximum not calculated correctly'
+    assert mean_stats[0]['mean'] == stats[0]['mean'], 'miss-match of metrics'
+    assert stats[0]['min'] == band.values.min(), 'minimum not calculated correctly'
+    assert stats[0]['max'] == band.values.max(), 'maximum not calculated correctly'
 
     # convert to GeoDataFrame
     gdf = band.to_dataframe()
     assert (gdf.geometry.type == 'Point').all(), 'wrong geometry type'
     assert set(gdf.columns) == {'geometry', 'B02'}, 'wrong column labels'
     assert gdf.shape[0] == 29674, 'wrong number of pixels converted'
-    assert gdf.B02.max() == stats['max'], 'band statistics not the same after conversion'
-    assert gdf.B02.min() == stats['min'], 'band statistics not the same after conversion'
-    assert gdf.B02.mean() == stats['mean'], 'band statistics not the same after conversion'
+    assert gdf.B02.max() == stats[0]['max'], 'band statistics not the same after conversion'
+    assert gdf.B02.min() == stats[0]['min'], 'band statistics not the same after conversion'
+    assert gdf.B02.mean() == stats[0]['mean'], 'band statistics not the same after conversion'
 
 def test_to_xarray(get_test_band):
     band = get_test_band()
@@ -374,5 +374,115 @@ def test_from_vector(get_polygons):
         dtype_src='uint32'
     )
     assert band_from_points.values.dtype == 'uint32', 'wrong data type'
-    assert band_from_points.reduce(method='max')['max'] == \
+    assert band_from_points.reduce(method='max')[0]['max'] == \
         point_gdf.GIS_ID.values.astype(int).max(), 'miss-match in band statistics'
+
+def test_clip_band(get_test_band):
+    """
+    test clipping a band by a rectangle (spatial sub-setting)
+    """
+    band = get_test_band()
+    # define a polygon to clip the band to
+    # first case: the polygon is smaller than the band and lies within its bounds
+    band_bounds = band.bounds
+    clip_bounds = band_bounds.buffer(-20)
+    band_clipped = band.clip(clipping_bounds=clip_bounds)
+    assert isinstance(band_clipped, Band), 'expected a band object'
+    assert band_clipped.band_name == band.band_name, 'band name not copied'
+    assert band_clipped.alias == band.alias, 'band alias not copied'
+    assert band_clipped.unit == band.unit, 'unit not copied'
+    assert band_clipped.scale == band.scale, 'scale not copied'
+    assert band_clipped.offset == band.offset, 'offset not copied'
+    assert band_clipped.transform != band.transform, 'the transformation must not be the same'
+    assert band_clipped.nrows < band.nrows, 'number of rows of clipped band must be smaller'
+    assert band_clipped.ncols < band.ncols, 'number of columns of clipped band must be smaller'
+    expected_shape = (
+        int(band.nrows - 4), #  -4 because of 20m inwards buffering (resolution is 10m)
+        int(band.ncols - 4) #  -4 because of 20m inwards buffering (resolution is 10m)
+    )
+    assert band_clipped.values.shape == expected_shape, 'wrong shape of clipped band'
+
+    # second case: clip to a polygon larger than the Band -> should return the same Band
+    clip_bounds = band.bounds.buffer(20)
+    band_clipped = band.clip(clip_bounds)
+    assert (band_clipped == band).values.all(), 'the bands must be the same'
+
+    # third case: bounding box outside the Band -> should raise an error
+    clip_bounds = (100, 100, 300, 300)
+    with pytest.raises(ValueError):
+        band_clipped = band.clip(clip_bounds)
+
+    # fourth case: bounding box is the same as the bounds of the Band
+    clip_bounds = band.bounds
+    band_clipped = band.clip(clip_bounds)
+    assert (band_clipped == band).values.all(), 'the bands must be the same'
+
+    # fifth case: bounding box partially overlaps the Band (different test cases)
+    band_bounds_xy = clip_bounds.exterior.xy
+    clip_bounds = (
+        min(band_bounds_xy[0]) - 100, # xmin
+        min(band_bounds_xy[1]) - 231, # ymin
+        max(band_bounds_xy[0]) - 44,  # xmax
+        max(band_bounds_xy[1]) - 85   # ymax
+    )
+    band_clipped = band.clip(clip_bounds)
+    assert band_clipped.nrows < band.nrows, 'number of rows must not be the same'
+    assert band_clipped.ncols < band.ncols, 'number of columns must not be the same'
+    # all rows should be the same but not the columns
+    clip_bounds = (
+        min(band_bounds_xy[0]) - 1000, # xmin
+        min(band_bounds_xy[1]), # ymin
+        max(band_bounds_xy[0]) - 1000,  # xmax
+        max(band_bounds_xy[1])   # ymax
+    )
+    band_clipped = band.clip(clip_bounds)
+    assert band_clipped.nrows == band.nrows, 'number of rows must be the same'
+    assert band_clipped.ncols < band.ncols, 'number of columns must not be the same'
+    assert band_clipped.geo_info.ulx == band.geo_info.ulx, 'upper left x should be the same'
+    assert band_clipped.geo_info.uly == band.geo_info.uly, 'upper left y should be the same'
+    # all columns should be the same but not the rows
+    clip_bounds = (
+        min(band_bounds_xy[0]), # xmin
+        min(band_bounds_xy[1]) - 2000, # ymin
+        max(band_bounds_xy[0]),  # xmax
+        max(band_bounds_xy[1]) - 2000  # ymax
+    )
+    band_clipped = band.clip(clip_bounds)
+    assert band_clipped.nrows < band.nrows, 'number of rows must not be the same'
+    assert band_clipped.ncols == band.ncols, 'number of columns must be the same'
+    assert band_clipped.geo_info.ulx == band.geo_info.ulx, 'upper left x should be the same'
+    assert band_clipped.geo_info.uly == band.geo_info.uly - 2000, 'wrong upper left y coordinate'
+
+    # test with inplace == True
+    band_before_clip = band.copy()
+    band.clip(clip_bounds, inplace=True)
+    assert band_clipped.nrows < band_before_clip.nrows, 'number of rows must not be the same'
+    assert band_clipped.ncols == band_before_clip.ncols, 'number of columns must be the same'
+    assert band_clipped.geo_info.ulx == band_before_clip.geo_info.ulx, 'upper left x should be the same'
+    assert band_clipped.geo_info.uly == band_before_clip.geo_info.uly - 2000, 'wrong upper left y coordinate'
+
+def test_reduce_band_by_polygons(get_polygons, get_test_band):
+    """reduction of band raster values by polygons"""
+    # test reduction by external features
+    polys = get_polygons()
+    band = get_test_band()
+    method = ['mean', 'median', 'max']
+    poly_stats = band.reduce(method=method, by=polys)
+    assert len(poly_stats) == gpd.read_file(polys).shape[0], 'wrong number of polygons returned'
+    assert set(method).issubset(poly_stats[0].keys()), 'expected different naming of results'
+    assert 'geometry' in poly_stats[0].keys(), 'geometry attribute was lost'
+
+    # reduce by a limited number of polygons
+    polys_reduced = gpd.read_file(polys).iloc[0:10]
+    poly_stats_reduced = band.reduce(method=method, by=polys_reduced)
+    assert len(poly_stats_reduced) == polys_reduced.shape[0], 'wrong number of polygons returned'
+    assert poly_stats_reduced == poly_stats[0:10], 'wrong order of results'
+
+    # reduce by passing the "self" keyword (features must be set)
+    poly_stats_self = band.reduce(method=method, by='self')
+    assert len(poly_stats_self) == band.vector_features.shape[0], 'wrong number of polygons'
+    assert poly_stats_self == poly_stats, 'both approaches should return exactly the same'
+
+    # call reduce without passing "by" -> should return a single result
+    all_stats = band.reduce(method=method)
+    assert len(all_stats) == 1, 'there must not be more than a single result'
