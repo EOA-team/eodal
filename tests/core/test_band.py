@@ -15,24 +15,6 @@ from eodal.core.band import Band
 from eodal.core.band import GeoInfo
 from eodal.core.band import WavelengthInfo
 
-@pytest.fixture
-def get_test_band(get_bandstack, get_polygons):
-    """Fixture returning Band object from rasterio"""
-    def _get_test_band():
-        fpath_raster = get_bandstack()
-        vector_features = get_polygons()
-    
-        band = Band.from_rasterio(
-            fpath_raster=fpath_raster,
-            band_idx=1,
-            band_name_dst='B02',
-            vector_features=vector_features,
-            full_bounding_box_only=False,
-            nodata=0
-        )
-        return band
-    return _get_test_band
-
 def test_base_constructors():
     """
     test base constructor calls
