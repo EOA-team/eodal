@@ -25,7 +25,7 @@ class Operator:
     Band operator supporting basic algebraic operations
     """
 
-    operators: List[str] = ["+", "-", "*", "/", "**", "<", ">", "==", "<=", ">="]
+    operators: List[str] = ["+", "-", "*", "/", "**", "<", ">", "==", "<=", ">=", "!="]
 
     class BandMathError(Exception):
         pass
