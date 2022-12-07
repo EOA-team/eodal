@@ -29,8 +29,7 @@ from rasterio.crs import CRS
 import eodal
 from eodal.config import get_settings
 from eodal.core.band import Band, GeoInfo
-from eodal.core.raster import RasterCollection
-from eodal.core.scene import SceneProperties
+from eodal.core.raster import RasterCollection, SceneProperties
 
 Settings = get_settings()
 
