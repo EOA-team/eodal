@@ -21,8 +21,6 @@ def test_raster_copy(get_bandstack):
     assert rcoll_copy.band_aliases == rcoll.band_aliases, 'band aliases differ'
     assert (rcoll_copy.band_summaries() == rcoll.band_summaries()).all().all(), \
         'band statistics differ'
-    assert rcoll_copy.scene_properties.acquisition_time == rcoll.scene_properties.acquisition_time, \
-        'timestamps differ'
     assert rcoll_copy['a'].crs == rcoll['a'].crs, 'Band CRS differ'
     assert rcoll_copy['b'].get_attributes() == rcoll['b'].get_attributes(), \
         'Band attributes differ'
