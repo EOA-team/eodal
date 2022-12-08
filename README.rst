@@ -3,26 +3,15 @@
 E:earth_africa:dal Earth Observation Data Analysis Library
 ==========================================================
 
+E:earth_africa:dal is a Python library enabling the acquisition, organization, and analysis of Earth observation data in a completely open-source manner.
 
-The E:earth_africa:dal Python library to load, modify, analyze, modify and write Earth Observation data within an unified framework.
-
-**E:earth_africa:dal enables open-source, reproducible geo-spatial data science while lowering the burden of data handling on the user-side**
-
-
-Quick start
------------
-
-coming soon ...
-
-Why eodal
----------
-
-**E:earth_africa:dal enables open-source, reproducible geo-spatial data science while lowering the burden of data handling on the user-side**
-
-E:earth_africa:dal is a lightweight ``Python3`` package to **organize**,
-**explore** and **process** **Earth Observation data** in
-an easy and intuitive manner. It supports the processing of **gridded datasets**,
-**vector files** and the **spatial intersection** of these.
+E:earth_africa:dal Python allows to
+* load
+* modify
+* analyze
+* modify
+* write
+Earth Observation data within an unified framework. E:earth_africa:dal thus enables open-source, reproducible geo-spatial data science while lowering the burden of data handling on the user-side.
 
 The roots of E:earth_africa:dal lay in **agricultural remote sensing applications** with **Sentinel-2**.
 However, due to its **modular and object-oriented programming structure**, it allows the
