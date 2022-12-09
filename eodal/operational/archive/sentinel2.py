@@ -83,7 +83,7 @@ def pull_from_creodias(
         box extent is taken from the metadata DB based on the region identifier.
     :param cloud_cover_threshold:
         cloud cover threshold (0-100%) to be used for CREODIAS query. Defaults
-        to 100% (i.e., also completely cloudy scenes are downloaded).
+        to 100% (i.e., also completely cloudy mapper are downloaded).
     :param unzip:
         if True (default) datasets are unzipped and zip archives are deleted
     :param overwrite_existing_zips:
@@ -143,7 +143,7 @@ def pull_from_creodias(
     )
     datasets_filtered = datasets[datasets.product_uri.isin(missing_datasets)]
 
-    # download those scenes not available in the local database from Creodias
+    # download those mapper not available in the local database from Creodias
     download_datasets(
         datasets=datasets_filtered,
         download_dir=path_out,

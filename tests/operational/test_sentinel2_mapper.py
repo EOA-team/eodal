@@ -1,22 +1,29 @@
 
 import pytest
 import geopandas as gpd
+import pandas as pd
 
 from datetime import date
 from pathlib import Path
 
+from eodal.config import get_settings
 from eodal.operational.mapping import MapperConfigs, Sentinel2Mapper
 from eodal.utils.sentinel2 import ProcessingLevels
 from eodal.core.raster import RasterCollection
 from eodal.core.sensors import Sentinel2
 
+# use STAC catalog for testing (thus, it should run everywhere)
+settings = get_settings()
+settings.USE_STAC = True
+
+@pytest.mark.skip(reason='the mapper will be re-build in the next EOdal version')
 @pytest.mark.parametrize(
     'date_start, date_end, processing_level',
-    [(date(2016,12,1), date(2017,1,31), ProcessingLevels.L1C),
-     (date(2016,12,1), date(2017,1,31), ProcessingLevels.L2A)]
+    [(date(2021,12,1), date(2022,1,31), ProcessingLevels.L1C),
+     (date(2021,12,1), date(2022,1,31), ProcessingLevels.L2A)]
 )
 def test_point_extraction(get_points, date_start, date_end, processing_level):
-    """Extraction of points from Sentinel-2 scenes"""
+    """Extraction of points from Sentinel-2 mapper"""
     points = get_points()
 
     mapping_config = MapperConfigs()
@@ -29,7 +36,7 @@ def test_point_extraction(get_points, date_start, date_end, processing_level):
     )
 
     assert isinstance(mapper.feature_collection, Path), 'expected a path-like object'
-    # query the DB to get all S2 scenes available for the points
+    # query STAC to get all S2 mapper available for the points
     mapper.get_scenes()
     assert isinstance(mapper.feature_collection, dict), 'expected a dict-like object'
     assert len(mapper.get_feature_ids()) == 12, 'wrong number of point features'
@@ -57,8 +64,7 @@ def test_point_extraction(get_points, date_start, date_end, processing_level):
 
 @pytest.mark.parametrize(
     'date_start, date_end, processing_level',
-    [(date(2016,12,1), date(2017,1,31), ProcessingLevels.L2A),
-     (date(2016,12,1), date(2017,1,31), ProcessingLevels.L1C)]
+    [(date(2021,12,1), date(2021,12,10), ProcessingLevels.L2A),]
 )
 def test_field_parcel_extraction(get_polygons_3, date_start, date_end, processing_level):
     """Extraction of a polygon from multiple Sentinel-2 tiles"""
@@ -73,27 +79,24 @@ def test_field_parcel_extraction(get_polygons_3, date_start, date_end, processin
         mapper_configs=mapping_config
     )
     assert isinstance(mapper.feature_collection, Path), 'expected a path-like object'
-    # query the DB to get all S2 scenes available for the Polygon
+    # query the metadata catalogue to get all S2 mapper available for the Polygon
     mapper.get_scenes()
     assert len(mapper.observations) == 1, 'expected a single feature'
     feature_id = mapper.get_feature_ids()[0]
     obs = mapper.observations[feature_id]
-    # the polygon covers three different S2 tiles
-    assert set(obs.tile_id.unique()) == {'T32TLT', 'T31TGN', 'T32TLS'}, \
-        'expected three different tiles here'
+    assert isinstance(obs, pd.DataFrame), 'expected a DataFrame'
+    # the polygon covers two different S2 tiles
+    assert set(obs.tile_id.unique()) == {'32TMS', '32TMT'}, \
+        'expected two different tiles here'
     # the target CRS should be 32632 (UTM Zone 32N) because the majority of the
-    # scenes is in that projection
+    # mapper is in that projection
     assert (obs.target_crs == 32632).all(), 'wrong target CRS'
-    if processing_level == ProcessingLevels.L1C:
-        assert set(obs.sensing_date.unique()) == {date(2016,12,1), date(2017,1,3)}, \
-            'expected two different dates'
-        assert obs.is_split.all(), 'all scenes must be flagged as "split"'
+    assert obs.is_split.any(), 'there must be scenes marked as split'
 
     # get single observation
     res = mapper.get_observation(
         feature_id=feature_id,
-        # sensing_date=date(2016,12,10)
-        sensing_date=date(2017,1,17)
+        sensing_date=date(2021,12,17)
     )
     assert isinstance(res, Sentinel2), 'expected a raster collection for Sentinel-2 data'
     assert res.is_bandstack(), 'all bands must have the same extent, CRS and pixel size'

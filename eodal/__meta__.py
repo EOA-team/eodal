@@ -8,10 +8,10 @@ path = name.lower().replace("-", "_").replace(" ", "_")
 # version = "0.1.dev0"
 author = (
     "Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;\n"
-    "Remote Sensing Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland"
+    "Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland"
 )
 author_email = ""
 description = "Earth Observation Data Analysis Library"  # One-liner
-url = "https://github.com/remote-sensing-team/eodal"  # your project home-page
+url = "https://github.com/EOA-team/eodal"  # your project home-page
 license = "GNU General Public License version 3"  # See https://choosealicense.com
-version = "0.0"
+version = "0.1.0"

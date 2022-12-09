@@ -30,7 +30,7 @@ def cli_ps_scenes_ingestion(
         with different mount points of the NAS share. If not provided, the absolute
         path of the dataset is used in the database.
     """
-    # loop over all scenes
+    # loop over all mapper
     for scene_dir in ps_raw_data_archive.iterdir():
 
         try:

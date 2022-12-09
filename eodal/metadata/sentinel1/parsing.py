@@ -149,7 +149,7 @@ def extract_s1_footprint(
         Should the GML coordinates (from the manifest.safe) be used, or the KML coordinates (from
         the ./preview/map-overlay.kml)
     :returns:
-        Well-known-text (WKT) of the S1 scenes' footprint in geographic coordinates
+        Well-known-text (WKT) of the S1 mapper' footprint in geographic coordinates
         (WGS84, EPSG:4326).
     """
     in_file = in_dir.joinpath("manifest.safe").as_posix()
@@ -199,7 +199,7 @@ def loop_s1_archive(
 ) -> pd.DataFrame:
     """
     wrapper function to loop over an entire archive (i.e., collection) of
-    Sentinel-2 scenes in either L1C or L2A processing level or a mixture
+    Sentinel-2 mapper in either L1C or L2A processing level or a mixture
     thereof.
 
     The function returns a pandas dataframe for all found entries in the
@@ -207,7 +207,7 @@ def loop_s1_archive(
 
     :param in_dir:
         directory containing the Sentinel-2 data (L1C and/or L2A
-        processing level). Sentinel-2 scenes are assumed to follow ESA's
+        processing level). Sentinel-2 mapper are assumed to follow ESA's
         .SAFE naming convention and structure
     :param extract_datastrip:
         If True reads also metadata from the datastrip xml file
@@ -215,14 +215,14 @@ def loop_s1_archive(
     :param get_newest_datasets:
         if set to True only datasets newer than a user-defined time stamp
         will be considered for ingestion into the database. This is particularly
-        useful for updating the database after new scenes have been downloaded
+        useful for updating the database after new mapper have been downloaded
         or processed.
     :param last_execution_date:
         if get_newest_datasets is True this variable needs to be set. All
         datasets younger than that date will be considered for ingestion
         into the database.
     :return:
-        dataframe with metadata of all scenes handled by the function
+        dataframe with metadata of all mapper handled by the function
         call
     """
 
@@ -233,16 +233,16 @@ def loop_s1_archive(
                 "A timestamp must be provided when the only newest datasets shall be considered"
             )
 
-    # search for .SAFE subdirectories identifying the single scenes
+    # search for .SAFE subdirectories identifying the single mapper
     # some data providers, however, do not name their products following the
     # ESA convention (.SAFE is missing)
     s1_scenes = glob.glob(str(in_dir.joinpath("*.SAFE")))
     n_scenes = len(s1_scenes)
 
     if n_scenes == 0:
-        raise DataNotFoundError(f'No .SAFE scenes found in {in_dir}')
+        raise DataNotFoundError(f'No .SAFE mapper found in {in_dir}')
 
-    # if only scenes after a specific timestamp shall be considered drop
+    # if only mapper after a specific timestamp shall be considered drop
     # those from the list which are "too old"
     if get_newest_datasets:
         filtered_scenes = []
@@ -255,10 +255,10 @@ def loop_s1_archive(
         s1_scenes = filtered_scenes
         if len(s1_scenes) == 0:
             raise DataNotFoundError(
-                f'No scenes younger than {datetime.strftime(last_execution_date, "%Y-%m-%d")} found'
+                f'No mapper younger than {datetime.strftime(last_execution_date, "%Y-%m-%d")} found'
             )
 
-    # loop over the scenes
+    # loop over the mapper
     metadata_scenes = []
     error_file = open(in_dir.joinpath("errored_datasets.txt"), "w+")
     for idx, s1_scene in enumerate(s1_scenes):

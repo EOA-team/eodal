@@ -8,6 +8,10 @@ import requests
 
 from distutils import dir_util
 from pathlib import Path
+
+from eodal.core.band import Band
+from eodal.core.raster import RasterCollection
+from eodal.core.scene import SceneCollection
 from eodal.downloader.utils import unzip_datasets
 
 @pytest.fixture
@@ -44,6 +48,24 @@ def get_project_root_path() -> Path:
     """
     return Path(os.path.dirname(os.path.abspath(__file__))).parent
 
+@pytest.fixture
+def get_test_band(get_bandstack, get_polygons):
+    """Fixture returning Band object from rasterio"""
+    def _get_test_band():
+        fpath_raster = get_bandstack()
+        vector_features = get_polygons()
+    
+        band = Band.from_rasterio(
+            fpath_raster=fpath_raster,
+            band_idx=1,
+            band_name_dst='B02',
+            vector_features=vector_features,
+            full_bounding_box_only=False,
+            nodata=0
+        )
+        return band
+    return _get_test_band
+
 @pytest.fixture()
 def get_s2_safe_l2a(get_project_root_path):
     """
@@ -72,7 +94,7 @@ def get_s2_safe_l2a(get_project_root_path):
                     fd.write(chunk)
         
             # unzip dataset
-            unzip_datasets(download_dir=testdata_dir)
+            unzip_datasets(download_dir=testdata_dir, platform='S2')
             
         return testdata_fname
 
@@ -106,7 +128,7 @@ def get_s2_safe_l1c(get_project_root_path):
                     fd.write(chunk)
         
             # unzip dataset
-            unzip_datasets(download_dir=testdata_dir)
+            unzip_datasets(download_dir=testdata_dir, platform='S2')
             
         return testdata_fname
 
@@ -212,7 +234,22 @@ def get_polygons_3(get_project_root_path):
         
         testdata_dir = get_project_root_path.joinpath('data')
         testdata_polys = testdata_dir.joinpath(
-            Path('sample_polygons').joinpath('western_switzerland.gpkg')
+            Path('sample_polygons').joinpath('lake_lucerne.gpkg')
         )
         return testdata_polys
     return _get_polygons
+
+@pytest.fixture()
+def get_scene_collection(get_bandstack):
+    """fixture returing a SceneCollection with three scenes"""
+    def _get_scene_collection():
+        fpath_raster = get_bandstack()
+        # open three scenes
+        scene_list = []
+        for i in range(3):
+            ds = RasterCollection.from_multi_band_raster(fpath_raster=fpath_raster)
+            ds.scene_properties.acquisition_time = 1000 * (i+1)
+            scene_list.append(ds)
+        scoll = SceneCollection.from_raster_collections(scene_list, indexed_by_timestamps=False)
+        return scoll
+    return _get_scene_collection
