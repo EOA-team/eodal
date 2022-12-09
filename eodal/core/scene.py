@@ -1,6 +1,7 @@
 """
-A scene is a collection of raster bands with an acquisition date, an unique identifier
-and a (remote sensing) platform that acquired the raster data.
+A SceneCollection is a collection of scenes. A Scene is a RasterCollections with an
+acquisition date, an unique identifier and a (remote sensing) platform that acquired
+the raster data.
 
 Copyright (C) 2022 Lukas Valentin Graf
 
@@ -19,244 +20,597 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import datetime
+import dateutil.parser
+import geopandas as gpd
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import pickle
+import xarray as xr
 
-from numbers import Number
-from typing import Optional
+from collections.abc import MutableMapping
+from copy import deepcopy
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from eodal.utils.constants import ProcessingLevels
+from eodal.core.raster import RasterCollection
+from eodal.utils.exceptions import SceneNotFoundError
 
-
-class SceneProperties(object):
+class SceneCollection(MutableMapping):
     """
-    A class for storing scene-relevant properties
-
-    :attribute acquisition_time:
-        image acquisition time
-    :attribute platform:
-        name of the imaging platform
-    :attribute sensor:
-        name of the imaging sensor
-    :attribute processing_level:
-        processing level of the remotely sensed data (if
-        known and applicable)
-    :attribute product_uri:
-        unique product (scene) identifier
-    :attribute mode:
-        imaging mode of SAR sensors
+    Collection of 0:N scenes where each scene is a RasterCollection with
+    **non-empty** `SceneProperties` as each scene is indexed by its
+    acquistion time.
     """
-
     def __init__(
         self,
-        acquisition_time: Optional[datetime.datetime] = datetime.datetime(2999, 1, 1),
-        platform: Optional[str] = "",
-        sensor: Optional[str] = "",
-        processing_level: Optional[ProcessingLevels] = ProcessingLevels.UNKNOWN,
-        product_uri: Optional[str] = "",
-        mode: Optional[str] = ""
+        scene_constructor: Optional[Callable[..., RasterCollection]] = None,
+        indexed_by_timestamps: Optional[bool] = True,
+        *args,
+        **kwargs
     ):
         """
-        Class constructor
+        Initializes a SceneCollection object with 0 to N scenes.
 
-        :param acquisition_time:
-            image acquisition time
-        :param platform:
-            name of the imaging platform
-        :param sensor:
-            name of the imaging sensor
-        :param processing_level:
-            processing level of the remotely sensed data (if
-            known and applicable)
-        :param product_uri:
-            unique product (scene) identifier
-        :attribute mode:
-            imaging mode of SAR sensors
+        :param scene_constructor:
+            optional callable returning an `~eodal.core.raster.RasterCollection`
+            instance.
+        :param indexed_by_timestamps:
+            if True, all scene indices are interpreted as timestamps (`datetime.datetime`).
+            Set to False if scene indices should be treated as different data types
+        :param args:
+            arguments to pass to `scene_constructor` or one of RasterCollection's
+            class methods (e.g., `RasterCollection.from_multi_band_raster`)
+        :param kwargs:
+            key-word arguments to pass to `scene_constructor` or one of RasterCollection's
+            class methods (e.g., `RasterCollection.from_multi_band_raster`)
         """
+        # mapper are stored in a dictionary like collection
+        self._frozen = False
+        self.collection = dict()
+        self._frozen = True
+        self._is_sorted = True
 
-        self.acquisition_time = acquisition_time
-        self.platform = platform
-        self.sensor = sensor
-        self.processing_level = processing_level
-        self.product_uri = product_uri
-        self.mode = mode
+        object.__setattr__(self, 'indexed_by_timestamps', indexed_by_timestamps)
+
+        self._identifiers = []
+        if scene_constructor is not None:
+            scene = scene_constructor.__call__(*args, **kwargs)
+            self.__setitem__(scene)
+
+    def __getitem__(self, key: str | slice) -> RasterCollection:
+
+        def _get_scene_from_key(key: str | Any) -> RasterCollection:
+            if self.indexed_by_timestamps:
+                if str(key) in self.timestamps:
+                    # most likely time stamps are passed as strings
+                    # we infer the format using dateutil
+                    key = dateutil.parser.parse(key)
+                    return self.collection[key]
+            else:
+                if key in self.timestamps:
+                    return self.collection[key]
+            if key in self.identifiers:
+                scene_idx = self.identifiers.index(key)
+                return self.__getitem__(self.timestamps[scene_idx])
+
+        # has a single key or slice been passed?
+        if not isinstance(key, slice):
+            try:
+                return _get_scene_from_key(key=key)
+            except IndexError:
+                raise SceneNotFoundError(
+                    f'Could not find a scene for key {key} in collection'
+                )
+
+        else:
+            if not self.is_sorted:
+                raise ValueError('Slices are not permitted on unsorted SceneCollections')
+            # find the index of the start and the end of the slice
+            slice_start = key.start
+            slice_end = key.stop
+            # return an empty SceneCollection if start and stop is the same
+            # (numpy array behavior)
+            if slice_start is None and slice_end is None:
+                return SceneCollection()
+            # if start is None use the first scene
+            if slice_start is None:
+                if isinstance(slice_end, datetime.date):
+                    if not self.indexed_by_timestamps:
+                        raise ValueError(
+                            'Cannot slice on timestamps when `indexed_by_timestamps` is False'
+                        )
+                    slice_start = list(self.collection.keys())[0].date()
+                else:
+                    if slice_end in self.identifiers:
+                        slice_start = self.identifiers[0]
+                    else:
+                        slice_start = self.timestamps[0]
+            # if end is None use the last scene
+            end_increment = 0
+            if slice_end is None:
+                if isinstance(slice_start, datetime.date):
+                    if not self.indexed_by_timestamps:
+                        raise ValueError(
+                            'Cannot slice on timestamps when `indexed_by_timestamps` is False'
+                        )
+                    slice_end = list(self.collection.keys())[-1].date()
+                else:
+                    if slice_start in self.identifiers:
+                        slice_end = self.identifiers[-1]
+                    else:
+                        slice_end = self.timestamps[-1]
+                # to ensure that the :: operator works, we need to make
+                # sure the last band is also included in the slice
+                end_increment = 1
+            
+            if set([slice_start, slice_end]).issubset(set(self.timestamps)):
+                idx_start = self.timestamps.index(slice_start)
+                idx_end = self.timestamps.index(slice_end) + end_increment
+                scenes = self.timestamps
+            elif set([slice_start, slice_end]).issubset(set(self.identifiers)):
+                idx_start = self.identifiers.index(slice_start)
+                idx_end = self.identifiers.index(slice_end) + end_increment
+                scenes = self.identifiers
+            # allow selection by date range
+            elif isinstance(slice_start, datetime.date) and isinstance(slice_end, datetime.date):
+                if not self.indexed_by_timestamps:
+                    raise ValueError(
+                        'Cannot slice on timestamps when `indexed_by_timestamps` is False'
+                    )
+                out_scoll = SceneCollection()
+                for timestamp, scene in self:
+                    if end_increment == 0:
+                        if slice_start <= timestamp.date() < slice_end:
+                            out_scoll.add_scene(scene.copy())
+                    else:
+                        if slice_start <= timestamp.date() <= slice_end:
+                            out_scoll.add_scene(scene.copy())
+                return out_scoll
+            else:
+                raise SceneNotFoundError(f'Could not find scenes in {key}')
+            slice_step = key.step
+            if slice_step is None:
+                slice_step = 1
+            # get an empty SceneCollection for returning the slide
+            out_scoll = SceneCollection()
+            for idx in range(idx_start, idx_end, slice_step):
+                out_scoll.add_scene(_get_scene_from_key(key=scenes[idx]))
+            return out_scoll
+
+    def __getstate__(self):
+        return self.__dict__.copy()
+
+    def __setitem__(self, item: RasterCollection):
+        if not isinstance(item, RasterCollection):
+            raise TypeError("Only RasterCollection objects can be passed")
+        if not item.is_scene:
+            raise ValueError(
+                'Only RasterCollection with timestamps in their scene_properties can be passed'
+            )
+        # scenes are index by their acquisition time
+        key = item.scene_properties.acquisition_time
+        if key in self.collection.keys():
+            raise KeyError("Duplicate scene names are not permitted")
+        if key is None:
+            raise ValueError("RasterCollection passed must have an acquisition time stamp")
+        # it's important to make a copy of the scene before adding it
+        # to the collection
+        value = deepcopy(item)
+        self.collection[key] = value
+        # last, use the scene uri as an alias if available
+        if hasattr(item.scene_properties, 'product_uri'):
+            self._identifiers.append(item.scene_properties.product_uri)
+
+    def __setstate__(self, d):
+        self.collection = d
+
+    def __delitem__(self, key: str | datetime.datetime):
+        # get index of the scene to be deleted to also delete its identifier
+        idx = self.timestamps.index(str(key))
+        # casts strings back to datetime objects
+        if isinstance(key, str):
+            key = dateutil.parser.parse(key)
+        del self.collection[key]
+        _ = self.identifiers.pop(idx)
+
+    def __iter__(self):
+        for k, v in self.collection.items():
+            yield k, v
+
+    def __len__(self) -> int:
+        return len(self.collection)
 
     def __repr__(self) -> str:
-        return str(self.__dict__)
+        if self.empty:
+            return 'Empty EOdal SceneCollection'
+        else:
+            if self.indexed_by_timestamps:  
+                timestamps = ', '.join(self.timestamps)
+            else:
+                timestamps = ', '.join([str(x) for x in self.timestamps])
+            return f'EOdal SceneCollection\n----------------------\n' + \
+                f'# Scenes:    {len(self)}\nTimestamps:    {timestamps}\n' +  \
+                f'Scene Identifiers:    {", ".join(self.identifiers)}'
+
+    @staticmethod
+    def _sort_keys(
+        sort_direction: str,
+        raster_collections: List[RasterCollection] | Tuple[RasterCollection]
+    ) -> np.ndarray:
+        """
+        Returns sorted indices from a list/ tuple of RasterCollections.
+        """
+        # check sort_direction passed
+        if sort_direction not in ['asc', 'desc']:
+            raise ValueError('Sort direction must be one of: `asc`, `desc`')
+        # get timestamps of the scenes and use np.argsort to bring them into the desired order
+        timestamps = [x.scene_properties.acquisition_time for x in raster_collections]
+        if sort_direction == 'asc':
+            sort_idx = np.argsort(timestamps)
+        elif sort_direction == 'desc':
+            sort_idx = np.argsort(timestamps)[::-1]
+        return sort_idx
 
     @property
-    def acquisition_time(self) -> datetime.datetime:
-        """acquisition time of the scene"""
-        return self._acquisition_time
-
-    @acquisition_time.setter
-    def acquisition_time(self, time: datetime.datetime) -> None:
-        """acquisition time of the scene"""
-        if not isinstance(time, datetime.datetime):
-            raise TypeError("Expected a datetime.datetime object")
-        self._acquisition_time = time
+    def empty(self) -> bool:
+        """Scene Collection is empty"""
+        return len(self) == 0
 
     @property
-    def platform(self) -> str:
-        """name of the imaging platform"""
-        return self._platform
-
-    @platform.setter
-    def platform(self, value: str) -> None:
-        """name of the imaging plaform"""
-        if not isinstance(value, str):
-            raise TypeError("Expected a str object")
-        self._platform = value
+    def timestamps(self) -> List[str | Any]:
+        """acquisition timestamps of scenes in collection"""
+        if self.indexed_by_timestamps:
+            return [str(x) for x in list(self.collection.keys())]
+        else:
+            return list(self.collection.keys())
 
     @property
-    def sensor(self) -> str:
-        """name of the sensor"""
-        return self._sensor
-
-    @sensor.setter
-    def sensor(self, value: str) -> None:
-        """name of the sensor"""
-        if not isinstance(value, str):
-            raise TypeError("Expected a str object")
-        self._sensor = value
+    def identifiers(self) -> List[str]:
+        """list of scene identifiers"""
+        return self._identifiers
 
     @property
-    def processing_level(self) -> ProcessingLevels:
-        """current processing level"""
-        return self._processing_level
+    def is_sorted(self) -> bool:
+        """are the scenes sorted by their timstamps?"""
+        return self._is_sorted
 
-    @processing_level.setter
-    def processing_level(self, value: ProcessingLevels):
-        """current processing level"""
-        self._processing_level = value
+    @is_sorted.setter
+    def is_sorted(self, value: bool) -> None:
+        """are the scenes sorted by their timestamps?"""
+        if not type(value) == bool:
+            raise TypeError('Only boolean types are accepted')
+        self._is_sorted = value
 
-    @property
-    def product_uri(self) -> str:
-        """unique product (scene) identifier"""
-        return self._product_uri
+    @classmethod
+    def from_pickle(cls, stream: bytes | Path):
+        """
+        Load SceneCollection from pickled binary stream.
 
-    @product_uri.setter
-    def product_uri(self, value: str) -> None:
-        """unique product (scene) identifier"""
-        if not isinstance(value, str):
-            raise TypeError("Expected a str object")
-        self._product_uri = value
+        :param stream:
+            pickled binary stream to load into a SceneCollection or
+            file-path to pickled binary on disk.
+        :returns:
+            `SceneCollection` instance.
+        """
+        if isinstance(stream, Path):
+            with open(stream, 'rb') as f:
+                reloaded = pickle.load(f)
+        elif isinstance(stream, bytes):
+            reloaded = pickle.loads(stream)
+        else:
+            raise TypeError(f'{type(stream)} is not a supported data type')
+        # open empty scene collection and add scenes one by one
+        scoll_out = cls()
+        for _, scene in reloaded['collection'].items():
+            scoll_out.add_scene(scene)
+        return scoll_out
 
-    @property
-    def mode(self) -> str:
-        """imaging mode of SAR sensors"""
-        return self._mode
+    @classmethod
+    def from_raster_collections(
+        cls,
+        raster_collections: List[RasterCollection] | Tuple[RasterCollection],
+        sort_scenes: Optional[bool] = True,
+        sort_direction: Optional[str] = 'asc',
+        **kwargs
+    ):
+        """
+        Create a SceneCollection from a list/tuple of N RasterCollection objects.
 
-    @mode.setter
-    def mode(self, value: str) -> None:
-        if not isinstance(value, str):
-            raise TypeError("Expected a str object")
-        self._mode = value
+        :param raster_collections:
+            list or tuple of RasterCollections from which to create a new scene
+            collection.
+        :param sort_scenes:
+            if True (default) scenes are order in chronological order by their
+            acquisition time.
+        :param sort_direction:
+            direction of sorting. Must be either 'asc' (ascending) or 'desc'
+            (descending). Ignored if `sort_scenes` is False.
+        :param kwargs:
+            key word arguments to pass to `SceneCollection` constructor call.
+        :returns:
+            SceneCollection instance
+        """
+        # check inputs
+        if not isinstance(raster_collections, list) and not isinstance(raster_collections, tuple):
+            raise TypeError(f'Can only handle lists or tuples of RasterCollections')
+        if not np.array([isinstance(x, RasterCollection) for x in raster_collections]).all():
+            raise TypeError(f'All items passed must be RasterCollection instances')
+        if not np.array([x.is_scene for x in raster_collections]).all():
+            raise TypeError(f'All items passed must have an acquisition timestamp')
+        # check if scenes shall be sorted
+        if sort_scenes:
+            sort_idx = cls._sort_keys(sort_direction, raster_collections)
+            is_sorted = True
+        else:
+            sort_idx = np.array([x for x in range(len(raster_collections))])
+            is_sorted = False
+        # open a SceneCollection instance and add the scenes
+        scoll = cls(**kwargs)
+        scoll.is_sorted = is_sorted
+        for idx in sort_idx:
+            scoll.add_scene(scene_constructor=raster_collections[idx].copy())
+        return scoll
 
-# class Sentinel2SceneProperties(SceneProperties):
-#     """
-#     Sentinel-2 specific scene properties
-#
-#     :attribute sun_zenith_angle:
-#         scene-wide sun zenith angle [deg]
-#     :attribute sun_azimuth_angle:
-#         scene-wide sun azimuth angle [deg]
-#     :attribute sensor_zenith_angle:
-#         scene-wide sensor zenith angle [deg]
-#     :attribute sensor_azimuth_angle:
-#         scene-wide sensor azimuth angle [deg]
-#     """
-#
-#     def __init__(
-#             self,
-#             sun_zenith_angle: Optional[float] = np.nan,
-#             sun_azimuth_angle: Optional[float] = np.nan,
-#             sensor_zenith_angle: Optional[float] = np.nan,
-#             sensor_azimuth_angle: Optional[float] = np.nan,
-#             *args,
-#             **kwargs
-#         ):
-#         """
-#         Class constructor
-#
-#         :param sun_zenith_angle:
-#             scene-wide sun zenith angle [deg]
-#         :param sun_azimuth_angle:
-#             scene-wide sun azimuth angle [deg]
-#         :param sensor_zenith_angle:
-#             scene-wide sensor zenith angle [deg]
-#         :param sensor_azimuth_angle:
-#             scene-wide sensor azimuth angle [deg]
-#         :param args:
-#             positional arguments to pass to the constructor of the
-#             super-class
-#         :param kwargs:
-#             key-word arguments to pass to the constructor of the
-#             super-class
-#         """
-#         # call constructor of super class
-#         super().__init__(*args, **kwargs)
-#
-#         self.sun_zenith_angle = sun_zenith_angle
-#         self.sun_azimuth_angle = sun_azimuth_angle
-#         self.sensor_zenith_angle = sensor_zenith_angle
-#         self.sensor_azimuth_angle = sensor_azimuth_angle
-#
-#     @property
-#     def sun_zenith_angle(self) -> float:
-#         """sun zenith angle [deg]"""
-#         return self._sun_zenith_angle
-#
-#     @sun_zenith_angle.setter
-#     def sun_zenith_angle(self, val: float) -> None:
-#         """sun zenith angle [deg]"""
-#         if not isinstance(val, Number):
-#             raise TypeError('Expected integer of float')
-#         # plausibility check
-#         if not 0 <= val <= 90:
-#             raise ValueError('The sun zenith angle ranges from 0 to 90 degrees')
-#         self._sun_zenith_angle = val
-#
-#     @property
-#     def sun_azimuth_angle(self) -> float:
-#         """sun azimuth angle [deg]"""
-#         return self._sun_zenith_angle
-#
-#     @sun_azimuth_angle.setter
-#     def sun_azimuth_angle(self, val: float) -> None:
-#         """sun azimuth angle [deg]"""
-#         if not isinstance(val, Number):
-#             raise TypeError('Expected integer of float')
-#         # plausibility check
-#         if not 0 <= val <= 180:
-#             raise ValueError('The sun azimuth angle ranges from 0 to 180 degrees')
-#         self._sun_zenith_angle = val
-#
-#     @property
-#     def sensor_zenith_angle(self) -> float:
-#         """sensor zenith angle [deg]"""
-#         return self._sensor_zenith_angle
-#
-#     @sensor_zenith_angle.setter
-#     def sensor_zenith_angle(self, val: float) -> None:
-#         """sensor zenith angle [deg]"""
-#         if not isinstance(val, Number):
-#             raise TypeError('Expected integer of float')
-#         # plausibility check
-#         if not 0 <= val <= 90:
-#             raise ValueError('The sensor zenith angle ranges from 0 to 90 degrees')
-#         self._sensor_zenith_angle = val
-#
-#     @property
-#     def sensor_azimuth_angle(self) -> float:
-#         """sun azimuth angle [deg]"""
-#         return self._sensor_zenith_angle
-#
-#     @sensor_azimuth_angle.setter
-#     def sensor_azimuth_angle(self, val: float) -> None:
-#         """sun azimuth angle [deg]"""
-#         if not isinstance(val, Number):
-#             raise TypeError('Expected integer of float')
-#         # plausibility check
-#         if not 0 <= val <= 180:
-#             raise ValueError('The sensor azimuth angle ranges from 0 to 180 degrees')
-#         self._sun_zenith_angle = val
+    def add_scene(
+        self,
+        scene_constructor: Callable[...,RasterCollection] | RasterCollection,
+        *args, **kwargs
+    ) -> None:
+        """
+        Adds a Scene to the collection of scenes.
+
+        Raises an error if a scene with the same timestamp already exists (unique
+        timestamp constraint)
+
+        :param scene_constructor:
+            callable returning a `~eodal.core.raster.RasterCollection` instance or
+            existing `RasterCollection` instance
+        :param args:
+            positional arguments to pass to `scene_constructor`
+        :param kwargs:
+            keyword arguments to pass to `scene_constructor`
+        """
+        # if a RasterCollection is passed no constructor call is required
+        try:
+            if isinstance(scene_constructor, RasterCollection):
+                scene = scene_constructor
+            else:
+                scene = scene_constructor.__call__(*args, **kwargs)
+        except Exception as e:
+            raise ValueError(f'Cannot initialize new Scene instance: {e}')
+        # try to add the scene to the SceneCollection
+        try:
+            self.__setitem__(scene)
+        except Exception as e:
+            raise KeyError(f'Cannot add scene: {e}')
+
+    def apply(self, func: Callable, *args, **kwargs) -> Any:
+        """
+        Apply a custom function to a SceneCollection.
+
+        :param func:
+            custom callable taking the ``SceneCollection`` as first
+            argument
+        :param args:
+            optional arguments to pass to `func`
+        :param kwargs:
+            optional keyword arguments to pass to `func`
+        :returns:
+            results of `func`
+        """
+        try:
+            return func.__call__(self, *args, **kwargs)
+        except Exception as e:
+            raise ValueError from e
+
+    def copy(self):
+        """returns a true copy of the SceneCollection"""
+        return deepcopy(self)
+
+    def get_feature_timeseries(
+        self,
+        vector_features: Path | gpd.GeoDataFrame | str,
+        reindex_dataframe: Optional[bool] = False,
+        **kwargs
+    ) -> gpd.GeoDataFrame:
+        """
+        Get a time series for 1:N vector features from SceneCollection.
+
+        :param vector_features:
+            vector features for which to extract time series data. If `Point` geometries
+            are provided calls `~RasterCollection.get_pixels()` on all scenes in the
+            collection. If `Polygon` (or `MultiPolygons`) are provided, calls
+            `~RasterCollection.band_summaries()` on all scenes in the collection.
+        :param reindex_dataframe:
+            boolean flag whether to reindex the resulting GeoDataFrame after extracting
+            data from all scenes. Set to `True` to ensure that the returned GeoDataFrame
+            has a unique index. `False` by default.
+        :param kwargs:
+            key word arguments to pass to `~RasterCollection.get_pixels()` or
+            `~RasterCollection.band_summaries()` depending on the type of the input geometries.
+        :returns:
+            ``GeoDataFrame`` with extracted raster values per feature and time stamp
+        """
+        # check spatial datatypes
+        if not isinstance(vector_features, str):
+            if isinstance(vector_features, Path):
+                gdf = gpd.read_file(vector_features)
+            elif isinstance(vector_features, gpd.GeoDataFrame):
+                gdf = vector_features.copy()
+            else:
+                raise ValueError('Can only handle pathlibo objects, GeoDataFrames or "self"')
+            if set(gdf.geometry.geom_type.unique()).issubset(set(['Point', 'MulitPoint'])):
+                pixels = True
+            elif set(gdf.geometry.geom_type.unique()).issubset(set(['Polygon', 'MultiPolygon'])):
+                pixels = False
+            else:
+                raise ValueError('Can only handle (Multi)Point or (Multi)Polygon geometries')
+        else:
+            if vector_features == 'self':
+                gdf = 'self'
+                pixels = False
+            else:
+                raise ValueError('When passing a string only "self" is permitted')
+
+        # loop over scenes in collection and get the feature values
+        gdf_list = []
+        for timestamp, scene in self:
+            if pixels:
+                _gdf = scene.get_pixels(vector_features=gdf, **kwargs)
+            else:
+                _gdf = scene.band_summaries(by=gdf, **kwargs)
+            _gdf['acquisition_time'] = timestamp
+            gdf_list.append(_gdf)
+        # reindex the resulting GeoDataFrame if required
+        if reindex_dataframe:
+            gdf = pd.concat(gdf_list)
+            # reindexing is done by counting the features starting from zero
+            gdf.index = [x for x in range(gdf.shape[0])]
+            return gdf
+        else:
+            return pd.concat(gdf_list)
+
+    def plot(
+        self,
+        band_selection: str | List[str],
+        max_scenes_in_row: Optional[int] = 6,
+        eodal_plot_kwargs: Optional[Dict] = {},
+        **kwargs
+    ) -> plt.Figure:
+        """
+        Plots scenes in a `SceneCollection`
+
+        :param band_selection:
+            selection of band(s) to use for plotting. Must be either a single
+            band or a set of three bands
+        :param max_scenes_in_row:
+            number of scenes in a row. Set to 6 by default.
+        :param eodal_plot_kwargs:
+            optional keyword arguments to pass on to `eodal.core.band.Band.plot()`
+        :param kwargs:
+            optional keyword arguments to pass to `matplotlib.subplots()`.
+        :returns:
+            `Figure` object
+        """
+        # check number of passed bands
+        if isinstance(band_selection, str):
+            band_selection = [band_selection]
+        if not len(band_selection) == 1 and not len(band_selection) == 3:
+            raise ValueError('You must pass a single band name or three band names')
+
+        plot_multiple_bands = True
+        if len(band_selection) == 1:
+            plot_multiple_bands = False
+
+        # check number of mapper in feature_scenes and determine figure size
+        n_scenes = len(self)
+        nrows = 1
+        ncols = 1
+        if self.empty:
+            raise ValueError('No scenes available for plotting')
+        elif n_scenes == 1:
+            f, ax = plt.subplots(**kwargs)
+            # cast to array to allow indexing
+            ax = np.array([ax]).reshape(1,1)
+        else:
+            if n_scenes <= max_scenes_in_row:
+                ncols = n_scenes
+                f, ax = plt.subplots(ncols=ncols, nrows=nrows, **kwargs)
+                # reshape to match the shape of ax array with >1 rows
+                ax = ax.reshape(1, ax.size)
+            else:
+                nrows = int(np.ceil(n_scenes / max_scenes_in_row))
+                ncols = max_scenes_in_row
+                f, ax = plt.subplots(ncols=ncols, nrows=nrows, **kwargs)
+        # get scene labels
+        scene_labels = list(self.collection.keys())
+
+        row_idx, col_idx = 0, 0
+        idx = 0
+        for idx, _scene in enumerate(self):
+            scene = _scene[1]
+            if plot_multiple_bands:
+                scene.plot_multiple_bands(
+                    band_selection=band_selection,
+                    ax=ax[row_idx, col_idx],
+                    **eodal_plot_kwargs
+                )
+            else:
+                scene[band_selection[0]].plot(
+                    ax=ax[row_idx, col_idx],
+                    **eodal_plot_kwargs
+                )
+            ax[row_idx, col_idx].set_title(scene_labels[idx])
+            idx += 1
+
+            # switch off axes labels if sharex == True and sharey=True
+            if kwargs.get('sharex', False) and kwargs.get('sharey', False) \
+            and n_scenes > 1:
+                if nrows > 1:
+                    if row_idx < (nrows - 1): ax[row_idx, col_idx].set_xlabel('')
+                if nrows > 1:
+                    if col_idx > 0: ax[row_idx, col_idx].set_ylabel('')
+
+            # increase column (and row) counter accordingly
+            col_idx += 1
+            # begin a new row when all columns are filled
+            if col_idx == max_scenes_in_row:
+                col_idx = 0
+                row_idx += 1
+
+        # make sure sub-plot labels do not overlap
+        f.tight_layout()
+        return f
+
+    def sort(
+        self,
+        sort_direction: Optional[str] = 'asc'
+    ):
+        """
+        Returns a sorted copy of the SceneCollection.
+
+        :param sort_direction:
+            direction of sorting. Must be either 'asc' (ascending) or 'desc'
+            (descending). Ignored if `sort_scenes` is False.
+        :returns:
+            sorted SceneCollection.
+        """
+        # empty SceneCollections cannot be sorted
+        if self.empty:
+            return self.copy()
+        # get a list of all scenes in the collection and sort them
+        scenes = [v for _, v in self]
+        sort_idx = self._sort_keys(sort_direction, raster_collections=scenes)
+        scoll = SceneCollection()
+        for idx in sort_idx:
+            scoll.add_scene(scenes[idx].copy())
+        return scoll
+
+    def to_pickle(self) -> bytes:
+        """
+        Dumps a scene collection as pickled object
+
+        :returns:
+            pickled binary object
+        """
+        return pickle.dumps(self.__dict__.copy())
+
+    def to_xarray(self, **kwargs) -> xr.DataArray:
+        """
+        Converts all scenes in a SceneCollection to a single `xarray.DataArray`.
+
+        :param kwargs:
+            key word arguments to pass to `~RasterCollection.to_xarray`
+        :returns:
+            SceneCollection as `xarray.DataArray`
+        """
+        # loop over scenes in Collection and convert them to xarray.DataArray
+        xarray_list = []
+        for timestamp, scene in self:
+            _xr = scene.to_xarray(**kwargs)
+            # _xr = _xr.to_dataset()
+            _xr = _xr.expand_dims(time=[timestamp])
+            xarray_list.append(_xr)
+        # concatenate into a single xarray along the time dimension
+        return xr.concat(xarray_list, dim='time')

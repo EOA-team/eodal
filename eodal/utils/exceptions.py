@@ -79,3 +79,5 @@ class APIError(Exception):
 class AuthenticationError(Exception):
     pass
 
+class SceneNotFoundError(Exception):
+    pass

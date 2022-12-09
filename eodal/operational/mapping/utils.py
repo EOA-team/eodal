@@ -30,7 +30,7 @@ def plot_feature(feature_scenes: List[RasterCollection], band_selection: str | L
                  feature_name: Optional[str] = '',
                  **kwargs) -> plt.Figure:
         """
-        Plots all scenes retrieved for a feature
+        Plots all mapper retrieved for a feature
 
         :param band_selection:
             selection of band(s) to use for plotting. Must be either a single
@@ -48,12 +48,12 @@ def plot_feature(feature_scenes: List[RasterCollection], band_selection: str | L
         if len(band_selection) == 1:
             plot_multiple_bands = False
 
-        # check number of scenes in feature_scenes and determine figure size
+        # check number of mapper in feature_scenes and determine figure size
         n_scenes = len(feature_scenes)
         nrows = 1
         ncols = 1
         if n_scenes == 0:
-            raise ValueError('No scenes available for plotting')
+            raise ValueError('No mapper available for plotting')
         elif n_scenes == 1:
             f, ax = plt.subplots(**kwargs)
             # cast to array to allow indexing
@@ -69,7 +69,7 @@ def plot_feature(feature_scenes: List[RasterCollection], band_selection: str | L
                 ncols = max_scenes_in_row
                 f, ax = plt.subplots(ncols=ncols, nrows=nrows, **kwargs)
 
-        # get acquisition times of the scenes if available. If not label the
+        # get acquisition times of the mapper if available. If not label the
         # plots by ascending numbers (Scene 1, Scene 2, Scene 3,...)
         scene_labels = [
             f'{x.scene_properties.acquisition_time} {x.scene_properties.platform}' \

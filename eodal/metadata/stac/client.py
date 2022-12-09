@@ -76,7 +76,7 @@ def sentinel2(
     :param kwargs:
         keyword arguments to pass to `query_stac` function
     :returns:
-        dataframe with references to found Sentinel-2 scenes
+        dataframe with references to found Sentinel-2 mapper
     """
     # check for processing level of the data and set the collection accordingly
     processing_level_stac = eval(f"Settings.STAC_BACKEND.S2{processing_level.name}")
@@ -86,7 +86,7 @@ def sentinel2(
     scenes = query_stac(**kwargs)
     # get STAC provider specific naming conventions
     s2 = Settings.STAC_BACKEND.Sentinel2
-    # loop over found scenes and check their cloud cover
+    # loop over found mapper and check their cloud cover
     metadata_list = []
     for scene in scenes:
         # extract scene metadata required for Sentinel-2
@@ -140,7 +140,7 @@ def sentinel2(
 @prepare_bbox
 def sentinel1(collection: Optional[str] = 'sentinel-1-rtc', **kwargs) -> pd.DataFrame:
     """
-    Sentinel-1 specific STAC query function to retrieve scenes from MSPC
+    Sentinel-1 specific STAC query function to retrieve mapper from MSPC
 
     :param collection:
         Sentinel-1 collection to use. Must be one of 'sentinel-1-grd' (ground
@@ -149,7 +149,7 @@ def sentinel1(collection: Optional[str] = 'sentinel-1-rtc', **kwargs) -> pd.Data
         :param kwargs:
         keyword arguments to pass to `query_stac` function
     :returns:
-        dataframe with references to found Sentinel-1 scenes
+        dataframe with references to found Sentinel-1 mapper
     """
 
     if Settings.STAC_BACKEND != STAC_Providers.MSPC:

@@ -68,6 +68,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import datetime
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
@@ -79,6 +80,7 @@ import zarr
 
 from collections.abc import MutableMapping
 from copy import deepcopy
+from itertools import chain
 from matplotlib.axes import Axes
 from matplotlib.pyplot import Figure
 from numbers import Number
@@ -94,10 +96,151 @@ from typing import Union
 
 from eodal.core.band import Band
 from eodal.core.operators import Operator
-from eodal.core.scene import SceneProperties
 from eodal.core.spectral_indices import SpectralIndices
+from eodal.utils.constants import ProcessingLevels
 from eodal.utils.decorators import check_band_names
+from eodal.utils.exceptions import BandNotFoundError
 
+class SceneProperties(object):
+    """
+    A class for storing scene-relevant properties
+
+    :attribute acquisition_time:
+        image acquisition time
+    :attribute platform:
+        name of the imaging platform
+    :attribute sensor:
+        name of the imaging sensor
+    :attribute processing_level:
+        processing level of the remotely sensed data (if
+        known and applicable)
+    :attribute product_uri:
+        unique product (scene) identifier
+    :attribute mode:
+        imaging mode of SAR sensors
+    """
+
+    def __init__(
+        self,
+        acquisition_time: Optional[datetime.datetime | Number] = None,
+        platform: Optional[str] = None,
+        sensor: Optional[str] = None,
+        processing_level: Optional[ProcessingLevels] = ProcessingLevels.UNKNOWN,
+        product_uri: Optional[str] = None,
+        mode: Optional[str] = None
+    ):
+        """
+        Class constructor
+
+        :param acquisition_time:
+            image acquisition time. Can be a timestamp or any kind of numeric
+            index.
+        :param platform:
+            name of the imaging platform
+        :param sensor:
+            name of the imaging sensor
+        :param processing_level:
+            processing level of the remotely sensed data (if
+            known and applicable)
+        :param product_uri:
+            unique product (scene) identifier
+        :attribute mode:
+            imaging mode of SAR sensors
+        """
+
+        self.acquisition_time = acquisition_time
+        self.platform = platform
+        self.sensor = sensor
+        self.processing_level = processing_level
+        self.product_uri = product_uri
+        self.mode = mode
+
+    def __repr__(self) -> str:
+        return str(self.__dict__)
+
+    @property
+    def acquisition_time(self) -> datetime.datetime:
+        """acquisition time of the scene"""
+        return self._acquisition_time
+
+    @acquisition_time.setter
+    def acquisition_time(self, time: datetime.datetime | None) -> None:
+        """acquisition time of the scene"""
+        if time is not None:
+            if not isinstance(time, datetime.datetime) and \
+                not isinstance(time, Number):
+                raise TypeError("Expected a datetime.datetime or Number object")
+            self._acquisition_time = time
+
+    @property
+    def platform(self) -> str | None:
+        """name of the imaging platform"""
+        return self._platform
+
+    @platform.setter
+    def platform(self, value: str | None) -> None:
+        """name of the imaging plaform"""
+        if value is not None:
+            if not isinstance(value, str):
+                raise TypeError("Expected a str object")
+            self._platform = value
+
+    @property
+    def sensor(self) -> str | None:
+        """name of the sensor"""
+        return self._sensor
+
+    @sensor.setter
+    def sensor(self, value: str | None) -> None:
+        """name of the sensor"""
+        if value is not None:
+            if not isinstance(value, str):
+                raise TypeError("Expected a str object")
+            self._sensor = value
+
+    @property
+    def processing_level(self) -> ProcessingLevels:
+        """current processing level"""
+        return self._processing_level
+
+    @processing_level.setter
+    def processing_level(self, value: ProcessingLevels | None) -> None:
+        if value is not None:
+            self._processing_level = value
+
+    @property
+    def product_uri(self) -> str | None:
+        """unique product (scene) identifier"""
+        return self._product_uri
+
+    @product_uri.setter
+    def product_uri(self, value: str | None) -> None:
+        """unique product (scene) identifier"""
+        if value is not None:
+            if not isinstance(value, str):
+                raise TypeError("Expected a str object")
+            self._product_uri = value
+
+    @property
+    def mode(self) -> str | None:
+        """imaging mode of SAR sensors"""
+        return self._mode
+
+    @mode.setter
+    def mode(self, value: str | None) -> None:
+        if value is not None:
+            if not isinstance(value, str):
+                raise TypeError("Expected a str object")
+            self._mode = value
+
+    def are_populated(self) -> bool:
+        """
+        returns a Boolean flag indicating if the class attributes
+        have been populated with actual data or still equal defaults.
+
+        A scene must have at least a time stamp.
+        """
+        return hasattr(self, 'acquisition_time')
 
 class RasterOperator(Operator):
     """
@@ -109,7 +252,7 @@ class RasterOperator(Operator):
     def calc(
         cls,
         a,
-        other: Union[Band, Number, np.ndarray],
+        other: Band | Number | np.ndarray,
         operator: str,
         inplace: Optional[bool] = False,
         band_selection: Optional[List[str]] = None,
@@ -120,8 +263,8 @@ class RasterOperator(Operator):
         :param a:
             `RasterCollection` object with values (non-empty)
         :param other:
-            `Band` object, scalar,  or 3-dimensional `numpy.array` to use on the
-            right-hand side of the operator. If a `numpy.array` is passed the array
+            `Band` object, scalar, 3-dimensional `numpy.array`, or RasterCollection to use
+            on the right-hand side of the operator. If a `numpy.array` is passed the array
             must have either shape `(1,nrows,ncols)` or `(nband,nrows,ncols)`
             where `nrows` is the number of rows in `a`, ncols the number of columns
             in `a` and `nbands` the number of bands in a or the selection thereof.
@@ -139,12 +282,14 @@ class RasterOperator(Operator):
             `numpy.ndarray` if inplace is False, None instead
         """
         cls.check_operator(operator=operator)
+        # make a copy of a to avoid overwriting the original values
+        _a = deepcopy(a)
         # if `other` is a Band object get its values
         if isinstance(other, Band):
-            _other = other.copy()
-            _other = _other.values()
+            _other = deepcopy(other)
+            _other = _other.values
         # check if `other` matches the shape
-        if isinstance(other, np.ndarray) or isinstance(other, np.ma.MaskedArray):
+        elif isinstance(other, np.ndarray) or isinstance(other, np.ma.MaskedArray):
             # check if passed array is 2-d
             if len(other.shape) == 2:
                 if other.shape != a.get_values(band_selection).shape[1::]:
@@ -167,26 +312,33 @@ class RasterOperator(Operator):
                 )
             _other = other.copy()
         elif isinstance(other, RasterCollection):
-            _other = other.copy()
+            _other = deepcopy(other)
             _other = other.get_values(band_selection=band_selection)
-            # other_is_raster = True
+        elif (isinstance(other, int) or isinstance(other, float)):
+            _other = other
+        else:
+            raise TypeError(f'{type(other)} is not supported')
+
         # perform the operation
         try:
-            expr = f"a.get_values(band_selection) {operator} other"
+            expr = f"_a.get_values(band_selection) {operator} _other"
             res = eval(expr)
         except Exception as e:
             raise cls.BandMathError(f"Could not execute {expr}: {e}")
         # return result or overwrite band data
-        if inplace:
-            if band_selection is None:
-                band_selection = a.band_names()
-            for idx, band_name in enumerate(band_selection):
-                object.__setattr__(cls.collection[band_name], "values", res[idx, :, :])
-        else:
-            # TODO: return a new RasterCollection instance
-            # TODO: think about multiple slices
-            raise NotImplementedError()
-
+        if band_selection is None:
+            band_selection = a.band_names
+        if not inplace:
+            rcoll_out = RasterCollection()
+        for idx, band_name in enumerate(band_selection):
+            if inplace:
+                object.__setattr__(a.collection[band_name], "values", res[idx,:,:])
+            else:
+                attrs = _a.collection[band_name].__dict__
+                attrs.update({'values': res[idx,:,:]})
+                rcoll_out.add_band(band_constructor=Band, **attrs)
+        if not inplace:
+            return rcoll_out
 
 class RasterCollection(MutableMapping):
     """
@@ -259,21 +411,76 @@ class RasterCollection(MutableMapping):
             self._band_aliases.append(band.band_alias)
             self.__setitem__(band)
 
-    def __getitem__(self, key: str) -> Band:
-        # check for band alias if any
-        if self.has_band_aliases:
+    def __getitem__(self, key: str | slice) -> Band:
+
+        def _get_band_from_key(key: str) -> Band:
+            """
+            helper function returning a Band object identified
+            by its name from a RasterCollection
+            """
             if key not in self.band_names:
                 if key in self.band_aliases:
                     band_idx = self.band_aliases.index(key)
                     key = self.band_names[band_idx]
-        return self.collection[key]
+            return self.collection[key]
+
+        # has a single key or slice been passed?
+        if isinstance(key, str):
+            try:
+                return _get_band_from_key(key=key)
+            except IndexError:
+                raise BandNotFoundError(f'Could not find band {key}')
+
+        elif isinstance(key, slice):
+            # find the index of the start and the end of the slice
+            slice_start = key.start
+            slice_end = key.stop
+            # return an empty RasterCollection if start and stop is the same
+            # (numpy array behavior)
+            if slice_start is None and slice_end is None:
+                return RasterCollection()
+            # if start is None use the first band name or its alias
+            if slice_start is None:
+                if slice_end in self.band_names:
+                    slice_start = self.band_names[0]
+                elif slice_end in self.band_aliases:
+                    slice_start = self.band_aliases[0]
+            # if end is None use the last band name or its alias
+            end_increment = 0
+            if slice_end is None:
+                if slice_start in self.band_names:
+                    slice_end = self.band_names[-1]
+                elif slice_start in self.band_aliases:
+                    slice_end = self.band_aliases[-1]
+                # to ensure that the :: operator works, we need to make
+                # sure the last band is also included in the slice
+                end_increment = 1
+            
+            if set([slice_start, slice_end]).issubset(set(self.band_names)):
+                idx_start = self.band_names.index(slice_start)
+                idx_end = self.band_names.index(slice_end) + end_increment
+                bands = self.band_names
+            elif set([slice_start, slice_end]).issubset(set(self.band_aliases)):
+                idx_start = self.band_aliases.index(slice_start)
+                idx_end = self.band_aliases.index(slice_end) + end_increment
+                bands = self.band_aliases
+            else:
+                raise BandNotFoundError(f'Could not find bands in {key}')
+            slice_step = key.step
+            if slice_step is None:
+                slice_step = 1
+            # get an empty RasterCollection for returing the slide
+            out_raster = RasterCollection()
+            for idx in range(idx_start, idx_end, slice_step):
+                out_raster.add_band(_get_band_from_key(key=bands[idx]))
+            return out_raster
 
     def __setitem__(self, item: Band):
         if not isinstance(item, Band):
             raise TypeError("Only Band objects can be passed")
         key = item.band_name
         if key in self.collection.keys():
-            raise KeyError("Duplicate band names not permitted")
+            raise KeyError("Duplicate band names are not permitted")
         value = item.copy()
         self.collection[key] = value
 
@@ -281,7 +488,8 @@ class RasterCollection(MutableMapping):
         del self.collection[key]
 
     def __iter__(self):
-        return iter(self.collection)
+        for k, v in self.collection.items():
+            yield k, v
 
     def __len__(self) -> int:
         return len(self.collection)
@@ -307,6 +515,9 @@ class RasterCollection(MutableMapping):
     def __mul__(self, other):
         return RasterOperator.calc(a=self, other=other, operator="*")
 
+    def __ne__(self, other):
+        return RasterOperator.calc(a=self, other=other, operator="!=")
+
     def __eq__(self, other):
         return RasterOperator.calc(a=self, other=other, operator="==")
 
@@ -315,6 +526,14 @@ class RasterCollection(MutableMapping):
 
     def __lt__(self, other):
         return RasterOperator.calc(a=self, other=other, operator="<")
+
+    def __repr__(self) -> str:
+        if self.empty:
+            return 'Empty EOdal RasterCollection'
+        else:
+            return f'EOdal RasterCollection\n----------------------\n' + \
+                f'# Bands:    {len(self)}\nBand names:    {", ".join(self.band_names)}\n' +  \
+                f'Band aliases:    {", ".join(self.band_aliases)}'
 
     @property
     def band_names(self) -> List[str]:
@@ -332,11 +551,6 @@ class RasterCollection(MutableMapping):
         return len(self.collection) == 0
 
     @property
-    def has_band_aliases(self) -> bool:
-        """collection supports aliasing"""
-        return len(self.band_aliases) > 0
-
-    @property
     def collection(self) -> MutableMapping:
         """collection of the bands currently loaded"""
         return self._collection
@@ -351,10 +565,20 @@ class RasterCollection(MutableMapping):
         if not self._frozen:
             self._collection = value
 
+    @property
+    def has_band_aliases(self) -> bool:
+        """collection supports aliasing"""
+        return len(self.band_aliases) > 0
+
+    @property
+    def is_scene(self) -> bool:
+        """is the RasterCollection a scene"""
+        return self.scene_properties.are_populated()
+
     @check_band_names
     def get_band_alias(self, band_name: str) -> Union[Dict[str, str], None]:
         """
-        Retuns the band_name-alias mapping of a given band
+        Retuns the band_name-alias mapper of a given band
         in collection if the band has an alias, None instead
 
         :param band_name:
@@ -447,12 +671,30 @@ class RasterCollection(MutableMapping):
             "band_count": band_count,
         }
 
+    def apply(self, func: Callable, *args, **kwargs) -> Any:
+        """
+        Apply a custom function to a ``RasterCollection``.
+
+        :param func:
+            custom callable taking the ``RasterCollection`` as first
+            argument
+        :param args:
+            optional arguments to pass to `func`
+        :param kwargs:
+            optional keyword arguments to pass to `func`
+        :returns:
+            results of `func`
+        """
+        try:
+            return func.__call__(self, *args, **kwargs)
+        except Exception as e:
+            raise ValueError from e
+
     def copy(self):
         """
         Returns a copy of the current ``RasterCollection``
         """
-        attrs = deepcopy(self.__dict__)
-        return RasterCollection(**attrs)
+        return deepcopy(self)
 
     @classmethod
     def from_multi_band_raster(
@@ -707,6 +949,39 @@ class RasterCollection(MutableMapping):
             raise KeyError(f"Cannot add raster band: {e}")
 
     @check_band_names
+    def clip_bands(
+        self,
+        band_selection: Optional[List[str]] = None,
+        inplace: Optional[bool] = False,
+        **kwargs
+    ):
+        """
+        Clip bands in RasterCollection to a user-defined spatial bounds.
+        """
+        if band_selection is None:
+            band_selection = self.band_names
+        # loop over bands and try to subset them spatially
+        # initialize a new raster collection if inplace is False
+        collection = None
+        if inplace:
+            kwargs.update({'inplace': True})
+        if not inplace:
+            attrs = deepcopy(self.__dict__)
+            attrs.pop("_collection")
+            collection = RasterCollection(**attrs)
+
+        # loop over band reproject the selected ones
+        for band_name in band_selection:
+            if inplace:
+                self.collection[band_name].clip(**kwargs)
+            else:
+                band = self.get_band(band_name)
+                collection.add_band(band_constructor=band.clip, **kwargs)
+
+        if not inplace:
+            return collection
+
+    @check_band_names
     def plot_band(self, band_name: str, **kwargs) -> Figure:
         """
         Plots a band in the collection of raster bands.
@@ -936,27 +1211,41 @@ class RasterCollection(MutableMapping):
     def band_summaries(
         self,
         band_selection: Optional[List[str]] = None,
-        methods: Optional[List[str]] = ["nanmin", "nanmean", "nanstd", "nanmax"],
-    ) -> pd.DataFrame:
+        **kwargs
+    ) -> gpd.GeoDataFrame:
         """
-        Descriptive band statistics
+        Descriptive band statistics by calling `Band.reduce` for bands in a collection.
 
         :param band_selection:
             selection of bands to process. If not provided uses all
             bands
-        :param methods:
-            descriptive metrics to compute for each band
+        :param kwargs:
+            optional keyword arguments to pass to `~eodal.core.band.Band.reduce`. Use
+            `by` to get descriptive statistics by selected geometry features (e.g.,
+            single polygons).
         :returns:
-            ``DataFrame`` with descriptive statistics for all bands selected
+            ``GeoDataFrame`` with descriptive statistics for all bands selected and geometry
+            features passed (optional)
         """
         stats = []
         if band_selection is None:
             band_selection = self.band_names
         for band_name in band_selection:
-            band_stats = self[band_name].reduce(method=methods)
-            band_stats["band_name"] = band_name
+            band_stats = self[band_name].reduce(**kwargs)
+            # band_stats is a list of 1:N entries (one per feature on which reduce
+            # was called); we add the band name as attribute
+            for idx in range(len(band_stats)):
+                band_stats[idx].update({'band_name': band_name})
             stats.append(band_stats)
-        return pd.DataFrame(stats)
+        # since the geometry information was passed on, a GeoDataFrame can be returned
+        df = pd.DataFrame(list(chain(*stats)))
+        gdf = gpd.GeoDataFrame(df, geometry=df['geometry'], crs=df['crs'].iloc[0])
+        # cast columns to float; otherwise pandas throws an error:
+        # TypeError: unhashable type: 'MaskedConstant'
+        methods = kwargs.get('method', ['min', 'mean', 'std', 'max', 'count'])
+        gdf[methods] = gdf[methods].astype(float)
+        gdf.drop(columns=['crs'], inplace=True)
+        return gdf
 
     @check_band_names
     def reproject(
@@ -1046,7 +1335,7 @@ class RasterCollection(MutableMapping):
 
     def mask(
         self,
-        mask: Union[str, np.ndarray],
+        mask: Union[str, np.ndarray, Band],
         mask_values: Optional[List[Any]] = None,
         keep_mask_values: Optional[bool] = False,
         bands_to_mask: Optional[List[str]] = None,
@@ -1061,7 +1350,8 @@ class RasterCollection(MutableMapping):
 
         :param mask:
             either a band out of the collection (identified through its
-            band name) or a ``numpy.ndarray`` of datatype boolean.
+            band name) or a ``numpy.ndarray`` of datatype boolean or
+            another `Band` object
         :param mask_values:
             if `mask` is a band out of the collection, a list of values
             **must** be specified to create a boolean mask. Ignored if `mask`
@@ -1079,15 +1369,16 @@ class RasterCollection(MutableMapping):
         :returns:
             new RasterCollection if `inplace==False`, None otherwise
         """
+        _mask = deepcopy(mask)
         # check mask and prepare it if required
-        if isinstance(mask, np.ndarray):
+        if isinstance(_mask, np.ndarray):
             if mask.dtype != "bool":
                 raise TypeError("When providing an array it must be boolean")
-            if len(mask.shape) != 2:
+            if len(_mask.shape) != 2:
                 raise ValueError("When providing an array it must be 2-dimensional")
-        elif isinstance(mask, str):
+        elif isinstance(_mask, str):
             try:
-                mask = self.get_values(band_selection=[mask])[0, :, :]
+                _mask = self.get_values(band_selection=[_mask])[0, :, :]
             except Exception as e:
                 raise ValueError(f"Invalid mask band: {e}")
             # translate mask band into boolean array
@@ -1096,18 +1387,22 @@ class RasterCollection(MutableMapping):
                     "When using a band as mask, you have to provide a list of mask values"
                 )
             # convert the mask to a temporary binary mask
-            tmp = np.zeros_like(mask)
+            tmp = np.zeros_like(_mask)
             # set valid classes to 1, the other ones are zero
             if keep_mask_values:
                 # drop all other values not in mask_values
-                tmp[~np.isin(mask, mask_values)] = 1
+                tmp[~np.isin(_mask, mask_values)] = 1
             else:
                 # drop all values in mask_values
-                tmp[np.isin(mask, mask_values)] = 1
-            mask = tmp.astype("bool")
+                tmp[np.isin(_mask, mask_values)] = 1
+            _mask = tmp.astype("bool")
+        elif isinstance(_mask, Band):
+            if _mask.values.dtype != 'bool':
+                raise TypeError(f'Mask must have boolean values not {_mask.values.dtype}')
+            _mask = _mask.values
         else:
             raise TypeError(
-                f"Mask must be either band_name or np.ndarray not {type(mask)}"
+                f"Mask must be either band_name or np.ndarray not {type(_mask)}"
             )
 
         # check bands to mask
@@ -1118,16 +1413,6 @@ class RasterCollection(MutableMapping):
         if not self.is_bandstack(band_selection=bands_to_mask):
             raise ValueError(
                 "Can only mask bands that have the same spatial extent, pixel size and CRS"
-            )
-        if mask.shape[0] != self[bands_to_mask[0]].nrows:
-            raise ValueError(
-                f"Number of rows in mask ({mask.shape[0]}) does not match "
-                f"number of rows in the raster data ({self[bands_to_mask[0]].nrows})"
-            )
-        if mask.shape[1] != self[bands_to_mask[0]].ncols:
-            raise ValueError(
-                f"Number of columns in mask ({mask.shape[1]}) does not match "
-                f"number of columns in the raster data ({self[bands_to_mask[0]].ncols})"
             )
 
         # initialize a new raster collection if inplace is False
@@ -1140,11 +1425,11 @@ class RasterCollection(MutableMapping):
         # loop over band reproject the selected ones
         for band_name in bands_to_mask:
             if inplace:
-                self[band_name].mask(mask=mask, inplace=inplace)
+                self[band_name].mask(mask=_mask, inplace=inplace)
             else:
                 band = self.get_band(band_name)
                 collection.add_band(
-                    band_constructor=band.mask, mask=mask, inplace=inplace
+                    band_constructor=band.mask, mask=_mask, inplace=inplace
                 )
 
         return collection
@@ -1200,6 +1485,7 @@ class RasterCollection(MutableMapping):
         Spatial join of one ``RasterCollection`` instance with another
         instance
         """
+        pass
 
     def calc_si(
         self, si_name: str, inplace: Optional[bool] = False
@@ -1357,6 +1643,12 @@ class RasterCollection(MutableMapping):
     def to_xarray(self, band_selection: Optional[List[str]] = None) -> xr.DataArray:
         """
         Converts bands in collection a ``xarray.DataArray``
+
+        :param band_selection:
+            selection of bands to process. If not provided uses all
+            bands
+        :returns:
+            `xarray.DataArray` created from RasterCollection.
         """
         if band_selection is None:
             band_selection = self.band_names

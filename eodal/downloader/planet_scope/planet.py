@@ -1,6 +1,6 @@
 '''
 Class for interacting with PlanetScope's Data and Order URL for checking
-available scenes, placing orders and downloading data.
+available mapper, placing orders and downloading data.
 
 Make sure to have a Planet-account and to have exported your valid API key
 as environmental variable. You can find your API following this link:
@@ -62,7 +62,7 @@ class PlanetAPIClient(object):
         date and dataset filters)
     :attrib features:
         features returned from Planet API (i.e., found
-        Planet-Scope scenes)
+        Planet-Scope mapper)
     :attrib session:
         (authenticated) session object to interact with
         the Planet-API without re-sensing the API key for
@@ -83,7 +83,7 @@ class PlanetAPIClient(object):
             date and dataset filters)
         :param features:
             features returned from Planet API (i.e., found
-            Planet-Scope scenes)
+            Planet-Scope mapper)
         :param session:
             (authenticated) session object to interact with
             the Planet-API without re-sensing the API key for
@@ -191,7 +191,7 @@ class PlanetAPIClient(object):
             Planet product item type. `PSScene` by default.
         :param cloud_cover_threshold:
             cloudy pixel percentage threshold (0-100%) for filtering
-            too cloudy scenes
+            too cloudy mapper
         :returns:
             `PlanetAPIClient object'
         """
@@ -403,7 +403,7 @@ class PlanetAPIClient(object):
         Download data from an order. Order must be activated!
 
         :param download_dir:
-            directory where to download the Planet scenes to. Each scene is
+            directory where to download the Planet mapper to. Each scene is
             stored in a own sub-directory named by its ID to make the archive
             structure comparable to Sentinel-2 and the single assets (files)
             are placed within that sub-directory.

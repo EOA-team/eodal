@@ -44,21 +44,15 @@ from matplotlib.figure import figaspect
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from numbers import Number
 from pathlib import Path
-from rasterio import Affine
-from rasterio import features
+from rasterio import Affine, features
 from rasterio.coords import BoundingBox
 from rasterio.crs import CRS
 from rasterio.drivers import driver_from_extension
 from rasterio.enums import Resampling
-from shapely.geometry import box
-from shapely.geometry import Point
-from shapely.geometry import Polygon
-from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
+from rasterstats import zonal_stats
+from rasterstats.utils import check_stats
+from shapely.geometry import box, MultiPolygon, Point, Polygon
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from eodal.core.operators import Operator
 from eodal.core.utils.geometry import check_geometry_types
@@ -72,7 +66,6 @@ from eodal.utils.exceptions import (
     ReprojectionError,
 )
 from eodal.utils.reprojection import reproject_raster_dataset, check_aoi_geoms
-
 
 class BandOperator(Operator):
     """
@@ -362,6 +355,9 @@ class Band(object):
         `rasterio` compatible representation of essential image metadata
     :attrib transform:
         `Affine` transform representation of the image geo-localisation
+    :attrib vector_features:
+        `geopandas.GeoDataFrame` with vector features used for reading the image
+        (clipping or masking). Can be None if no features were used for reading.
     """
 
     def __init__(
@@ -377,7 +373,7 @@ class Band(object):
         nodata: Optional[Union[int, float]] = None,
         is_tiled: Optional[Union[int, bool]] = 0,
         area_or_point: Optional[str] = "Area",
-        alias: Optional[str] = ""
+        vector_features: Optional[gpd.GeoDataFrame] = None
     ):
         """
         Constructor to instantiate a new band object.
@@ -424,8 +420,10 @@ class Band(object):
             `Point`. When `Area` pixel coordinates refer to the upper left corner of the
             pixel, whereas `Point` indicates that pixel coordinates are from the center
             of the pixel.
-        :param alias:
-            band alias name (optional).
+        :param vector_features:
+            `geopandas.GeoDataFrame` with vector features used for reading the image
+            (clipping or masking). Can be None if no features were used for reading
+            (optional).
         """
 
         # make sure the passed values are 2-dimensional
@@ -441,6 +439,9 @@ class Band(object):
             elif values.dtype in ["uint8", "uint16", "uint32", "uint64"]:
                 nodata = 0
 
+        # make sure vector features is a valid GeoDataFrame
+        self._check_vector_features(vector_features)
+        
         object.__setattr__(self, "band_name", band_name)
         object.__setattr__(self, "values", values)
         object.__setattr__(self, "geo_info", geo_info)
@@ -452,6 +453,7 @@ class Band(object):
         object.__setattr__(self, "nodata", nodata)
         object.__setattr__(self, "is_tiled", is_tiled)
         object.__setattr__(self, "area_or_point", area_or_point)
+        object.__setattr__(self, "vector_features", vector_features)
 
     def __setattr__(self, *args, **kwargs):
         raise TypeError("Band object attributes are immutable")
@@ -480,6 +482,9 @@ class Band(object):
     def __mul__(self, other):
         return BandOperator.calc(a=self, other=other, operator="*")
 
+    def __ne__(self, other):
+        return BandOperator.calc(a=self, other=other, operator="!=")
+
     def __eq__(self, other):
         return BandOperator.calc(a=self, other=other, operator="==")
 
@@ -488,6 +493,9 @@ class Band(object):
 
     def __lt__(self, other):
         return BandOperator.calc(a=self, other=other, operator="<")
+
+    def __repr__(self) -> str:
+        return f'EOdal Band\n---------.\nName:    {self.band_name}\nGeoInfo:    {self.geo_info}'
 
     @property
     def alias(self) -> Union[str, None]:
@@ -570,6 +578,19 @@ class Band(object):
         return self.geo_info.as_affine()
 
     @staticmethod
+    def _check_vector_features(vector_features: None | gpd.GeoDataFrame) -> None:
+        """
+        Asserts that passed GeoDataFrame has a CRS
+        """
+        if vector_features is not None:
+            if isinstance(vector_features, Path):
+                vector_features = gpd.read_file(vector_features)
+            if vector_features.crs is None:
+                raise ValueError(
+                    f'Cannot handle vector features without spatial coordinate reference system'
+                )
+
+    @staticmethod
     def _get_pixel_geometries(
         vector_features: Union[Path, gpd.GeoDataFrame],
         fpath_raster: Optional[Path] = None,
@@ -581,7 +602,7 @@ class Band(object):
         of the raster band and extraction of centroid coordinates if
         the vector features are of type ``Polygon`` or ``MultiPolygon``
 
-        :param vector_features:
+        :param vector_features: 
             passed vector features to calling instance or class method
         :param fpath_raster:
             optional file path to the raster dataset. To be used when
@@ -775,6 +796,11 @@ class Band(object):
             nodata, nodata_vals = None, attrs.get("nodatavals", None)
             if nodata_vals is not None:
                 nodata = nodata_vals[band_idx - 1]
+
+        if masking:
+            # make sure to set the EPSG code
+            gdf_aoi.set_crs(epsg=epsg, inplace=True)
+            kwargs.update({'vector_features': gdf_aoi})
 
         # is_tiled can only be retrived from the raster attribs
         is_tiled = attrs.get("is_tiled", 0)
@@ -1089,6 +1115,103 @@ class Band(object):
         """
         attrs = deepcopy(self.__dict__)
         return Band(**attrs)
+
+    def clip(
+        self,
+        clipping_bounds: Path | gpd.GeoDataFrame | Tuple[float,float,float,float] | Polygon,
+        inplace: Optional[bool] = False
+    ):
+        """
+        Clip a band object to a spatial extent.
+
+        :param clipping_bounds:
+            spatial bounds to clip the Band to. Only clipping to rectangular shapes
+            is supported. Can be either a vector file, a shapely `Polygon`, a
+            `GeoDataFrame` or a coordinate tuple with (xmin, ymin, xmax, ymax).
+            Vector files and `GeoDataFrame` are reprojected into the bands' coordinate
+            system if required, while the coordinate tuple and shapely geometry **MUST**
+            be provided in the CRS of the band.
+        :param inplace:
+            if False (default) returns a copy of the ``Band`` instance
+            with the changes applied. If True overwrites the values
+            in the current instance.
+        :returns:
+            clipped band instance.
+        """
+        if isinstance(clipping_bounds, Path):
+            clipping_bounds = gpd.read_file(clipping_bounds)
+        # check inputs
+        if isinstance(clipping_bounds, tuple):
+            if len(clipping_bounds) != 4:
+                raise ValueError('Expected four coordinates (xmin, ymin, xmax, ymax)')
+            xmin, ymin, xmax, ymax = clipping_bounds
+        elif isinstance(clipping_bounds, gpd.GeoDataFrame):
+            # get the bounding box of the FIRST feature
+            _clipping_bounds = clipping_bounds.copy()
+            _clipping_bounds = _clipping_bounds.bounds
+            xmin, ymin, xmax, ymax = list(clipping_bounds)
+        elif isinstance(clipping_bounds, Polygon):
+            xmin, ymin, xmax, ymax = clipping_bounds.bounds
+        else:
+            raise TypeError(f'{type(clipping_bounds)} is not supported')
+        # actual clipping operation. Calculate the rows and columns where to clip
+        # the band
+        x_coords, y_coords = self.coordinates['x'],  self.coordinates['y']
+        # check for overlap first
+        clip_shape = Polygon(
+            zip(
+                np.arange(xmin, xmax, abs(self.geo_info.pixres_x)),
+                np.arange(ymin, ymax, abs(self.geo_info.pixres_y))
+            )
+        )
+        if not (clip_shape.overlaps(self.bounds) or self.bounds.covers(clip_shape)
+                or self.bounds.equals(clip_shape) or self.bounds.overlaps(clip_shape)
+            ):
+            raise ValueError(f'Clipping bounds do not overlap Band')
+        # left column index
+        if xmin > x_coords[0]:
+            min_col = np.argmin(abs(xmin - x_coords))
+            ulx = x_coords[min_col]
+        else:
+            min_col = 0
+            ulx = x_coords[0]
+        # right column index
+        if xmax < x_coords[-1]:
+            max_col = np.argmin(abs(xmax - x_coords))
+        else:
+            max_col = len(x_coords)
+        # lower row index (y coordinates are sorted descending!)
+        if ymin > y_coords[-1]:
+            min_row = np.argmin(abs(ymin - y_coords[::-1]))
+        else:
+            min_row = 0
+        # upper row index
+        if ymax < y_coords[0]:
+            max_row = np.argmin(abs(ymax - y_coords[::-1]))
+            uly = y_coords[::-1][max_row]
+        else:
+            max_row = len(y_coords)
+            uly = y_coords[0]
+
+        # get its GeoInfo and update it accordingly
+        geo_info = self.geo_info
+        new_geo_info = GeoInfo(
+            epsg=geo_info.epsg,
+            ulx=ulx,
+            uly=uly,
+            pixres_x=geo_info.pixres_x,
+            pixres_y=geo_info.pixres_y
+        )
+        values = self.values.copy()
+        new_values = values[min_row:max_row,min_col:max_col]
+
+        if inplace:
+            object.__setattr__(self, "values", new_values)
+            object.__setattr__(self, "geo_info", new_geo_info)
+        else:
+            attrs = deepcopy(self.__dict__)
+            attrs.update({"values": new_values, "geo_info": new_geo_info})
+            return Band(**attrs)
 
     def get_attributes(self, **kwargs) -> Dict[str, Any]:
         """
@@ -1773,29 +1896,58 @@ class Band(object):
 
     def reduce(
         self,
-        method: Union[str, List[str]],
-        by: Optional[Union[Path, gpd.GeoDataFrame]] = None,
-        method_args: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Union[int, float]]:
+        method: Optional[str | List[str]] = ['min', 'mean', 'std', 'max', 'count'],
+        by: Optional[Path | gpd.GeoDataFrame | Polygon | str] = None,
+    ) -> List[Dict[str, int | float]]:
         """
-        Reduces the raster data to scalar values.
+        Reduces the raster data to scalar values by calling `rasterstats`.
+
+        The reduction can be done on the whole band or by using vector features.
+
+        IMPORTANT:
+            NaNs in the data are handled by `rasterstats` internally. Therefore, passing
+            numpy nan-functions (e.g., `nanmedian`) is **NOT** necessary and users are
+            **discouraged** from doing so as passing `nanmedian` will ignore existing
+            masks.
 
         :param method:
             any ``numpy`` function taking a two-dimensional array as input
             and returning a single scalar. Can be a single function name
-            (e.g., "mean") or a list of function names (e.g., ["mean", "median"])
+            (e.g., "mean") or a list of function names (e.g., ["mean", "median"]).
+            By default ['min', 'mean', 'std', 'max', 'count'] are returned.
         :param by:
-            define by what to reduce the band values (not implemented yet!!)
-        :param method_args:
-            optional dictionary with arguments to pass to the single methods in
-            case the reducer method requires extra arguments to function properly
-            (e.g., `np.quantile`)
+            define optional vector features by which to reduce the band. By passing
+            `'self'` the method uses the features with which the band was read, otherwise
+            specify a file-path to vector features or provide a GeoDataFrame.
         :returns:
-            a dictionary with scalar results
+            list of dictionaries with scalar results per feature
         """
+        # check by what features the Band should be reduced spatially
+        # if `by` is None use the full spatial extent of the band
+        if by is None:
+            features = gpd.GeoDataFrame(geometry=[self.bounds], crs=self.crs)
+        else:
+            if isinstance(by, str):
+                if by == 'self':
+                    features = deepcopy(self.vector_features)
+                else:
+                    raise ValueError('When passing a string you must pass `self`')
+            elif isinstance(by, Path):
+                features = gpd.read_file(by)
+            elif isinstance(by, gpd.GeoDataFrame):
+                features = deepcopy(by)
+            elif (isinstance(by, Polygon) or isinstance(by, MultiPolygon)):
+                features = gpd.GeoDataFrame(geometry=[by], crs=self.crs)
+            else:
+                raise TypeError(
+                    'by expected "self", Path, (Multi)Polygon and GeoDataFrame ' + \
+                    f'objects - got {type(by)} instead'
+                )
+        # check if features has the same CRS as the band. Reproject features if required
+        if not features.crs == self.crs:
+            features.to_crs(crs=self.crs, inplace=True)
 
-        # TODO: implement reduce by vector features
-
+        # check method string passed
         if isinstance(method, str):
             method = [method]
 
@@ -1807,27 +1959,77 @@ class Band(object):
         elif self.is_zarr:
             raise NotImplemented()
 
-        # compute statistics
-        stats = {}
-        for operator in method:
-            # formulate numpy expression
-            expression = f"{numpy_prefix}.{operator}"
-            # numpy.ma has some different function names to consider
-            if operator.startswith("nan"):
-                expression = f"{numpy_prefix}.{operator[3::]}"
-            elif operator.endswith("nonzero"):
-                expression = f"{numpy_prefix}.count"
-            try:
-                # get function object and use its __call__ method
-                numpy_function = eval(expression)
-                # check if there are any function arguments
-                args = []
-                if method_args is not None:
-                    args = method_args.get(method, None)
-                stats[operator] = numpy_function.__call__(self.values, *args)
-            except TypeError:
-                raise Exception(f"Unknown function name for {numpy_prefix}: {operator}")
+        # compute statistics by calling rasterstats. rasterstats needs the
+        # Affine transformation matrix to work on numpy arrays
+        affine = self.geo_info.as_affine()
+        # check if the passed methods are all within the default list supported
+        # by rasterstats. If not a ValueError is raised meaning we have to define
+        # these metrics as additional statistics.
+        # When the array is masked we also have to define custom functions
+        default_stats = True
+        try:
+            check_stats(stats=method, categorical=False)
+        except ValueError:
+            default_stats = False
+        # default rasterstats call
+        if default_stats and not self.is_masked_array:
+            stats = zonal_stats(features, self.values, affine=affine, stats=method)
+        else:
+            stats_operator_list = []
+            # loop over operators in method list and make them rasterstats compatible
+            for operator in method:
+                # check if operator stats with 'nan' -> this is discouraged to avoid
+                # errors in rasterstats as rasterstats checks for NaNs internally
+                if operator.startswith('nan'):
+                    raise ValueError(
+                        'The usage of numpy-nan functions is discouraged and therefore raises an error.' + \
+                        '\nThe handling of NaNs is done by `rasterstats` internally and therefore does not' + \
+                        '\n need to be specified. Please pass operators by their standard numpy names (e.g., "mean")'
+                    )
+                expression = f"{numpy_prefix}.{operator}"
+                # When the array is masked, we have to set masked arrays to NaN
+                if self.is_masked_array:
+                    _operator = operator
+                    _operator = 'nan' + operator
+                    expression = f"{numpy_prefix}.{_operator[3::]}"
+                elif operator.endswith("nonzero"):
+                    expression = f"{numpy_prefix}.count"
+                
+                def _fun_prototype(x: np.ndarray | np.ma.MaskedArray):
+                    """
+                    a function prototype to by-pass custom numpy functions
+                    to rasterstats
+                    """
+                    return eval(f'{expression}(x)')
+                add_stats = {operator: deepcopy(_fun_prototype)}
+                # work-around for masked arrays (unfortunately, rasterstats works not that
+                # nicely)
+                vals = self.values.copy()
+                # cast array to float to set masked arrays to NaN; then we can call np.nan-something
+                # and force rasterstats to return the correct values
+                if self.is_masked_array:
+                    vals = vals.astype(float)
+                    vals = vals.filled(np.nan)
+                # unfortunately, rasterstats always calculates some default statistcs. We therefore
+                # trick it by calling only the count method and delete the result afterwards
+                # Also, there seems to be a bug in rasterstats preventing more than a single
+                # operator to be passed in add_stats (otherwise the values are returned are wrong)
+                stats = zonal_stats(
+                    features, vals, affine=affine, stats='median', add_stats=add_stats
+                )
+                stats_operator_list.append(stats)
+            # combine the list of stats into a format consistent with the standard zonal_stats call
+            stats = []
+            for idx in range(features.shape[0]):
+                feature_stats = {}
+                for odx, operator in enumerate(method):
+                    feature_stats[operator] = stats_operator_list[odx][idx][operator]
+                stats.append(feature_stats)
 
+        # save the geometries and all other attributes of the feature(s) used
+        for idx in range(features.shape[0]):
+            stats[idx].update(features.iloc[idx].to_dict())
+            stats[idx].update({'crs': features.crs})
         return stats
 
     def scale_data(

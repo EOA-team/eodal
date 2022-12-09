@@ -71,9 +71,9 @@ def query_creodias(
         the queried region
     :param cloud_cover_threshold:
         cloudy pixel percentage threshold (0-100%) for filtering
-        scenes too cloudy for processing. All scenes with a cloud
+        mapper too cloudy for processing. All mapper with a cloud
         cover lower than the threshold specified will be downloaded.
-        Per default all scenes are downloaded.
+        Per default all mapper are downloaded.
     :returns:
         results of the CREODIAS query (no downloaded data!)
         as pandas DataFrame

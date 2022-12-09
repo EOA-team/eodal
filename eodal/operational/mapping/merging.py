@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+# TODO: move this to eodal algorithms
+
 import os
 import geopandas as gpd
 import uuid
@@ -29,8 +31,7 @@ from rasterio.crs import CRS
 import eodal
 from eodal.config import get_settings
 from eodal.core.band import Band, GeoInfo
-from eodal.core.raster import RasterCollection
-from eodal.core.scene import SceneProperties
+from eodal.core.raster import RasterCollection, SceneProperties
 
 Settings = get_settings()
 

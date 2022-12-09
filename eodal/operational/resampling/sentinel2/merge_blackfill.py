@@ -1,11 +1,11 @@
 """
 Sentinel-2 records data in so-called datatakes. When a datatake is over and a new
 begins the acquired image data is written to different files (based on the datatake
-time). Sometimes, this cause scenes of a single acquisition date to be split into
+time). Sometimes, this cause mapper of a single acquisition date to be split into
 two datasets which differ in their datatake. Thus, both datasets have a reasonable
 amount of blackfill in those areas not covered by the datatake they belong to. For
 users of satellite data, however, it is much more convenient to have those split
-scenes merged into one since the division into two scenes by the datatake has
+mapper merged into one since the division into two mapper by the datatake has
 technical reasons only.
 
 Copyright (C) 2022 Gregor Perich & Lukas Valentin Graf
@@ -52,16 +52,16 @@ def merge_split_scenes(
     merges two Sentinel-2 datasets in .SAFE formatof the same sensing date and tile
     split by the datatake beginning/ end.
 
-    First, both scenes are resampled to 10m and stacked in a temporary working directory;
-    second, they are merged together so that the blackfill of the first scenes is replaced
+    First, both mapper are resampled to 10m and stacked in a temporary working directory;
+    second, they are merged together so that the blackfill of the first mapper is replaced
     by the values of the second one.
     SCL (if available) and previews are managed accordingly.
 
     :param scene_1:
-        .SAFE directory containing the first of two scenes split by the datatake beginning/
+        .SAFE directory containing the first of two mapper split by the datatake beginning/
         end of Sentinel-2
     :param scene_2:
-        .SAFE directory containing the first of two scenes split by the datatake beginning/
+        .SAFE directory containing the first of two mapper split by the datatake beginning/
         end of Sentinel-2
     :param out_dir:
         directory where to save the final outputs to. In this directory a temporary
@@ -77,7 +77,7 @@ def merge_split_scenes(
     if not working_dir.exists():
         working_dir.mkdir()
 
-    # save the outputs of the two scenes to different sub-directories within the working
+    # save the outputs of the two mapper to different sub-directories within the working
     # directory to avoid to override the output
     out_dirs = [working_dir.joinpath("1"), working_dir.joinpath("2")]
     for _out_dir in out_dirs:
@@ -86,7 +86,7 @@ def merge_split_scenes(
             shutil.rmtree(_out_dir)
         _out_dir.mkdir()
 
-    # do the spatial resampling for the two scenes
+    # do the spatial resampling for the two mapper
     # first scene
     try:
         scene_out_1 = resample_and_stack_s2(

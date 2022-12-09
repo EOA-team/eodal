@@ -38,8 +38,7 @@ from shapely.geometry import box
 from typing import Dict, Optional, List, Tuple, Union
 
 from eodal.core.band import Band, WavelengthInfo, GeoInfo
-from eodal.core.raster import RasterCollection
-from eodal.core.scene import SceneProperties
+from eodal.core.raster import RasterCollection, SceneProperties
 from eodal.utils.constants.sentinel2 import (
     band_resolution,
     band_widths,
@@ -584,10 +583,10 @@ class Sentinel2(RasterCollection):
         # skip all pixels with zero reflectance (either blackfilled or outside of the
         # scene extent); in case of dtype float check for NaNs
         band_names = gdf.columns[gdf.columns.str.startswith("B")]
-        if (gdf.dtypes[band_names] == "float64").all():
+        if gdf.dtypes[band_names].unique() in ['float32', 'float64']:
             gdf[band_names] = gdf[band_names].replace({0., np.nan})
             gdf.dropna(axis=0, inplace=True)
-        elif (gdf.dtypes[band_names] == "int16").all():
+        elif gdf.dtypes[band_names].unique() in ['int16', 'int32', 'int64']:
             gdf = gdf.loc[~(gdf[band_df_safe.band_name] == 0).all(axis=1)]
 
         return gdf
