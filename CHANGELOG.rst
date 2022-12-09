@@ -13,7 +13,7 @@ Categories for changes are: Added, Changed, Deprecated, Removed, Fixed, Security
 Version `0.1.0 < https://github.com/EOA-team/eodal/releases/tag/v0.1.0>`__
 --------------------------------------------------------------------------------
 
-Release date: YYYY-MM-DD
+Release date: 2022-12-08
 
 - Added: RasterCollection objects are now iterable (iterate over bands in collection)
 - Added: RasterCollection now have a "apply" method allowing to pass custom functions to RasterCollection objects
