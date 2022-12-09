@@ -25,7 +25,12 @@ dem_file = 'https://data.geo.admin.ch/ch.swisstopo.swissalti3d/swissalti3d_2019_
 
 # load resource into a Band instance and name it "Elevation"
 dem = Band.from_rasterio(fpath_raster=dem_file, band_name_dst='Elevation')
-print(dem.band_name)
+print(dem)
+# will display:
+# EOdal Band
+# ---------.
+# Name:    Elevation
+# GeoInfo:    {'epsg': 2056, 'ulx': 2618000.0, 'uly': 1093000.0, 'pixres_x': 2.0, 'pixres_y': -2.0}
 
 # fast visualization
 fig = dem.plot(

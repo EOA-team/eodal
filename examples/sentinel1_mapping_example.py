@@ -71,4 +71,3 @@ mapper = Sentinel1Mapper(
 # retrieve metadata of mapper found (no reading)
 mapper.get_scenes()
 mapper.observations
-

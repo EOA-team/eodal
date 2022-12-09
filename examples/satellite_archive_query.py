@@ -94,4 +94,3 @@ ax.set_ylim(0,100)
 ax.set_xlim(-1,12)
 ax.legend(fontsize=16)
 f.savefig(out_dir.joinpath(f'monthly_cloudy_pixel_percentage_{date_start}-{date_end}.png'), bbox_inches='tight')
-
