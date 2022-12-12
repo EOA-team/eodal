@@ -20,6 +20,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import geopandas as gpd
 import pandas as pd
 
+from shapely import wkt
+from shapely.errors import WKTReadingError
 from shapely.geometry import MultiPoint, MultiPolygon, Point, Polygon
 from typing import Any, Dict, Optional
 
@@ -116,6 +118,31 @@ class Feature:
             epsg=gds.crs.to_epsg(),
             attributes=gds.attrs
         )
+
+    @classmethod
+    def from_dict(cls, dictionary: Dict[str, Any]):
+        """
+        Feature object from Python dictionary
+
+        :param dictionary:
+            Python dictionary object to cast to Feature
+        :returns:
+            Feature instance created from input dictionary
+        """
+        try:
+            return cls(
+                name=dictionary['name'],
+                geometry=wkt.loads(dictionary['geometry']),
+                epsg=int(dictionary['epsg']),
+                attributes=dictionary['attributes']
+            )
+        except KeyError:
+            raise ValueError(
+                'Dictionary does not have fields required to instantiate a new Feature'
+            )
+        except WKTReadingError as e:
+            raise ValueError(f'Invalid Geometry: {e}')
+        
 
     def to_epsg(self, epsg: int):
         """
