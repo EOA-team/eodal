@@ -4,12 +4,14 @@ Created on Dec 12, 2022
 @author: graflu
 '''
 
+import yaml
+
 from datetime import datetime
-
-from eodal.mapper.features import Feature
-from eodal.mapper.filters import Filter
-
+from pathlib import Path
 from typing import List, Optional
+
+from eodal.mapper.feature import Feature
+from eodal.mapper.filter import Filter
 
 class MapperConfigs:
     """
@@ -111,6 +113,47 @@ class MapperConfigs:
     def metadata_filters(self) -> List[Filter] | None:
         return self._metadata_filters
 
+    @classmethod
+    def from_yaml(cls, fpath: str | Path):
+        """
+        Load mapping configurations from YAML file
+        """
+        with open(fpath, 'r') as f:
+            try:
+                yaml_content = yaml.safe_load(f)   
+            except yaml.YAMLError as exc:
+                print(exc)
+        # reconstruct the Featue object first
+        if 'feature' not in yaml_content.keys():
+            raise ValueError('"feature" attribute is required"')
+        feature_yaml = yaml_content['feature']
+        try:
+            feature = Feature.from_dict(feature_yaml)
+            return cls(
+                collection=yaml_content['collection'],
+                feature=feature,
+                time_start=yaml_content['time_start'],
+                time_end=yaml_content['time_end'],
+                metadata_filters=yaml_content['metadata_filters']
+            )
+        except KeyError as e:
+            raise ValueError(f'IMissing keys in yaml file: {e}')
+
+    def to_yaml(self, fpath: str | Path) -> None:
+        """
+        save MapperConfig to YAML file (*.yml)
+
+        :param fpath:
+            file-path where saving the Feature instance to
+        """
+        mapper_configs_dict = {}
+        mapper_configs_dict['collection'] = self.collection
+        mapper_configs_dict['feature'] = self.feature.to_dict()
+        mapper_configs_dict['time_start'] = self.time_start
+        mapper_configs_dict['time_end'] = self.time_end
+        mapper_configs_dict['metadata_filters'] = self.metadata_filters
+        with open(fpath, 'w+') as f:
+            yaml.dump(mapper_configs_dict, f, allow_unicode=True)
 
 class Mapper:
     """
@@ -121,4 +164,33 @@ class Mapper:
     filling eventually occurring black-fill (no-data regions).
     """
 
-    def __init__(self, mapper_configs: Mapper_Configs):
+    def __init__(self, mapper_configs: MapperConfigs):
+        pass
+    
+if __name__ == '__main__':
+
+    from shapely.geometry import Point
+
+    collection = 'sentinel2-msi-l2a'
+    geom = Point([49,11])
+    epsg = 4326
+    name = 'Test Point'
+    attributes = {'this': 'is a test', 'a': 123}
+    feature = Feature(name, geom, epsg, attributes)
+    time_start = datetime(2022,12,1)
+    time_end = datetime.now()
+
+    mapper_configs = MapperConfigs(collection, feature, time_start, time_end)
+    fpath = '/mnt/ides/Lukas/test.yml'
+    mapper_configs.to_yaml(fpath)
+
+    mapper_configs_rl = MapperConfigs.from_yaml(fpath)
+    assert mapper_configs.feature.name == mapper_configs_rl.feature.name, 'wrong feature name'
+    assert mapper_configs.feature.epsg == mapper_configs_rl.feature.epsg, 'wrong feature EPSG'
+    assert mapper_configs.feature.geometry == mapper_configs_rl.feature.geometry, 'wrong feature geometry'
+    assert set(mapper_configs.feature.attributes) == set(mapper_configs_rl.feature.attributes), \
+        'wrong feature attributes'
+    assert mapper_configs.time_start == mapper_configs_rl.time_start, 'wrong start time'
+    assert mapper_configs.time_end == mapper_configs_rl.time_end, 'wrong end time'
+    assert mapper_configs.collection == mapper_configs_rl.collection, 'wrong collection'
+        
