@@ -146,6 +146,20 @@ class Feature:
         gds.name = self.name
         return gds
 
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Casts feature to a pure Python dictionary
+
+        :returns:
+            Feature object as pure Python dictionary
+        """
+        feature_dict = {}
+        feature_dict['name'] = self.name
+        feature_dict['epsg'] = self.epsg
+        feature_dict['geometry'] = self.geometry.wkt
+        feature_dict['attributes'] = self.attributes
+        return feature_dict
+
 if __name__ == '__main__':
 
     # working constructor calls
