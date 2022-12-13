@@ -17,11 +17,12 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import math
 import numpy as np
 import rasterio as rio
 
-from typing import Dict
-from typing import Any
+from rasterio import Affine
+from typing import Any, Dict, Tuple
 
 
 def get_raster_attributes(riods: rio.io.DatasetReader) -> Dict[str, Any]:
@@ -63,3 +64,32 @@ def get_raster_attributes(riods: rio.io.DatasetReader) -> Dict[str, Any]:
         attrs["units"] = riods.units
 
     return attrs
+
+def spatial_to_image_coordinates(x: float, y: float, affine: Affine, op=math.floor
+    ) -> Tuple[int,int]:
+    """
+    Convert spatial x and y coordinat to image coordinates (row + column)
+
+    taken from:
+        `rasterstats` package under BSD 3-Clause "New" or "Revised" License
+        Copyright (c) 2013 Matthew Perry
+        https://github.com/perrygeo/python-rasterstats/blob/d05f0dbda82c7a54fbb99d893af6e3182c225005/src/rasterstats/io.py#L137
+    """
+    r = int(op((y - affine.f) / affine.e))
+    c = int(op((x - affine.c) / affine.a))
+    return r, c
+
+def bounds_window(bounds: Tuple[float,float,float,float], affine: Affine
+    ) -> Tuple[Tuple[int,int], Tuple[int,int]]:
+    """
+    Create a full cover rasterio-style window
+
+    taken from:
+        `rasterstats` package under BSD 3-Clause "New" or "Revised" License
+        Copyright (c) 2013 Matthew Perry
+        https://github.com/perrygeo/python-rasterstats/blob/d05f0dbda82c7a54fbb99d893af6e3182c225005/src/rasterstats/io.py#L145
+    """
+    w, s, e, n = bounds
+    row_start, col_start = spatial_to_image_coordinates(w, n, affine)
+    row_stop, col_stop = spatial_to_image_coordinates(e, s, affine, op=math.ceil)
+    return row_start, row_stop, col_start, col_stop
