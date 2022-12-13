@@ -239,3 +239,15 @@ def test_plot_scene_collection(get_scene_collection):
     # plot single band
     f = scoll.plot(band_selection=['B8A'], eodal_plot_kwargs={'colormap': 'viridis'})
     assert isinstance(f, plt.Figure), 'expected a matplotlib figure'
+
+def test_clip_scene_collecton(get_scene_collection, get_polygons):
+    """clip scene collection to field parcel boundaries"""
+    scoll = get_scene_collection()
+    field_parcel = gpd.read_file(get_polygons()).loc[[0]]
+    scoll_clipped = scoll.clip_scenes(clipping_bounds=field_parcel, inplace=False)
+    assert isinstance(scoll_clipped, SceneCollection), 'expected a SceneCollection'
+    assert scoll_clipped[1000]['B02'].is_masked_array, 'expected a masked array'
+    assert scoll_clipped[1000]['B02'].geo_info.ulx != scoll[1000]['B02'].geo_info.ulx, \
+        'ulx must not be the same'
+    assert scoll_clipped[1000]['B02'].geo_info.uly != scoll[1000]['B02'].geo_info.uly, \
+        'uly must not be the same'
