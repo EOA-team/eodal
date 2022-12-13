@@ -13,13 +13,11 @@ from shapely.geometry import Polygon
 
 from eodal.core.band import Band
 from eodal.core.band import GeoInfo
-from eodal.core.band import WavelengthInfo
 
 def test_base_constructors():
     """
     test base constructor calls
     """
-
     epsg = 32633
     ulx = 300000
     uly = 5100000
@@ -442,6 +440,32 @@ def test_clip_band(get_test_band):
     assert band_clipped.ncols == band_before_clip.ncols, 'number of columns must be the same'
     assert band_clipped.geo_info.ulx == band_before_clip.geo_info.ulx, 'upper left x should be the same'
     assert band_clipped.geo_info.uly == band_before_clip.geo_info.uly - 2000, 'wrong upper left y coordinate'
+
+def test_clip_band_small_extents(get_project_root_path):
+    # geometry for clipping data to
+    small_test_geom = Polygon(
+        [[493504.953633058525156, 5258840.576098721474409],
+        [493511.206339373020455, 5258839.601945200935006],
+        [493510.605988947849255, 5258835.524093257263303],
+        [493504.296645800874103, 5258836.554883609525859],
+        [493504.953633058525156, 5258840.576098721474409]]
+    )
+    gdf = gpd.GeoDataFrame(geometry=[small_test_geom], crs=32632)
+    # raster data to clip
+    testdata_dir = get_project_root_path.joinpath('data')
+    fpath_raster = testdata_dir.joinpath('T32TMT_20220728T102559_B02_10m.tif')
+    # get band
+    band = Band.from_rasterio(
+        fpath_raster=fpath_raster,
+        band_idx=1,
+        band_name_dst='B02',
+        nodata=0
+    )
+    clipped = band.clip(clipping_bounds=gdf, full_bounding_box_only=True)
+    assert clipped.values.shape == (2,2), 'wrong shape'
+    assert (clipped.values == np.array([[1716, 1698],[1690, 1690]])).all(), \
+        'wrong values returned'
+    assert not clipped.is_masked_array, 'should not be a masked array'
 
 def test_reduce_band_by_polygons(get_polygons, get_test_band):
     """reduction of band raster values by polygons"""
