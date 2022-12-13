@@ -640,7 +640,7 @@ class Sentinel2(RasterCollection):
     def mask_clouds_and_shadows(
         self,
         bands_to_mask: List[str],
-        cloud_classes: Optional[List[int]] = [2, 3, 7, 8, 9, 10],
+        cloud_classes: Optional[List[int]] = [1, 2, 3, 7, 8, 9, 10, 11],
         **kwargs,
     ):
         """
@@ -648,7 +648,7 @@ class Sentinel2(RasterCollection):
         shadows, water and snow based on the SCL band. Works therefore on L2A data,
         only.
 
-        Masks the SCL classes 2, 3, 7, 8, 9, 10, 11.
+        Masks the SCL classes 1, 2, 3, 7, 8, 9, 10, 11.
 
         If another class selection is desired consider using the mask function
         from `eodal.utils.io` directly or change the default
