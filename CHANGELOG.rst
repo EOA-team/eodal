@@ -16,6 +16,7 @@ Version `0.1.1 < https://github.com/EOA-team/eodal/releases/tag/v0.1.1>`__
 Release date: 2022-12-13
 
 - Fixed: Band.clip() now has a optional keyword "full_bounding_box_only" (default: False) allowing to mask pixels outside the feature geometry.
+- Fixed: Calculation of bounding box in image coordinates was partly incorrect, we now use the same approach as rasterstats and rasterio do.
 - Fixed: Sentinel.mask_clouds_and_shadows() default SCL classes were updated so that everything but SCL classes 4 and 5 are masked by default.
 - Added: SceneCollection now also allows clipping to a feature geometry (SceneCollection.clip_scenes())
 
