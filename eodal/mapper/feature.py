@@ -20,6 +20,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import geopandas as gpd
 import pandas as pd
 
+from shapely import wkt
+from shapely.errors import WKTReadingError
 from shapely.geometry import MultiPoint, MultiPolygon, Point, Polygon
 from typing import Any, Dict, Optional
 
@@ -117,6 +119,31 @@ class Feature:
             attributes=gds.attrs
         )
 
+    @classmethod
+    def from_dict(cls, dictionary: Dict[str, Any]):
+        """
+        Feature object from Python dictionary
+
+        :param dictionary:
+            Python dictionary object to cast to Feature
+        :returns:
+            Feature instance created from input dictionary
+        """
+        try:
+            return cls(
+                name=dictionary['name'],
+                geometry=wkt.loads(dictionary['geometry']),
+                epsg=int(dictionary['epsg']),
+                attributes=dictionary['attributes']
+            )
+        except KeyError:
+            raise ValueError(
+                'Dictionary does not have fields required to instantiate a new Feature'
+            )
+        except WKTReadingError as e:
+            raise ValueError(f'Invalid Geometry: {e}')
+        
+
     def to_epsg(self, epsg: int):
         """
         Projects the feature into a different spatial reference system
@@ -145,6 +172,20 @@ class Feature:
         # set name of Feature to GeoSeries
         gds.name = self.name
         return gds
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Casts feature to a pure Python dictionary
+
+        :returns:
+            Feature object as pure Python dictionary
+        """
+        feature_dict = {}
+        feature_dict['name'] = self.name
+        feature_dict['epsg'] = self.epsg
+        feature_dict['geometry'] = self.geometry.wkt
+        feature_dict['attributes'] = self.attributes
+        return feature_dict
 
 if __name__ == '__main__':
 

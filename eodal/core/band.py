@@ -1118,19 +1118,31 @@ class Band(object):
 
     def clip(
         self,
-        clipping_bounds: Path | gpd.GeoDataFrame | Tuple[float,float,float,float] | Polygon,
+        clipping_bounds: Path | gpd.GeoDataFrame | Tuple[float,float,float,float] | Polygon  | MultiPolygon,
+        full_bounding_box_only: Optional[bool] = False,
         inplace: Optional[bool] = False
     ):
         """
-        Clip a band object to a spatial extent.
+        Clip a band object to a geometry or the bounding box of one or more
+        geometries. By default, pixel values outside the geometry are masked.
+        The spatial extent of the returned `Band` instance is **always** cropped
+        to the bounding box of the geomtry/ geometries.
+
+        NOTE:
+            When passing a `GeoDataFrame` with more than one feature, the single
+            feature geometries are dissolved into a single one!
 
         :param clipping_bounds:
-            spatial bounds to clip the Band to. Only clipping to rectangular shapes
-            is supported. Can be either a vector file, a shapely `Polygon`, a
-            `GeoDataFrame` or a coordinate tuple with (xmin, ymin, xmax, ymax).
+            spatial bounds to clip the Band to. Can be either a vector file, a shapely
+            `Polygon` or `MultiPolygon`, a `GeoDataFrame` or a coordinate tuple with
+            (xmin, ymin, xmax, ymax).
             Vector files and `GeoDataFrame` are reprojected into the bands' coordinate
             system if required, while the coordinate tuple and shapely geometry **MUST**
             be provided in the CRS of the band.
+        :param full_bounding_box_only:
+            if False (default), clips to the bounding box of the geometry and masks values
+            outside the actual geometry boundaries. To obtain all values within the
+            bounding box set to True.
         :param inplace:
             if False (default) returns a copy of the ``Band`` instance
             with the changes applied. If True overwrites the values
@@ -1140,18 +1152,24 @@ class Band(object):
         """
         if isinstance(clipping_bounds, Path):
             clipping_bounds = gpd.read_file(clipping_bounds)
+
         # check inputs
         if isinstance(clipping_bounds, tuple):
             if len(clipping_bounds) != 4:
                 raise ValueError('Expected four coordinates (xmin, ymin, xmax, ymax)')
             xmin, ymin, xmax, ymax = clipping_bounds
+            actual_geom = box(*clipping_bounds)
         elif isinstance(clipping_bounds, gpd.GeoDataFrame):
             # get the bounding box of the FIRST feature
             _clipping_bounds = clipping_bounds.copy()
             _clipping_bounds = _clipping_bounds.bounds
-            xmin, ymin, xmax, ymax = list(clipping_bounds)
-        elif isinstance(clipping_bounds, Polygon):
+            xmin, ymin, xmax, ymax = _clipping_bounds.values[0]
+            # the actual geometries are dissolved in case there is more than one record
+            # and converted to a shapely object
+            actual_geom = clipping_bounds.dissolve().geometry.values[0]
+        elif (isinstance(clipping_bounds, Polygon) or isinstance(clipping_bounds, MultiPolygon)):
             xmin, ymin, xmax, ymax = clipping_bounds.bounds
+            actual_geom = clipping_bounds
         else:
             raise TypeError(f'{type(clipping_bounds)} is not supported')
         # actual clipping operation. Calculate the rows and columns where to clip
@@ -1204,6 +1222,26 @@ class Band(object):
         )
         values = self.values.copy()
         new_values = values[min_row:max_row,min_col:max_col]
+
+        # if full_bounding_box is False, mask out pixels not overlapping the
+        # geometry (but located within the bounding box)
+        if not full_bounding_box_only:
+            # to mask pixels outside the geometry we need to rasterize it
+            # Rasterize vector using the shape and coordinate system of the raster
+            mask = features.rasterize(
+                [actual_geom],
+                out_shape=new_values.shape,
+                fill=1,
+                out=None,
+                transform=new_geo_info.as_affine(),
+                all_touched=True,
+                default_value=0,
+                dtype='uint8'
+            ).astype(bool)
+            new_values = np.ma.MaskedArray(
+                data=new_values,
+                mask=mask
+            )
 
         if inplace:
             object.__setattr__(self, "values", new_values)

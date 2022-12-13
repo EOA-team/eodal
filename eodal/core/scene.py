@@ -404,6 +404,39 @@ class SceneCollection(MutableMapping):
         except Exception as e:
             raise ValueError from e
 
+    def clip_scenes(
+        self,
+        inplace: Optional[bool] = False,
+        **kwargs
+    ):
+        """
+        Clip scenes in a SceneCollection to a user-defined spatial bounds.
+
+        :param inplace:
+            if False (default) returns a copy of the ``SceneCollection`` instance
+            with the changes applied. If True overwrites the values
+            in the current instance.
+        :param **kwargs:
+            key-word arguments to pass to `RasterCollection.clip_bands` method.
+        """
+        # loop over Scenes and try to subset them spatially
+        # initialize a new SceneCollection if inplace is False
+        scoll_new = None
+        if inplace:
+            kwargs.update({'inplace': True})
+        if not inplace:
+            scoll_new = SceneCollection(indexed_by_timestamps=self.indexed_by_timestamps)
+        # loop over band reproject the selected ones
+        for timestamp, scene in self:
+            if inplace:
+                self[timestamp].clip_bands(**kwargs)
+            else:
+                scene = self[timestamp].copy()
+                scoll_new.add_scene(scene_constructor=scene.clip_bands, **kwargs)
+
+        if not inplace:
+            return scoll_new
+
     def copy(self):
         """returns a true copy of the SceneCollection"""
         return deepcopy(self)

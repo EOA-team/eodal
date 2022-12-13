@@ -1,5 +1,6 @@
-"""
-Module for merging raster datasets.
+'''
+Collection of algorithms working with EOdal core objects such as Bands,
+RasterCollections, Scenes and SceneCollections.
 
 Copyright (C) 2022 Lukas Valentin Graf
 
@@ -15,9 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-"""
-
-# TODO: delete this module once the new Mapper works
+'''
 
 import os
 import geopandas as gpd
@@ -28,13 +27,11 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from rasterio.merge import merge
 from rasterio.crs import CRS
 
-import eodal
 from eodal.config import get_settings
 from eodal.core.band import Band, GeoInfo
 from eodal.core.raster import RasterCollection, SceneProperties
 
 Settings = get_settings()
-
 
 def _get_crs_and_attribs(
     in_file: Path, **kwargs
@@ -57,12 +54,11 @@ def _get_crs_and_attribs(
     attrs = [ds[x].get_attributes() for x in ds.band_names]
     return geo_info, attrs
 
-
 def merge_datasets(
     datasets: List[Path],
     out_file: Optional[Path] = None,
-    target_crs: Optional[Union[int, CRS]] = None,
-    vector_features: Optional[Union[Path, gpd.GeoDataFrame]] = None,
+    target_crs: Optional[int | CRS] = None,
+    vector_features: Optional[Path | gpd.GeoDataFrame] = None,
     scene_properties: Optional[SceneProperties] = None,
     band_options: Optional[Dict[str, Any]] = None,
     sensor: Optional[str] = None,

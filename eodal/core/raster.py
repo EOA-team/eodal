@@ -957,6 +957,16 @@ class RasterCollection(MutableMapping):
     ):
         """
         Clip bands in RasterCollection to a user-defined spatial bounds.
+
+        :param band_selection:
+            optional list of bands to clip. If not provided takes all available
+            bands.
+        :param inplace:
+            if False (default) returns a copy of the ``RasterCollection`` instance
+            with the changes applied. If True overwrites the values
+            in the current instance.
+        :param **kwargs:
+            key-word arguments to pass to `Band.clip` method.
         """
         if band_selection is None:
             band_selection = self.band_names
