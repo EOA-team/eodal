@@ -1118,17 +1118,24 @@ class Band(object):
 
     def clip(
         self,
-        clipping_bounds: Path | gpd.GeoDataFrame | Tuple[float,float,float,float] | Polygon,
+        clipping_bounds: Path | gpd.GeoDataFrame | Tuple[float,float,float,float] | Polygon  | MultiPolygon,
         full_bounding_box_only: Optional[bool] = False,
         inplace: Optional[bool] = False
     ):
         """
-        Clip a band object to a spatial extent.
+        Clip a band object to a geometry or the bounding box of one or more
+        geometries. By default, pixel values outside the geometry are masked.
+        The spatial extent of the returned `Band` instance is **always** cropped
+        to the bounding box of the geomtry/ geometries.
+
+        NOTE:
+            When passing a `GeoDataFrame` with more than one feature, the single
+            feature geometries are dissolved into a single one!
 
         :param clipping_bounds:
-            spatial bounds to clip the Band to. Only clipping to rectangular shapes
-            is supported. Can be either a vector file, a shapely `Polygon`, a
-            `GeoDataFrame` or a coordinate tuple with (xmin, ymin, xmax, ymax).
+            spatial bounds to clip the Band to. Can be either a vector file, a shapely
+            `Polygon` or `MultiPolygon`, a `GeoDataFrame` or a coordinate tuple with
+            (xmin, ymin, xmax, ymax).
             Vector files and `GeoDataFrame` are reprojected into the bands' coordinate
             system if required, while the coordinate tuple and shapely geometry **MUST**
             be provided in the CRS of the band.
@@ -1160,7 +1167,7 @@ class Band(object):
             # the actual geometries are dissolved in case there is more than one record
             # and converted to a shapely object
             actual_geom = clipping_bounds.dissolve().geometry.values[0]
-        elif isinstance(clipping_bounds, Polygon):
+        elif (isinstance(clipping_bounds, Polygon) or isinstance(clipping_bounds, MultiPolygon)):
             xmin, ymin, xmax, ymax = clipping_bounds.bounds
             actual_geom = clipping_bounds
         else:
