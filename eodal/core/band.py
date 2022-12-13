@@ -55,9 +55,8 @@ from shapely.geometry import box, MultiPolygon, Point, Polygon
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from eodal.core.operators import Operator
-from eodal.core.utils.geometry import check_geometry_types
-from eodal.core.utils.geometry import convert_3D_2D
-from eodal.core.utils.raster import get_raster_attributes
+from eodal.core.utils.geometry import check_geometry_types, convert_3D_2D
+from eodal.core.utils.raster import get_raster_attributes, bounds_window
 from eodal.utils.arrays import count_valid, upsample_array, array_from_points
 from eodal.utils.exceptions import (
     BandNotFoundError,
@@ -1172,44 +1171,38 @@ class Band(object):
             actual_geom = clipping_bounds
         else:
             raise TypeError(f'{type(clipping_bounds)} is not supported')
+
+        # make sure xmax and xmin as well as ymax and ymin are not the same
+        if xmax == xmin:
+            raise ValueError('Cannot handle extent of zero length in x direction')
+        if ymax == ymin:
+            raise ValueError('Cannot handle extent of zero length in y direction')
+
         # actual clipping operation. Calculate the rows and columns where to clip
         # the band
-        x_coords, y_coords = self.coordinates['x'],  self.coordinates['y']
+        clip_shape = box(minx=xmin, miny=ymin, maxx=xmax, maxy=ymax)
         # check for overlap first
-        clip_shape = Polygon(
-            zip(
-                np.arange(xmin, xmax, abs(self.geo_info.pixres_x)),
-                np.arange(ymin, ymax, abs(self.geo_info.pixres_y))
-            )
-        )
         if not (clip_shape.overlaps(self.bounds) or self.bounds.covers(clip_shape)
                 or self.bounds.equals(clip_shape) or self.bounds.overlaps(clip_shape)
+                or clip_shape.covers(self.bounds)
             ):
             raise ValueError(f'Clipping bounds do not overlap Band')
-        # left column index
-        if xmin > x_coords[0]:
-            min_col = np.argmin(abs(xmin - x_coords))
-            ulx = x_coords[min_col]
-        else:
-            min_col = 0
-            ulx = x_coords[0]
-        # right column index
-        if xmax < x_coords[-1]:
-            max_col = np.argmin(abs(xmax - x_coords))
-        else:
-            max_col = len(x_coords)
-        # lower row index (y coordinates are sorted descending!)
-        if ymin > y_coords[-1]:
-            min_row = np.argmin(abs(ymin - y_coords[::-1]))
-        else:
-            min_row = 0
-        # upper row index
-        if ymax < y_coords[0]:
-            max_row = np.argmin(abs(ymax - y_coords[::-1]))
-            uly = y_coords[::-1][max_row]
-        else:
-            max_row = len(y_coords)
-            uly = y_coords[0]
+        # then determine the extent in image coordinates by search for the closest image
+        # pixels
+        row_start, row_stop, col_start, col_stop = bounds_window(
+            bounds=(xmin, ymin, xmax, ymax),
+            affine=self.geo_info.as_affine()
+        )
+
+        # adopt bounds if clip shape is larger than the Band's spatial extent
+        if row_start < 0: row_start = 0
+        if row_stop > self.nrows: row_stop = self.nrows
+        if col_start < 0: col_start = 0
+        if col_start > self.ncols: col_stop = self.ncols
+
+        # get upper left coordinate tuple
+        ulx, _ = self.geo_info.as_affine() * (col_start, row_stop)
+        _, uly = self.geo_info.as_affine() * (col_stop, row_start)
 
         # get its GeoInfo and update it accordingly
         geo_info = self.geo_info
@@ -1221,7 +1214,7 @@ class Band(object):
             pixres_y=geo_info.pixres_y
         )
         values = self.values.copy()
-        new_values = values[min_row:max_row,min_col:max_col]
+        new_values = values[row_start:row_stop,col_start:col_stop]
 
         # if full_bounding_box is False, mask out pixels not overlapping the
         # geometry (but located within the bounding box)
