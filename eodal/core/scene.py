@@ -425,7 +425,7 @@ class SceneCollection(MutableMapping):
         if inplace:
             kwargs.update({'inplace': True})
         if not inplace:
-            scoll_new = SceneCollection()
+            scoll_new = SceneCollection(indexed_by_timestamps=self.indexed_by_timestamps)
         # loop over band reproject the selected ones
         for timestamp, scene in self:
             if inplace:
