@@ -284,6 +284,7 @@ class RasterOperator(Operator):
         cls.check_operator(operator=operator)
         # make a copy of a to avoid overwriting the original values
         _a = deepcopy(a)
+
         # if `other` is a Band object get its values
         if isinstance(other, Band):
             _other = deepcopy(other)
