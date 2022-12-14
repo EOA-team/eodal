@@ -239,11 +239,7 @@ class Mapper(object):
         object.__setattr__(self, "unique_id_attribute", unique_id_attribute)
         object.__setattr__(self, "mapper_configs", mapper_configs)
         object.__setattr__(self, "collection", collection)
-
-        observations: Dict[str, DataFrame] = None
         object.__setattr__(self, "observations", observations)
-
-        features: Dict[str, Feature] = None
         object.__setattr__(self, "features", features)
 
     def __setattr__(self, *args):
