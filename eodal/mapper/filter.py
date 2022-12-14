@@ -38,22 +38,33 @@ class Filter:
             condition that must be met to keep a metadata item in the
             selection
         """
+        # check inputs
+        if not isinstance(entity, str):
+            raise TypeError('Entity argument must be a string')
+        if entity == '':
+            raise ValueError('Entity argument must not be an empty string')
+        if not isinstance(condition, str):
+            raise TypeError('Condition argument must be a string')
+        if condition == '':
+            raise ValueError('Condition argument must not be an empty string')
+
         self._entity = entity
         self._condition = condition
 
     def __repr__(self) -> str:
-        return f'Filter by {self.entity} {self.condition}'
+        return self.expression
 
     @property
     def entity(self) -> str:
+        """metadata entity used to filter"""
         return self._entity
 
     @property
     def condition(self) -> str:
+        """filter condition"""
         return self._condition
 
-if __name__ == '__main__':
-    
-    cc_filter = Filter(entity='cloudy_pixel_percentage', condition='<30')
-    cc_filter
-    
+    @property
+    def expression(self) -> str:
+        """returns the filter expression as string"""
+        return f'{self.entity} {self.condition}'
