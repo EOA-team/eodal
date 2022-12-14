@@ -1,17 +1,38 @@
 '''
-Created on Dec 12, 2022
+Copyright (C) 2022 Lukas Valentin Graf
 
-@author: graflu
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
+import numpy as np
+import pandas as pd
 import yaml
 
+from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
+from sqlalchemy.exc import DatabaseError
+from shapely.geometry import box
 from typing import List, Optional
 
+from eodal.config import get_settings
 from eodal.mapper.feature import Feature
 from eodal.mapper.filter import Filter
+from eodal.utils.constants import ProcessingLevels
+from eodal.utils.exceptions import STACError
+
+settings = get_settings()
 
 class MapperConfigs:
     """
@@ -61,6 +82,7 @@ class MapperConfigs:
         # check inputs
         if not isinstance(collection, str):
             raise TypeError('Collection must be a string')
+
         if len(collection) < 6:
             raise ValueError('Collections must have at least six characters')
         if collection.count('-') != 2:
@@ -72,7 +94,7 @@ class MapperConfigs:
         if not isinstance(time_start, datetime) and not isinstance(time_end, datetime):
             raise TypeError('Expected datetime objects')
         if metadata_filters is not None:
-            if not [isinstance(x, Filter) for x in metadata_filters].all():
+            if not np.array([isinstance(x, Filter) for x in metadata_filters]).all():
                 raise TypeError('All filters must be instances of the Filter class')
 
         self._collection = collection
@@ -81,12 +103,18 @@ class MapperConfigs:
         self._time_end = time_end
         self._metadata_filters = metadata_filters
 
+    def __repr__(self) -> str:
+        return f'EOdal MapperConfig\n------------------\nCollection: {self.collection}' + \
+            f'\nTime Range: {self.time_start} - {self.time_end}\nFeature:\n' + \
+            f'{self.feature.__repr__()}\nMetadata Filters: {str(self.metadata_filters)}'
+
     @property
     def collection(self) -> str:
         return self._collection
 
     @property
     def platform(self) -> str:
+
         return self.collection.split('-')[0]
 
     @property
@@ -127,6 +155,12 @@ class MapperConfigs:
         if 'feature' not in yaml_content.keys():
             raise ValueError('"feature" attribute is required"')
         feature_yaml = yaml_content['feature']
+        # reconstruct the filter objects
+        filter_list = []
+        if 'metadata_filters' in yaml_content.keys():
+            filters_yaml = yaml_content['metadata_filters']
+            for filter_yaml in filters_yaml:
+                filter_list.append(Filter(*filter_yaml.split()))
         try:
             feature = Feature.from_dict(feature_yaml)
             return cls(
@@ -134,7 +168,7 @@ class MapperConfigs:
                 feature=feature,
                 time_start=yaml_content['time_start'],
                 time_end=yaml_content['time_end'],
-                metadata_filters=yaml_content['metadata_filters']
+                metadata_filters=filter_list
             )
         except KeyError as e:
             raise ValueError(f'IMissing keys in yaml file: {e}')
@@ -151,7 +185,7 @@ class MapperConfigs:
         mapper_configs_dict['feature'] = self.feature.to_dict()
         mapper_configs_dict['time_start'] = self.time_start
         mapper_configs_dict['time_end'] = self.time_end
-        mapper_configs_dict['metadata_filters'] = self.metadata_filters
+        mapper_configs_dict['metadata_filters'] = [x.__repr__() for x in self.metadata_filters]
         with open(fpath, 'w+') as f:
             yaml.dump(mapper_configs_dict, f, allow_unicode=True)
 
@@ -162,35 +196,96 @@ class Mapper:
 
     The mapper class takes over searching for EO scenes, merging them and
     filling eventually occurring black-fill (no-data regions).
+
+    :attrib mapper_configs:
+        `MapperConfig` instance defining search criteria
     """
 
     def __init__(self, mapper_configs: MapperConfigs):
-        pass
+        """
+        Class constructor
+
+        :param mapper_configs:
+            `MapperConfig` instance defining search criteria
+        """
+        if not isinstance(mapper_configs, MapperConfigs):
+            raise TypeError(f'Expected a MapperConfigs instance')
+        self._mapper_configs = mapper_configs
+        self._observations = None
+
+    def __repr__(self) -> str:
+        return f'EOdal Mapper\n============\n{self.mapper_configs.__repr__()}'
+
+    @property
+    def mapper_configs(self) -> MapperConfigs:
+        """mapper configurations"""
+        return self._mapper_configs
+
+    @property
+    def observations(self) -> None | pd.DataFrame:
+        """scene metadata found"""
+        return self._observations
+
+    @observations.setter
+    def observations(self, values: Optional[pd.DataFrame]):
+        """set scene metadata"""
+        self._observations = deepcopy(values)
+
+    def get_scenes(self):
+        """
+        Query available scenes for the current `MapperConfigs`.
+        This method only queries a metadata catalog without reading data.
+        """
+        # TODO: handle point geometries
+
+        # determine bounding box of the feature using
+        # its representation in geographic coordinates
+        feature_wgs84 = self.mapper_configs.feature.to_epsg(4326)
+        bbox = box(*feature_wgs84.geometry.bounds)
+
+        # determine the processing level
+        try:
+            processing_level = eval(
+                f'ProcessingLevels.{self.mapper_configs.processing_level.upper()}'
+            )
+        except AttributeError as e:
+            raise ValueError(f'Unknown processing level: {e}')
+
+        # put everything together
+        kwargs = {
+            'date_start': self.mapper_configs.time_start,
+            'date_end': self.mapper_configs.time_end,
+            'bounding_box': bbox,
+            'processing_level': processing_level
+        }
+        # add custom metadata filters
+        for metadata_filter in self.mapper_configs.metadata_filters:
+            kwargs.update({metadata_filter.entity: metadata_filter.condition})
+        # determine the platform
+        platform = self.mapper_configs.platform
+
+        # query the metadata catalog
+        if settings.USE_STAC:
+            try:
+                exec(f'from eodal.metadata.stac import {platform}')
+                scenes_df = eval(f'{platform}(**kwargs)')
+            except Exception as e:
+                raise STACError(f"Querying STAC catalog failed: {e}")
+        else:
+            try:
+                exec(
+                    f'from eodal.metadata.{platform}.database.querying import find_raw_data_by_bbox'
+                )
+                scenes_df = eval('find_raw_data_by_bbox(**kwargs)')
+            except Exception as e:
+                raise DatabaseError(f"Querying metadata DB failed: {e}")
+
+        self.observations = scenes_df
     
-if __name__ == '__main__':
 
-    from shapely.geometry import Point
 
-    collection = 'sentinel2-msi-l2a'
-    geom = Point([49,11])
-    epsg = 4326
-    name = 'Test Point'
-    attributes = {'this': 'is a test', 'a': 123}
-    feature = Feature(name, geom, epsg, attributes)
-    time_start = datetime(2022,12,1)
-    time_end = datetime.now()
 
-    mapper_configs = MapperConfigs(collection, feature, time_start, time_end)
-    fpath = '/mnt/ides/Lukas/test.yml'
-    mapper_configs.to_yaml(fpath)
 
-    mapper_configs_rl = MapperConfigs.from_yaml(fpath)
-    assert mapper_configs.feature.name == mapper_configs_rl.feature.name, 'wrong feature name'
-    assert mapper_configs.feature.epsg == mapper_configs_rl.feature.epsg, 'wrong feature EPSG'
-    assert mapper_configs.feature.geometry == mapper_configs_rl.feature.geometry, 'wrong feature geometry'
-    assert set(mapper_configs.feature.attributes) == set(mapper_configs_rl.feature.attributes), \
-        'wrong feature attributes'
-    assert mapper_configs.time_start == mapper_configs_rl.time_start, 'wrong start time'
-    assert mapper_configs.time_end == mapper_configs_rl.time_end, 'wrong end time'
-    assert mapper_configs.collection == mapper_configs_rl.collection, 'wrong collection'
-        
+
+
+    
