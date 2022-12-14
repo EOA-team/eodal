@@ -1142,6 +1142,7 @@ class Band(object):
             if False (default), clips to the bounding box of the geometry and masks values
             outside the actual geometry boundaries. To obtain all values within the
             bounding box set to True.
+            .. versionadded:: 0.1.1
         :param inplace:
             if False (default) returns a copy of the ``Band`` instance
             with the changes applied. If True overwrites the values
