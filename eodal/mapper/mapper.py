@@ -4,6 +4,8 @@ Created on Dec 12, 2022
 @author: graflu
 '''
 
+from __future__ import annotations
+
 import yaml
 
 from datetime import datetime
