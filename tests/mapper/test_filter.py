@@ -25,17 +25,17 @@ from eodal.mapper.filter import Filter
 
 def test_filter():
     # filter by cloud cover
-    cc_filter = Filter(entity='cloudy_pixel_percentage', operator='lt', value=30)
-    assert cc_filter.expression == 'cloudy_pixel_percentage lt 30'
+    cc_filter = Filter(entity='cloudy_pixel_percentage', operator='<', value=30)
+    assert cc_filter.expression == 'cloudy_pixel_percentage < 30'
     assert cc_filter.entity == 'cloudy_pixel_percentage'
-    assert cc_filter.operator == 'lt'
+    assert cc_filter.operator == '<'
     assert cc_filter.value == 30
 
     # wrong data types
     with pytest.raises(ValueError):
-        cc_filter = Filter(entity='cloudy_pixel_percentage', operator='<', value=30)
+        cc_filter = Filter(entity='cloudy_pixel_percentage', operator='lt', value=30)
     with pytest.raises(TypeError):
-        cc_filter = Filter(entity=4, operator='lt', value=30)
+        cc_filter = Filter(entity=4, operator='<', value=30)
 
     # passing None
     with pytest.raises(ValueError):
