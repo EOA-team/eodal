@@ -30,10 +30,10 @@ from shapely.geometry import box
 from typing import List, Optional
 
 from eodal.config import get_settings
+from eodal.core.scene import SceneCollection
 from eodal.mapper.feature import Feature
 from eodal.mapper.filter import Filter
 from eodal.metadata.database.querying import find_raw_data_by_bbox
-from eodal.utils.constants import ProcessingLevels
 from eodal.utils.exceptions import STACError
 
 settings = get_settings()
@@ -215,10 +215,23 @@ class Mapper:
         if not isinstance(mapper_configs, MapperConfigs):
             raise TypeError(f'Expected a MapperConfigs instance')
         self._mapper_configs = mapper_configs
-        self._observations = None
+        self._metadata = None
+        self._data = None
 
     def __repr__(self) -> str:
         return f'EOdal Mapper\n============\n{self.mapper_configs.__repr__()}'
+
+    @property
+    def data(self) -> None | SceneCollection:
+        """SceneCollection with scenes found"""
+        return self._data
+
+    @data.setter
+    def data(self, scoll: Optional[SceneCollection] = None):
+        if scoll is not None:
+            if not isinstance(scoll, SceneCollection):
+                raise TypeError('Expected a EOdal SceneCollection')
+        self._data = deepcopy(scoll)
 
     @property
     def mapper_configs(self) -> MapperConfigs:
@@ -226,34 +239,40 @@ class Mapper:
         return self._mapper_configs
 
     @property
-    def observations(self) -> None | pd.DataFrame:
+    def metadata(self) -> None | pd.DataFrame:
         """scene metadata found"""
-        return self._observations
+        return self._metadata
 
-    @observations.setter
-    def observations(self, values: Optional[gpd.GeoDataFrame] = None):
+    @metadata.setter
+    def metadata(self, values: Optional[gpd.GeoDataFrame] = None):
         """set scene metadata"""
         if values is not None:
             if not isinstance(values, gpd.GeoDataFrame):
                 raise TypeError('Expected a GeoDataFrame')
         self._observations = deepcopy(values)
 
-    def get_scenes(self):
+    def query_scenes(self) -> None:
         """
-        Query available scenes for the current `MapperConfigs`.
-        This method only queries a metadata catalog without reading data.
+        Query available scenes for the current `MapperConfigs` and loads
+        into the `observations` attribute.
+
+        Depending on the settings of EOdal, this method either makes a
+        query to a STAC resource or to a PostgreSQL/PostGIS database.
+
+        NOTE:
+            This method only queries a metadata catalog without reading data.
         """
         # TODO: handle point geometries
 
         # determine bounding box of the feature using
-        # its representation in geographic coordinates
+        # its representation in geographic coordinates (WGS84, EPSG: 4326)
         feature_wgs84 = self.mapper_configs.feature.to_epsg(4326)
         bbox = box(*feature_wgs84.geometry.bounds)
 
         # determine platform
         platform = self.mapper_configs.platform
 
-        # put everything together
+        # put kwargs together
         kwargs = {
             'platform': platform,
             'time_start': self.mapper_configs.time_start,
@@ -262,7 +281,7 @@ class Mapper:
             'metadata_filters': self.mapper_configs.metadata_filters
         }
 
-        # query the metadata catalog
+        # query the metadata catalog (STAC or database depending on settings)
         if settings.USE_STAC:
             try:
                 exec(f'from eodal.metadata.stac import {platform}')
@@ -275,5 +294,16 @@ class Mapper:
             except Exception as e:
                 raise DatabaseError(f"Querying metadata DB failed: {e}")
 
+        # populate the observations attribute
         self.observations = scenes_df
+
+    def load_scenes(self) -> None:
+        """
+        Load scenes from `~Mapper.query_scenes` result into a `SceneCollection`
+        """
+        # check if scenes have been queried and found
+        if self.observations is None:
+            return
+        if self.observations.empty:
+            return
     
