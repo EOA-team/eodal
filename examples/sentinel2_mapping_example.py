@@ -41,10 +41,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import cv2
 
 from datetime import date
+from eodal.config import get_settings
 from eodal.operational.mapping import MapperConfigs, Sentinel2Mapper
 from eodal.operational.mapping import plot_feature
 from eodal.utils.sentinel2 import ProcessingLevels
 from pathlib import Path
+
+Settings = get_settings()
+Settings.USE_STAC = True
 
 #%% user-inputs
 # ---------------------- Spatial Resolution ----------------------------

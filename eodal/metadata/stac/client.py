@@ -2,6 +2,8 @@
 Querying datasets from a Spatio-Temporal Asset Catalog (STAC).
 """
 
+from __future__ import annotations
+
 import pandas as pd
 
 from datetime import date, datetime

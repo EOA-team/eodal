@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+from __future__ import annotations
+
 import cv2
 import geopandas as gpd
 import pandas as pd
@@ -39,7 +41,6 @@ from eodal.metadata.sentinel1.database.querying import find_raw_data_by_bbox as 
     find_raw_data_by_bbox_sentinel1
 from eodal.metadata.sentinel2.database.querying import find_raw_data_by_bbox as \
     find_raw_data_by_bbox_sentinel2
-from eodal.operational.resampling.utils import identify_split_scenes
 from eodal.operational.resampling.utils import identify_split_scenes
 from eodal.utils.exceptions import BlackFillOnlyError, DataNotFoundError, InputError, \
     STACError

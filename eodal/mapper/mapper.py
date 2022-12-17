@@ -15,6 +15,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
+from __future__ import annotations
+
 import numpy as np
 import pandas as pd
 import yaml
@@ -29,7 +31,6 @@ from typing import List, Optional
 from eodal.config import get_settings
 from eodal.mapper.feature import Feature
 from eodal.mapper.filter import Filter
-from eodal.utils.constants import ProcessingLevels
 from eodal.utils.exceptions import STACError
 
 settings = get_settings()

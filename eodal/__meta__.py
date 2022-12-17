@@ -14,4 +14,4 @@ author_email = ""
 description = "Earth Observation Data Analysis Library"  # One-liner
 url = "https://github.com/EOA-team/eodal"  # your project home-page
 license = "GNU General Public License version 3"  # See https://choosealicense.com
-version = "0.1.0"
+version = "0.1.1"
