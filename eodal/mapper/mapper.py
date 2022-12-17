@@ -31,6 +31,8 @@ from typing import List, Optional
 from eodal.config import get_settings
 from eodal.mapper.feature import Feature
 from eodal.mapper.filter import Filter
+from eodal.metadata.database.querying import find_raw_data_by_bbox
+from eodal.utils.constants import ProcessingLevels
 from eodal.utils.exceptions import STACError
 
 settings = get_settings()
@@ -67,8 +69,10 @@ class MapperConfigs:
         default class constructor
 
         :param collection:
-            name of the collection (<platform>-<sensor>-<processing level>) to use.
-            E.g., "Sentinel2-MSI-L2A
+            name of the collection (<platform>-<sensor>) to use.
+            E.g., "sentinel2-msi". <sensor> is optional and can be omitted
+            if a platform does not carry more than a single sensor. I.e.,
+            one could also pass "sentinel2" instead.
         :param feature:
             geographic feature(s) for which to extract data from collection
         :param time_start:
@@ -84,11 +88,11 @@ class MapperConfigs:
         if not isinstance(collection, str):
             raise TypeError('Collection must be a string')
 
-        if len(collection) < 6:
-            raise ValueError('Collections must have at least six characters')
-        if collection.count('-') != 2:
+        if len(collection) < 3:
+            raise ValueError('Collections must have at least 3 characters')
+        if collection.count('-') > 2:
             raise ValueError(
-                f'Collections must obey the format <platform>-<sensor>-<prcoessing_level>'
+                f'Collections must obey the format <platform>-<sensor> where <sesor> is optional'
             )
         if not isinstance(feature, Feature):
             raise TypeError('Expected a Feature object')
@@ -115,16 +119,14 @@ class MapperConfigs:
 
     @property
     def platform(self) -> str:
-
         return self.collection.split('-')[0]
 
     @property
     def sensor(self) -> str:
-        return self._collection.split('-')[1]
-
-    @property
-    def processing_level(self) -> str:
-        return self._collection.split('-')[-1]
+        try:
+            return self._collection.split('-')[1]
+        except IndexError:
+            return ''
 
     @property
     def feature(self) -> Feature:
@@ -244,26 +246,17 @@ class Mapper:
         feature_wgs84 = self.mapper_configs.feature.to_epsg(4326)
         bbox = box(*feature_wgs84.geometry.bounds)
 
-        # determine the processing level
-        try:
-            processing_level = eval(
-                f'ProcessingLevels.{self.mapper_configs.processing_level.upper()}'
-            )
-        except AttributeError as e:
-            raise ValueError(f'Unknown processing level: {e}')
+        # determine platform
+        platform = self.mapper_configs.platform
 
         # put everything together
         kwargs = {
-            'date_start': self.mapper_configs.time_start,
-            'date_end': self.mapper_configs.time_end,
+            'platform': platform,
+            'time_start': self.mapper_configs.time_start,
+            'time_end': self.mapper_configs.time_end,
             'bounding_box': bbox,
-            'processing_level': processing_level
+            'metadata_filters': self.mapper_configs.metadata_filters
         }
-        # add custom metadata filters
-        for metadata_filter in self.mapper_configs.metadata_filters:
-            kwargs.update({metadata_filter.entity: metadata_filter.condition})
-        # determine the platform
-        platform = self.mapper_configs.platform
 
         # query the metadata catalog
         if settings.USE_STAC:
@@ -274,10 +267,7 @@ class Mapper:
                 raise STACError(f"Querying STAC catalog failed: {e}")
         else:
             try:
-                exec(
-                    f'from eodal.metadata.{platform}.database.querying import find_raw_data_by_bbox'
-                )
-                scenes_df = eval('find_raw_data_by_bbox(**kwargs)')
+                scenes_df = find_raw_data_by_bbox(**kwargs)
             except Exception as e:
                 raise DatabaseError(f"Querying metadata DB failed: {e}")
 
