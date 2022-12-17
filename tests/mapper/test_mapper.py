@@ -108,9 +108,9 @@ def test_mapper_get_scenes_db(collection, time_start, time_end, geom, metadata_f
         metadata_filters=metadata_filters
     )
     mapper = Mapper(mapper_configs)
-    mapper.get_scenes()
+    mapper.query_scenes()
 
-    assert isinstance(mapper.observations, gpd.GeoDataFrame), 'expected a GeoDataFrame'
+    assert isinstance(mapper.metadata, gpd.GeoDataFrame), 'expected a GeoDataFrame'
     assert not mapper.observations.empty, 'expected some items to be returned'
 
 
@@ -160,9 +160,9 @@ def test_mapper_get_scenes_stac(collection, time_start, time_end, geom, metadata
         metadata_filters=metadata_filters
     )
     mapper = Mapper(mapper_configs)
-    mapper.get_scenes()
+    mapper.query_scenes()
 
-    assert isinstance(mapper.observations, gpd.GeoDataFrame), 'expected a GeoDataFrame'
+    assert isinstance(mapper.metadata, gpd.GeoDataFrame), 'expected a GeoDataFrame'
     assert not mapper.observations.empty, 'expected some items to be returned'
 
     
