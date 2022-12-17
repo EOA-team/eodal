@@ -19,38 +19,57 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import annotations
 
+from typing import Any
+
+operators = ['lt', 'le', 'eq', 'ne', 'gt', 'ge']
+
 class Filter:
     """
-    The generic filter class.
+    The generic filter class. A filter is used to query data catalogs.
+
+    Each filter follows the following structure:
+    
+    <entity> <operator> <value>
+
+    For instance, `cloudy_pixel_percentage lt 10`, where
+
+        * `cloudy_pixel_percentage` is the entity to filter
+        * `lt` is the operator
+        * `10` is the value
 
     :attrib entity:
         metadata entity to use for filtering
-    :attrib condition:
-        condition that must be met to keep a metadata item in the
-        selection
+    :attrib operator:
+            comparison operator to use, e.g., "gt" for "greater than" (>)
+    :attrib value:
+        value on the right-hand side of the filter expression
     """
-    def __init__(self, entity: str, condition: str):
+    def __init__(self, entity: str, operator: str, value: Any):
         """
         Constructor method
 
         :param entity:
             metadata entity to use for filtering
-        :param condition:
-            condition that must be met to keep a metadata item in the
-            selection
+        :param operator:
+            comparison operator to use, e.g., "gt" for "greater than" (>)
+        :param value:
+            value on the right-hand side of the filter expression
         """
         # check inputs
         if not isinstance(entity, str):
             raise TypeError('Entity argument must be a string')
         if entity == '':
             raise ValueError('Entity argument must not be an empty string')
-        if not isinstance(condition, str):
-            raise TypeError('Condition argument must be a string')
-        if condition == '':
-            raise ValueError('Condition argument must not be an empty string')
+        if not isinstance(operator, str):
+            raise TypeError('Operator argument must be a string')
+        if operator not in operators:
+            raise ValueError('Operator must be one of: ' + ','.join(operators))
+        if value is None:
+            raise ValueError('Value cannot be None')
 
         self._entity = entity
-        self._condition = condition
+        self._operator = operator
+        self._value = value
 
     def __repr__(self) -> str:
         return self.expression
@@ -61,11 +80,16 @@ class Filter:
         return self._entity
 
     @property
-    def condition(self) -> str:
-        """filter condition"""
-        return self._condition
+    def operator(self) -> str:
+        """filter operator"""
+        return self._operator
+
+    @property
+    def value(self) -> Any:
+        """right-side value of the filter"""
+        return self._value
 
     @property
     def expression(self) -> str:
         """returns the filter expression as string"""
-        return f'{self.entity} {self.condition}'
+        return f'{self.entity} {self.operator} {self.value}'
