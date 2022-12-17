@@ -17,9 +17,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import annotations
 
+import cv2
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import warnings
 import yaml
 
 from copy import deepcopy
@@ -27,14 +29,16 @@ from datetime import datetime
 from pathlib import Path
 from sqlalchemy.exc import DatabaseError
 from shapely.geometry import box
-from typing import List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from eodal.config import get_settings
 from eodal.core.scene import SceneCollection
 from eodal.mapper.feature import Feature
 from eodal.mapper.filter import Filter
 from eodal.metadata.database.querying import find_raw_data_by_bbox
+from eodal.metadata.utils import reconstruct_path
 from eodal.utils.exceptions import STACError
+from core.raster import RasterCollection
 
 settings = get_settings()
 
@@ -203,6 +207,10 @@ class Mapper:
 
     :attrib mapper_configs:
         `MapperConfig` instance defining search criteria
+    :attrib data:
+        loaded scene data as EOdal `SceneCollection`
+    :attrib metadata:
+        corresponding scene metadata as `GeoDataFrame`.
     """
 
     def __init__(self, mapper_configs: MapperConfigs):
@@ -231,7 +239,7 @@ class Mapper:
         if scoll is not None:
             if not isinstance(scoll, SceneCollection):
                 raise TypeError('Expected a EOdal SceneCollection')
-        self._data = deepcopy(scoll)
+        self._data = scoll
 
     @property
     def mapper_configs(self) -> MapperConfigs:
@@ -239,7 +247,7 @@ class Mapper:
         return self._mapper_configs
 
     @property
-    def metadata(self) -> None | pd.DataFrame:
+    def metadata(self) -> None | gpd.GeoDataFrame:
         """scene metadata found"""
         return self._metadata
 
@@ -249,7 +257,7 @@ class Mapper:
         if values is not None:
             if not isinstance(values, gpd.GeoDataFrame):
                 raise TypeError('Expected a GeoDataFrame')
-        self._observations = deepcopy(values)
+        self._metadata = deepcopy(values)
 
     def query_scenes(self) -> None:
         """
@@ -294,16 +302,110 @@ class Mapper:
             except Exception as e:
                 raise DatabaseError(f"Querying metadata DB failed: {e}")
 
-        # populate the observations attribute
-        self.observations = scenes_df
+        # populate the metadata attribute
+        self.metadata = scenes_df
 
-    def load_scenes(self) -> None:
+    def load_scenes(
+        self,
+        scene_constructor: Optional[Callable[...,RasterCollection]] = RasterCollection.from_multi_band_raster,
+        scene_constructor_kwargs: Optional[Dict[str, Any]] = {},
+        scene_modifier: Optional[Callable[...,RasterCollection]] = None,
+        scene_modifier_kwargs: Optional[Dict[str, Any]] = {}
+    ) -> None:
         """
-        Load scenes from `~Mapper.query_scenes` result into a `SceneCollection`
+        Load scenes from `~Mapper.query_scenes` result into a `SceneCollection`.
+
+        :param scene_constructor:
+            Callable used to read the scenes found into `RasterCollection` fulfilling
+            the `is_scene` criterion (i.e., a time stamp is available). The callable is
+            applied to all scenes found in the metadata query call.
+            By default the standard class-method call `~RasterCollection.from_multi_band_raster`
+            is used. It can be replaced, however, with a custom-written callable that
+            can be of any design except that it **MUST** accept a keyword argument
+            `fpath_raster` used for reading the Scene data and `vector_features` for
+            cropping the data to the spatial extent of the Mapper instance.
+        :param scene_constructor_kwargs:
+            optional keyword-arguments to pass to `scene_constructor`. `fpath_raster`
+            and `vector_features` are filled in by the `Mapper` instance automatically,
+            i.e., any custom values passed will be overwritten.
+        :param scene_modifier:
+            optional Callable modifying a `RasterCollection` or returning a new
+            `RasterCollection`. The Callable is applied to all scenes in the
+            `SceneCollection` when loaded by the `Mapper`. Can be used, e.g.,
+            to calculate spectral indices on the fly or for applying masks.
+        :param scene_modifier_kwargs:
+            optional keyword arguments for `rcoll_modifier` (if any).
         """
         # check if scenes have been queried and found
-        if self.observations is None:
+        if self.metadata is None:
+            warnings.warn(
+                'No scenes are available - have you already executed Mapper.query_scenes()?'
+            )
             return
-        if self.observations.empty:
+        if self.metadata.empty:
+            warnings.warn(
+                'No scenes were scenes - consider modifying your search criteria'
+            )
             return
+
+        # check the spatial reference system of the scenes found. The mapper class
+        # will ensure that all of them will be available in the same CRS. The CRS
+        # is selected which most of the scenes already have to keep the reprojection
+        # costs as small as possible (and also to avoid resampling induced errors)
+        try:
+            self.metadata['target_epsg'] = self.metadata.epsg.mode().values[0]
+        except KeyError as e:
+            raise ValueError(f'Could not determine CRS of scenes: {e}')
+
+        # check if mosaicing scenes is required. This is done by checking the sensing_time
+        # time stamps. If there are multiple scenes with the same time stamp they must be
+        # mosaiced into a single scene
+        self.metadata['mosaicing'] = False
+        duplicated_idx = self.metadata[self.metadata.duplicated(['sensing_time'])].index
+        self.metadata.loc[duplicated_idx, 'mosaicing'] = True
+
+        # provide paths to raster data. Depending on th settings, this is a path on the
+        # file system or a URL
+        self.metadata['real_path'] = ''
+        if settings.USE_STAC:
+            self.metadata['real_path'] = self.metadata['assets']
+        else:
+            self.metadata['realpath'] = self.metadata.apply(
+                lambda x: reconstruct_path(record=x), axis=1
+            )
+
+        # open a SceneCollection for storing the data
+        scoll = SceneCollection()
+
+        # loop over scenes and load the data. Carry out reprojection and mosaicing where
+        # necessary
+        datasets_to_mosaic = []
+        for _, item in self.metadata.iterrows():
+            # update scene constructor kwargs with file path and vector features
+            # for cropping
+            scene_constructor_kwargs.update({
+                'fpath_raster': item.real_path,
+                'vector_features': self.mapper_configs.feature.to_geoseries()
+            })
+            try:
+                scene = scene_constructor.__call__(**scene_constructor_kwargs)
+                scene.scene_properties.sensing_time = item.sensing_time
+            except Exception as e:
+                raise ValueError(f'Could not load scene: {e}')
+
+            # TODO: reproject if necessary
+
+            # TODO: check for mosaicing (will be done later)
+
+            # apply scene_modifier (if any)
+            if scene_modifier is not None:
+                modified_scene = scene_modifier.__call__(scene, **scene_modifier_kwargs)
+                scoll.add_scene(modified_scene)
+            else:
+                scoll.add_scene(scene)
+
+        # TODO: implement mosaicing
+
+        # sort scenes by their timestamps and save as data attribute to mapper instance
+        self.data = scoll.sort()
     
