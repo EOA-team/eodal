@@ -111,7 +111,7 @@ def test_mapper_get_scenes_db(collection, time_start, time_end, geom, metadata_f
     mapper.query_scenes()
 
     assert isinstance(mapper.metadata, gpd.GeoDataFrame), 'expected a GeoDataFrame'
-    assert not mapper.observations.empty, 'expected some items to be returned'
+    assert not mapper.metadata.empty, 'expected some items to be returned'
 
 
 @pytest.mark.parametrize(
@@ -163,6 +163,49 @@ def test_mapper_get_scenes_stac(collection, time_start, time_end, geom, metadata
     mapper.query_scenes()
 
     assert isinstance(mapper.metadata, gpd.GeoDataFrame), 'expected a GeoDataFrame'
-    assert not mapper.observations.empty, 'expected some items to be returned'
+    assert not mapper.metadata.empty, 'expected some items to be returned'
+
+@pytest.fixture
+def get_mapper():
+    def _get_mapper():
+
+        Settings.USE_STAC = True
+
+        collection = 'sentinel2-msi'
+        time_start = datetime(2022,7,1)
+        time_end = datetime(2022,7,15)
+        geometry = Polygon(
+            [[493504.953633058525156, 5258840.576098721474409],
+            [493511.206339373020455, 5258839.601945200935006],
+            [493510.605988947849255, 5258835.524093257263303],
+            [493504.296645800874103, 5258836.554883609525859],
+            [493504.953633058525156, 5258840.576098721474409]]
+        )
+        filters = [Filter('cloudy_pixel_percentage','<', 100), Filter('processing_level', '==', 'Level-2A')]
+        feature = Feature(
+            name='Test Area',
+            geometry=geometry,
+            epsg=32632,
+            attributes={'id': 1}
+        )
+        mapper_configs = MapperConfigs(
+            collection=collection,
+            time_start=time_start,
+            time_end=time_end,
+            feature=feature,
+            metadata_filters=filters
+        )
+        mapper = Mapper(mapper_configs)
+        mapper.query_scenes()
+
+        return mapper
+    return _get_mapper
+
+def test_mapper_load_scenes(get_mapper):
+    
+    mapper = get_mapper()
+    scene_constructor_kwargs = {'band_names_src': ['B02', 'B03', 'B04']}
+    mapper.load_scenes(scene_constructor_kwargs=scene_constructor_kwargs)
+
 
     
