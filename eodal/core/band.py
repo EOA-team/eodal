@@ -55,6 +55,7 @@ from rasterstats.utils import check_stats
 from shapely.geometry import box, MultiPolygon, Point, Polygon
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+from eodal.config import get_settings
 from eodal.core.operators import Operator
 from eodal.core.utils.geometry import check_geometry_types, convert_3D_2D
 from eodal.core.utils.raster import get_raster_attributes, bounds_window
@@ -66,6 +67,8 @@ from eodal.utils.exceptions import (
     ReprojectionError,
 )
 from eodal.utils.reprojection import reproject_raster_dataset, check_aoi_geoms
+
+Settings = get_settings()
 
 class BandOperator(Operator):
     """
@@ -636,7 +639,7 @@ class Band(object):
     @classmethod
     def from_rasterio(
         cls,
-        fpath_raster: Path,
+        fpath_raster: Path | Dict,
         band_idx: Optional[int] = 1,
         band_name_src: Optional[str] = "",
         band_name_dst: Optional[str] = "B1",
@@ -655,7 +658,11 @@ class Band(object):
             For Point features refer to the `read_pixels` method.
 
         :param fpath_raster:
-            file-path to the raster file from which to read a band
+            file-path to the raster file from which to read a band or
+
+            .. versionadd:: 0.2.0
+                can be also an `assets` dictionary returned from a STAC query
+
         :param band_idx:
             band index of the raster band to read (starting with 1). If not
             provided the first band will be always read. Ignored if
@@ -689,14 +696,21 @@ class Band(object):
         :returns:
             new ``Band`` instance from a ``rasterio`` dataset.
         """
+        _fpath_raster = deepcopy(fpath_raster)
+        # check if fpath_raster is STAC item or file system path
+            if isinstance(fpath_raster, dict):
+                if band_name_src is not None:
+                    _fpath_raster = _fpath_raster[band_name_src]['href']
+                else:
+                    _fpath_raster = _fpath_raster[list(_fpath_raster.keys())[band_idx]]['href']
+
         # check vector features if provided
         masking = False
         if vector_features is not None:
-
             masking = True
             gdf_aoi = check_aoi_geoms(
                 in_dataset=vector_features,
-                fname_raster=fpath_raster,
+                fname_raster=_fpath_raster,
                 full_bounding_box_only=full_bounding_box_only,
             )
             # check for third dimension (has_z) and flatten it to 2d
@@ -709,7 +723,7 @@ class Band(object):
             )
 
         # read data using rasterio
-        with rio.open(fpath_raster, "r") as src:
+        with rio.open(_fpath_raster, "r") as src:
 
             # parse image attributes
             attrs = get_raster_attributes(riods=src)
