@@ -8,10 +8,10 @@ import geopandas as gpd
 import pandas as pd
 import warnings
 
-from datetime import date, datetime
+from datetime import datetime
 from pystac_client import Client
 from shapely.geometry import box, Polygon
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from eodal.config import get_settings, STAC_Providers
 from eodal.mapper.filter import Filter
@@ -64,10 +64,42 @@ def query_stac(
     scenes = item_json["features"]
     return scenes
 
+def _filter_criteria_fulfilled(
+    metadata_dict: Dict[str, Any],
+    metadata_filters: List[Filter]
+) -> bool:
+    """
+    Check if a scene fulfills the metadata filter criteria
+
+    :param metadata_dict:
+        scene metadata returned from STAC item
+    :param metadata_filters:
+        scene metadata filters to apply on metadata_dict
+    :returns:
+        `True` if all criteria passed, `False` if a single
+        criterion was not met.
+    """
+    criteria_fulfilled = True
+    for filter in metadata_filters:
+        if filter.entity == 'processing_level':
+            continue
+        if filter.entity not in metadata_dict.keys():
+            warnings.warn(
+                f'{filter.entity} could not be retrieved from STAC -> skipping filter'
+            )
+        # check if the filter condition is met
+        condition_met = eval(
+            f'meta_dict["{filter.entity}"] {filter.operator} {filter.value}'
+        )
+        if not condition_met:
+            criteria_fulfilled = False
+            break
+    return criteria_fulfilled
+
 @prepare_bbox
 def sentinel2(
     metadata_filters: List[Filter], **kwargs
-) -> pd.DataFrame:
+) -> gpd.GeoDataFrame:
     """
     Sentinel-2 specific STAC query allows filtering by scene-wide cloudy pixel
     percentage.
@@ -141,32 +173,19 @@ def sentinel2(
         meta_dict["assets"] = scene["assets"]
 
         # apply filters
-        append_scene = True
-        for filter in metadata_filters:
-            if filter.entity == 'processing_level':
-                continue
-            if filter.entity not in meta_dict.keys():
-                warnings.warn(
-                    f'{filter.entity} could not be retrieved from STAC -> skipping filter'
-                )
-            # check if the filter condition is met
-            condition_met = eval(
-                f'meta_dict["{filter.entity}"] {filter.operator} {filter.value}'
-            )
-            if not condition_met:
-                append_scene = False
-                break
+        append_scene = _filter_criteria_fulfilled(meta_dict, metadata_filters)
         if append_scene:
             metadata_list.append(meta_dict)
 
     # create geppandas GeoDataFrame out of scene metadata records
     df = pd.DataFrame(metadata_list)
+    df.sort_values(by='sensing_time', inplace=True)
     return gpd.GeoDataFrame(df, geometry='geom', crs=4326)
 
 @prepare_bbox
 def sentinel1(
     metadata_filters: List[Filter], **kwargs
-) -> pd.DataFrame:
+) -> gpd.GeoDataFrame:
     """
     Sentinel-1 specific STAC query function to retrieve mapper from MSPC.
 
@@ -203,32 +222,21 @@ def sentinel1(
     for scene in scenes:
         metadata_dict = scene['properties']
         metadata_dict['assets'] = scene['assets']
+        metadata_dict['sensing_time'] = metadata_dict['datetime']
         metadata_dict['sensing_date'] = datetime.strptime(
-                metadata_dict['datetime'].split("T")[0], "%Y-%m-%d"
-            ).date()
+            metadata_dict['sensing_time'].split("T")[0], "%Y-%m-%d"
+        ).date()
+        del metadata_dict['datetime']
         # infer EPSG code of the scene in UTM coordinates from its bounding box
         bbox = box(*scene['bbox'])
         metadata_dict['epsg'] = infer_utm_zone(bbox)
         metadata_dict['geom'] = bbox
         # apply filters
-        append_scene = True
-        for filter in metadata_filters:
-            if filter.entity == 'product_type':
-                continue
-            if filter.entity not in metadata_dict.keys():
-                warnings.warn(
-                    f'{filter.entity} could not be retrieved from STAC -> skipping filter'
-                )
-            # check if the filter condition is met
-            condition_met = eval(
-                f'metadata_dict["{filter.entity}"] {filter.operator} {filter.value}'
-            )
-            if not condition_met:
-                append_scene = False
-                break
+        append_scene = _filter_criteria_fulfilled(metadata_dict, metadata_filters)
         if append_scene:
             metadata_list.append(metadata_dict)
 
     # create geppandas GeoDataFrame out of scene metadata records
     df = pd.DataFrame(metadata_list)
+    df.sort_values(by='sensing_time', inplace=True)
     return gpd.GeoDataFrame(df, geometry='geom', crs=4326)
