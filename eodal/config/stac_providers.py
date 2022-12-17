@@ -27,8 +27,8 @@ class STAC_Providers:
         """Amazon Web Services"""
 
         URL: str = "https://earth-search.aws.element84.com/v0"
-        S2L1C: str = "sentinel-s2-l1c"
-        S2L2A: str = "sentinel-s2-l2a"
+        S2Level_1C: str = "sentinel-s2-l1c"
+        S2Level_2A: str = "sentinel-s2-l2a"
 
         class Sentinel2:
             product_uri: str = "sentinel:product_id"
@@ -48,8 +48,8 @@ class STAC_Providers:
         """Microsoft Planetary Computer"""
 
         URL: str = "https://planetarycomputer.microsoft.com/api/stac/v1"
-        S2L1C: str = "sentinel-2-l1c"
-        S2L2A: str = "sentinel-2-l2a"
+        S2Level_1C: str = "sentinel-2-l1c"
+        S2Level_2A: str = "sentinel-2-l2a"
         S1RTC: str = "sentinel-1-rtc" # radiometric and terrain corrected using PlanetDEM (IW mode)
         S1GRD: str = "sentinel-1-grd" # corrected to ground range using ellipsoid model WGS84
         
