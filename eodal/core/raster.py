@@ -95,12 +95,15 @@ from typing import List
 from typing import Optional
 from typing import Union
 
+from eodal.config import get_settings
 from eodal.core.band import Band
 from eodal.core.operators import Operator
 from eodal.core.spectral_indices import SpectralIndices
 from eodal.utils.constants import ProcessingLevels
 from eodal.utils.decorators import check_band_names
 from eodal.utils.exceptions import BandNotFoundError
+
+Settings = get_settings()
 
 class SceneProperties(object):
     """
@@ -597,18 +600,23 @@ class RasterCollection(MutableMapping):
 
     @staticmethod
     def _bands_from_selection(
-        fpath_raster: Path,
+        fpath_raster: Path | Dict,
         band_idxs: Optional[List[int]] = None,
         band_names_src: Optional[List[str]] = None,
         band_names_dst: Optional[List[str]] = None,
     ) -> Dict[str, Union[str, int]]:
         """
         Selects bands in a multi-band raster dataset based on a custom
-        selection of band indices or band names
+        selection of band indices or band names.
+
+        .. versionadd:: 0.2.0
+            works also with a dictionary of hrefs returned from a
+            STAC query
 
         :param fpath_raster:
             file-path to the raster file (technically spoken, this
-            can also have just a single band)
+            can also have just a single band) **or** when `USE_STAC` is True
+            the `assets` dictionary returned from a STAC call.
         :param band_idxs:
             optional list of band indices in the raster dataset
             to read. If not provided (default) all bands are loaded.
@@ -629,12 +637,16 @@ class RasterCollection(MutableMapping):
         # check band selection
         band_names, band_count = None, None
         if band_idxs is None:
-            try:
-                with rio.open(fpath_raster, "r") as src:
-                    band_names = list(src.descriptions)
-                    band_count = src.count
-            except Exception as e:
-                raise IOError(f"Could not read {fpath_raster}: {e}")
+            if isinstance(fpath_raster, dict):
+                band_names = list(fpath_raster.keys())
+                band_count = len(band_names)
+            else:
+                try:
+                    with rio.open(fpath_raster, "r") as src:
+                        band_names = list(src.descriptions)
+                        band_count = src.count
+                except Exception as e:
+                    raise IOError(f"Could not read {fpath_raster}: {e}")
             # use default band names if not provided in data set
             if len(band_names) == 0:
                 band_names_src = [f"B{idx+1}" for idx in range(band_count)]
