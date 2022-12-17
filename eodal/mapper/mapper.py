@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import annotations
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import yaml
@@ -230,8 +231,11 @@ class Mapper:
         return self._observations
 
     @observations.setter
-    def observations(self, values: Optional[pd.DataFrame]):
+    def observations(self, values: Optional[gpd.GeoDataFrame] = None):
         """set scene metadata"""
+        if values is not None:
+            if not isinstance(values, gpd.GeoDataFrame):
+                raise TypeError('Expected a GeoDataFrame')
         self._observations = deepcopy(values)
 
     def get_scenes(self):
@@ -272,11 +276,4 @@ class Mapper:
                 raise DatabaseError(f"Querying metadata DB failed: {e}")
 
         self.observations = scenes_df
-    
-
-
-
-
-
-
     
