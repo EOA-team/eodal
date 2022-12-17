@@ -81,7 +81,7 @@ def _filter_criteria_fulfilled(
     """
     criteria_fulfilled = True
     for filter in metadata_filters:
-        if filter.entity == 'processing_level':
+        if filter.entity in ['processing_level', 'product_type']:
             continue
         if filter.entity not in metadata_dict.keys():
             warnings.warn(
@@ -89,7 +89,7 @@ def _filter_criteria_fulfilled(
             )
         # check if the filter condition is met
         condition_met = eval(
-            f'meta_dict["{filter.entity}"] {filter.operator} {filter.value}'
+            f'metadata_dict["{filter.entity}"] {filter.operator} {filter.value}'
         )
         if not condition_met:
             criteria_fulfilled = False
