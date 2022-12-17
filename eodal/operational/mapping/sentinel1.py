@@ -3,6 +3,7 @@ Created on Aug 9, 2022
 
 @author: graflu
 '''
+from __future__ import annotations
 
 import geopandas as gpd
 

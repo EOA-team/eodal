@@ -2,6 +2,8 @@
 Operational Command-Line Utilities for Planet-Scope data
 '''
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any, Optional, Dict
 

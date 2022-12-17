@@ -2,6 +2,8 @@
 Accessing Planet-Scope data
 '''
 
+from __future__ import annotations
+
 import geopandas as gpd
 
 from pathlib import Path
