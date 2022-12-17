@@ -6,6 +6,8 @@ Created on Dec 14, 2022
 
 import pytest
 
+import geopandas as gpd
+
 from datetime import datetime
 from shapely.geometry import Point, Polygon
 
@@ -16,7 +18,7 @@ from eodal.mapper.mapper import MapperConfigs, Mapper
 def test_mapper_configs(tmppath):
 
     # construct a Feature
-    collection = 'sentinel2-msi-l2a'
+    collection = 'sentinel2-msi'
     geom = Point([49,11])
     epsg = 4326
     name = 'Test Point'
@@ -27,7 +29,7 @@ def test_mapper_configs(tmppath):
     time_start = datetime(2022,12,1)
     time_end = datetime.now()
     metadata_filters = [
-        Filter('cloudy_pixel_percentage', '<30'), Filter('snow_ice_percentage', '<10')
+        Filter('cloudy_pixel_percentage', '<', 30), Filter('snow_ice_percentage', '<', 10)
     ]
 
     mapper_configs = MapperConfigs(collection, feature, time_start, time_end, metadata_filters)
@@ -44,17 +46,17 @@ def test_mapper_configs(tmppath):
     assert mapper_configs.time_end == mapper_configs_rl.time_end, 'wrong end time'
     assert mapper_configs.collection == mapper_configs_rl.collection, 'wrong collection'
     for idx, _filter in enumerate(mapper_configs.metadata_filters):
-        assert _filter.condition == mapper_configs_rl.metadata_filters[idx].condition, \
-            'wrong filtering condition'
+        assert _filter.expression == mapper_configs_rl.metadata_filters[idx].expression, \
+            'wrong filtering expression'
         assert _filter.entity == mapper_configs_rl.metadata_filters[idx].entity, \
             'wrong filtering entity'
 
 @pytest.mark.parametrize(
     'collection,time_start,time_end,geom,metadata_filters',
     [(
-        'sentinel2-msi-l2a',
-        datetime(2022,12,1),
-        datetime(2022,12,15),
+        'sentinel2-msi',
+        datetime(2022,7,1),
+        datetime(2022,7,15),
         Polygon(
             [[493504.953633058525156, 5258840.576098721474409],
             [493511.206339373020455, 5258839.601945200935006],
@@ -62,11 +64,32 @@ def test_mapper_configs(tmppath):
             [493504.296645800874103, 5258836.554883609525859],
             [493504.953633058525156, 5258840.576098721474409]]
         ),
-        [Filter('cloud_cover_threshold','<30')],
+        [Filter('cloudy_pixel_percentage','<', 100), Filter('processing_level', '==', 'Level-2A')],
+    ),
+    (
+        'sentinel1-grd',
+        datetime(2020,7,1),
+        datetime(2020,7,15),
+        Polygon(
+            [[493504.953633058525156, 5258840.576098721474409],
+            [493511.206339373020455, 5258839.601945200935006],
+            [493510.605988947849255, 5258835.524093257263303],
+            [493504.296645800874103, 5258836.554883609525859],
+            [493504.953633058525156, 5258840.576098721474409]]
+        ),
+        [Filter('product_type','==', 'GRD')],
     )]
 )
-def test_mapper(collection, time_start, time_end, geom, metadata_filters):
-    """testing the mapper class"""
+def test_mapper_get_scenes_db(collection, time_start, time_end, geom, metadata_filters):
+    """
+    testing the get_scenes() method of the mapper class
+
+    IMPORTANT:
+        This tests only works within the ETH EOdal environment as it expects
+        certain entries (scenes) in the database (see TODO-statement)
+
+    TODO: Create a test database instance
+    """
     feature = Feature(
         name='Test Area',
         geometry=geom,
@@ -82,5 +105,10 @@ def test_mapper(collection, time_start, time_end, geom, metadata_filters):
     )
     mapper = Mapper(mapper_configs)
     mapper.get_scenes()
-    
+
+    assert isinstance(mapper.observations, gpd.GeoDataFrame), 'expected a GeoDataFrame'
+    assert not mapper.observations.empty, 'expected some items to be returned'
+
+def test_mapper_get_scenes_stac():
+    pass
     
