@@ -67,7 +67,7 @@ class Feature:
         if name == '':
             raise ValueError(f'Empty feature names are not allowed')
         if type(geometry) not in allowed_geom_types:
-            raise ValueError(f'geometry must of type {",".join(allowed_geom_types)}')
+            raise ValueError(f'geometry must of type {allowed_geom_types}')
         if type(epsg) != int or epsg <= 0:
             raise ValueError('EPSG code must be a positive integer value')
         if not isinstance(attributes, pd.Series) and not isinstance(attributes, dict):
