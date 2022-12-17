@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import Any
 
-operators = ['lt', 'le', 'eq', 'ne', 'gt', 'ge']
+operators = ['<', '<=', '==', '!=', '>', '>=']
 
 class Filter:
     """
@@ -31,10 +31,10 @@ class Filter:
     
     <entity> <operator> <value>
 
-    For instance, `cloudy_pixel_percentage lt 10`, where
+    For instance, `cloudy_pixel_percentage < 10`, where
 
         * `cloudy_pixel_percentage` is the entity to filter
-        * `lt` is the operator
+        * `<` is the operator
         * `10` is the value
 
     :attrib entity:
@@ -51,7 +51,7 @@ class Filter:
         :param entity:
             metadata entity to use for filtering
         :param operator:
-            comparison operator to use, e.g., "gt" for "greater than" (>)
+            comparison operator to use, e.g., ">" for "greater than" (value)
         :param value:
             value on the right-hand side of the filter expression
         """
