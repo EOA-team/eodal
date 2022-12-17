@@ -21,10 +21,16 @@ from __future__ import annotations
 
 import geopandas as gpd
 
-from sqlalchemy import create_engine
+from datetime import datetime
+from geoalchemy2.functions import ST_Intersects
+from geoalchemy2.functions import ST_GeomFromText
+from shapely.geometry import Polygon
+from sqlalchemy import asc, and_, create_engine, inspect
 from sqlalchemy.orm.session import sessionmaker
+from typing import List
 
 from eodal.config import get_settings
+from eodal.mapper.filter import Filter
 from eodal.metadata.database import Regions, S2_Raw_Metadata
 from eodal.utils.exceptions import DataNotFoundError, RegionNotFoundError
 
@@ -35,6 +41,12 @@ DB_URL = f"postgresql://{Settings.DB_USER}:{Settings.DB_PW}@{Settings.DB_HOST}:{
 engine = create_engine(DB_URL, echo=Settings.ECHO_DB)
 session = sessionmaker(bind=engine)()
 
+# map platforms to metadata models
+platform_mapping = {
+    'sentinel1': 'S1_Raw_Metadata',
+    'sentinel2': 'S2_Raw_Metadata',
+    'ps_superdove': 'PS_SuperDove_Metadata'
+}
 
 def get_region(region: str) -> gpd.GeoDataFrame:
     """
@@ -56,6 +68,62 @@ def get_region(region: str) -> gpd.GeoDataFrame:
         return gpd.read_postgis(query_statement, session.bind)
     except Exception as e:
         raise RegionNotFoundError(f"{region} not found: {e}")
+
+def find_raw_data_by_bbox(
+    platform: str,
+    time_start: datetime,
+    time_end: datetime,
+    bounding_box: Polygon,
+    metadata_filters: List[Filter]
+) -> gpd.GeoDataFrame:
+    """
+    Query the metadata DB by a geographic bounding box, time period
+    and custom filters
+    """
+    # get the DB table for a given platform
+    inspector = inspect(engine)
+    db_tables = inspector.get_table_names(schema=Settings.DEFAULT_SCHEMA)
+    # the table names follow the scheme <platform>_raw_metadata
+    platform_table = f'{platform}_raw_metadata'
+    if platform_table not in db_tables:
+        raise ValueError(f'{platform} was not found in database')
+
+    # loop over metadata filters and construct the sqlalchemy expressions
+    filter_str = ''
+    for metadata_filter in metadata_filters:
+        value = metadata_filter.value
+        if type(metadata_filter.value) == str:
+            value = f'"{metadata_filter.value}"'
+        filter_str += f'.filter(db_model.{metadata_filter.entity} ' + \
+            f'{metadata_filter.operator} {value})'
+
+    # build the query using "db_model" as a placeholder for the actual db-model
+    # of the platform
+    bounding_box_wkt = f'SRID=4326;{bounding_box.wkt}'
+    query_statement_exc = \
+        f"""
+        (session.query(db_model)
+        .filter(ST_Intersects(db_model.geom, ST_GeomFromText(bounding_box_wkt)))
+        .filter(
+            and_(
+                db_model.sensing_time <= time_end,
+                db_model.sensing_time >= time_start,
+            )
+        )
+        """ + filter_str + \
+        """
+        .order_by(db_model.sensing_date.asc())
+        ).statement
+        """
+    exec(f'from eodal.metadata.database import {platform_mapping[platform]} as db_model')
+    query_statement = eval(query_statement_exc.replace('\n','').replace(' ',''))
+
+    # read returned records as a GeoDataFrame and return
+    try:
+        return gpd.read_postgis(query_statement, session.bind)
+    except Exception as e:
+        raise DataNotFoundError(f"Could not find {platform} data by bounding box: {e}")
+    
 
 def get_s2_tile_footprint(tile_name: str) -> gpd.GeoDataFrame:
     """
