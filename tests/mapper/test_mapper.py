@@ -11,9 +11,12 @@ import geopandas as gpd
 from datetime import datetime
 from shapely.geometry import Point, Polygon
 
+from eodal.config import get_settings
 from eodal.mapper.feature import Feature
 from eodal.mapper.filter import Filter
 from eodal.mapper.mapper import MapperConfigs, Mapper
+
+Settings = get_settings()
 
 def test_mapper_configs(tmppath):
 
@@ -90,6 +93,7 @@ def test_mapper_get_scenes_db(collection, time_start, time_end, geom, metadata_f
 
     TODO: Create a test database instance
     """
+    Settings.USE_STAC = False
     feature = Feature(
         name='Test Area',
         geometry=geom,
@@ -109,6 +113,56 @@ def test_mapper_get_scenes_db(collection, time_start, time_end, geom, metadata_f
     assert isinstance(mapper.observations, gpd.GeoDataFrame), 'expected a GeoDataFrame'
     assert not mapper.observations.empty, 'expected some items to be returned'
 
-def test_mapper_get_scenes_stac():
-    pass
+
+@pytest.mark.parametrize(
+    'collection,time_start,time_end,geom,metadata_filters',
+    [(
+        'sentinel2-msi',
+        datetime(2022,7,1),
+        datetime(2022,7,15),
+        Polygon(
+            [[493504.953633058525156, 5258840.576098721474409],
+            [493511.206339373020455, 5258839.601945200935006],
+            [493510.605988947849255, 5258835.524093257263303],
+            [493504.296645800874103, 5258836.554883609525859],
+            [493504.953633058525156, 5258840.576098721474409]]
+        ),
+        [Filter('cloudy_pixel_percentage','<', 100), Filter('processing_level', '==', 'Level-2A')],
+    ),
+    (
+        'sentinel1-grd',
+        datetime(2020,7,1),
+        datetime(2020,7,15),
+        Polygon(
+            [[493504.953633058525156, 5258840.576098721474409],
+            [493511.206339373020455, 5258839.601945200935006],
+            [493510.605988947849255, 5258835.524093257263303],
+            [493504.296645800874103, 5258836.554883609525859],
+            [493504.953633058525156, 5258840.576098721474409]]
+        ),
+        [Filter('product_type','==', 'GRD')],
+    )]
+)
+def test_mapper_get_scenes_stac(collection, time_start, time_end, geom, metadata_filters):
+    """"""
+    Settings.USE_STAC = True
+    feature = Feature(
+        name='Test Area',
+        geometry=geom,
+        epsg=32632,
+        attributes={'id': 1}
+    )
+    mapper_configs = MapperConfigs(
+        collection=collection,
+        time_start=time_start,
+        time_end=time_end,
+        feature=feature,
+        metadata_filters=metadata_filters
+    )
+    mapper = Mapper(mapper_configs)
+    mapper.get_scenes()
+
+    assert isinstance(mapper.observations, gpd.GeoDataFrame), 'expected a GeoDataFrame'
+    assert not mapper.observations.empty, 'expected some items to be returned'
+
     
