@@ -698,11 +698,11 @@ class Band(object):
         """
         _fpath_raster = deepcopy(fpath_raster)
         # check if fpath_raster is STAC item or file system path
-            if isinstance(fpath_raster, dict):
-                if band_name_src is not None:
-                    _fpath_raster = _fpath_raster[band_name_src]['href']
-                else:
-                    _fpath_raster = _fpath_raster[list(_fpath_raster.keys())[band_idx]]['href']
+        if isinstance(fpath_raster, dict):
+            if band_name_src is not None:
+                _fpath_raster = _fpath_raster[band_name_src]['href']
+            else:
+                _fpath_raster = _fpath_raster[list(_fpath_raster.keys())[band_idx]]['href']
 
         # check vector features if provided
         masking = False
