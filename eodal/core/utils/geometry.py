@@ -34,11 +34,15 @@ def read_geometries(in_dataset: Union[Path, gpd.GeoDataFrame]) -> gpd.GeoDataFra
     Returns a geodataframe containing vector features
 
     :param in_dataset:
-        path-like object or ``GeoDataFrame``
+        path-like object ``GeoSeries`` or ``GeoDataFrame``
+    :returns:
+        ``GeoDataFrame`` representation of vector features
     """
 
     if isinstance(in_dataset, gpd.GeoDataFrame):
-        return in_dataset
+        return in_dataset.copy()
+    elif isinstance(in_dataset, gpd.GeoSeries):
+        return gpd.GeoDataFrame(in_dataset.copy())
     elif isinstance(in_dataset, Path):
         try:
             return gpd.read_file(in_dataset)
