@@ -307,6 +307,7 @@ class Mapper:
 
     def load_scenes(
         self,
+        reprojection_method: Optional[int] = cv2.INTER_NEAREST_EXACT,
         scene_constructor: Optional[Callable[...,RasterCollection]] = RasterCollection.from_multi_band_raster,
         scene_constructor_kwargs: Optional[Dict[str, Any]] = {},
         scene_modifier: Optional[Callable[...,RasterCollection]] = None,
@@ -379,23 +380,30 @@ class Mapper:
 
         # loop over scenes and load the data. Carry out reprojection and mosaicing where
         # necessary
-        datasets_to_mosaic = []
+        datasets_to_mosaic = {}
         for _, item in self.metadata.iterrows():
-            # update scene constructor kwargs with file path and vector features
+            # update scene constructor kwargs with vector features
             # for cropping
             scene_constructor_kwargs.update({
-                'fpath_raster': item.real_path,
                 'vector_features': self.mapper_configs.feature.to_geoseries()
             })
             try:
-                scene = scene_constructor.__call__(**scene_constructor_kwargs)
+                # call scene constructor. The file-path (or URL) goes first
+                scene = scene_constructor.__call__(item.real_path, **scene_constructor_kwargs)
                 scene.scene_properties.sensing_time = item.sensing_time
             except Exception as e:
                 raise ValueError(f'Could not load scene: {e}')
 
-            # TODO: reproject if necessary
+            # reproject scene if necessary
+            scene.reproject(
+                target_crs=item.target_epsg,
+                interpolation_method=reprojection_method,
+                inplace=True
+            )
 
-            # TODO: check for mosaicing (will be done later)
+            datasets_to_mosaic[item.sensing_time] = []
+            if item.mosaicing:
+                datasets_to_mosaic[item.sensing_time].append(scene.copy())
 
             # apply scene_modifier (if any)
             if scene_modifier is not None:
