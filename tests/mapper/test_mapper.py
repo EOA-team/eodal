@@ -169,7 +169,7 @@ def test_mapper_get_scenes_stac(collection, time_start, time_end, geom, metadata
 def get_mapper():
     def _get_mapper():
 
-        Settings.USE_STAC = True
+        Settings.USE_STAC = False
 
         collection = 'sentinel2-msi'
         time_start = datetime(2022,7,1)

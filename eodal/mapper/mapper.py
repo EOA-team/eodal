@@ -370,7 +370,7 @@ class Mapper:
         if settings.USE_STAC:
             self.metadata['real_path'] = self.metadata['assets']
         else:
-            self.metadata['realpath'] = self.metadata.apply(
+            self.metadata['real_path'] = self.metadata.apply(
                 lambda x: reconstruct_path(record=x), axis=1
             )
 
