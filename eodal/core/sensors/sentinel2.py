@@ -36,7 +36,7 @@ from matplotlib import colors
 from numbers import Number
 from pathlib import Path
 from rasterio.mask import raster_geometry_mask
-from shapely.geometry import box
+from shapely.geometry import box, Polygon
 from typing import Dict, Optional, List, Tuple, Union
 
 from eodal.core.band import Band, WavelengthInfo, GeoInfo
@@ -306,6 +306,12 @@ class Sentinel2(RasterCollection):
                         vector_features_df = gpd.read_file(vector_features)
                     elif isinstance(vector_features, gpd.GeoDataFrame):
                         vector_features_df = vector_features.copy()
+                    elif isinstance(vector_features, gpd.GeoSeries):
+                        vector_features_df = gpd.GeoDataFrame(vector_features.copy())
+                    else:
+                        raise TypeError(
+                            'Geometry must be vector file, GeoSeries or GeoDataFrame'
+                        )
 
                     # drop Nones in geometry column
                     none_idx = vector_features_df[
