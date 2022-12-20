@@ -12,6 +12,8 @@ from datetime import datetime
 from shapely.geometry import Point, Polygon
 
 from eodal.config import get_settings
+from eodal.core.scene import SceneCollection
+from eodal.core.sensors import Sentinel2
 from eodal.mapper.feature import Feature
 from eodal.mapper.filter import Filter
 from eodal.mapper.mapper import MapperConfigs, Mapper
@@ -204,8 +206,14 @@ def get_mapper():
 def test_mapper_load_scenes(get_mapper):
     
     mapper = get_mapper()
-    scene_constructor_kwargs = {'band_names_src': ['B02', 'B03', 'B04']}
-    mapper.load_scenes(scene_constructor_kwargs=scene_constructor_kwargs)
+    scene_constructor = Sentinel2.from_safe
+    scene_constructor_kwargs = {'band_selection': ['B02', 'B03', 'B04']}
+    mapper.load_scenes(
+        scene_constructor=scene_constructor,
+        scene_constructor_kwargs=scene_constructor_kwargs
+    )
 
+    assert isinstance(mapper.data, SceneCollection), 'expected a SceneCollection'
+    assert isinstance(mapper.data[mapper.data.identifiers[0]], Sentinel2), 'expected a Sentinel 2 scene'
 
     
