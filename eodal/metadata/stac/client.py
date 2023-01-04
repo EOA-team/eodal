@@ -8,6 +8,7 @@ import pandas as pd
 
 from datetime import date, datetime
 from pystac_client import Client
+from pystac_client.stac_api_io import StacApiIO
 from shapely.geometry import box, Polygon
 from typing import Any, Dict, List, Optional
 
@@ -43,8 +44,10 @@ def query_stac(
     :returns:
         list of dictionary items returned from the STAC query
     """
-    # open connection to STAC server
-    cat = Client.open(Settings.STAC_BACKEND.URL)
+    # open connection to STAC server (specify custom CA_BUNDLE if required)
+    stac_api_io = StacApiIO()
+    stac_api_io.session.verify = Settings.STAC_API_IO_CA_BUNDLE
+    cat = Client.from_file(Settings.STAC_BACKEND.URL, stac_io=stac_api_io)
     # transform dates into the required format (%Y-%m-%d)
     datestr = f'{date_start.strftime("%Y-%m-%d")}/{date_end.strftime("%Y-%m-%d")}'
     # search datasets on catalog
