@@ -1,4 +1,7 @@
 '''
+The EOdal `Mapper` class allows to extract and handle EO data in space and time
+and bring the data into Analysis-Ready-Format (ARD).
+
 Copyright (C) 2022 Lukas Valentin Graf
 
 This program is free software: you can redistribute it and/or modify
@@ -20,7 +23,6 @@ from __future__ import annotations
 import cv2
 import geopandas as gpd
 import numpy as np
-import pandas as pd
 import warnings
 import yaml
 
@@ -150,9 +152,14 @@ class MapperConfigs:
         return self._metadata_filters
 
     @classmethod
-    def from_yaml(cls, fpath: str | Path):
+    def from_yaml(cls, fpath: str | Path) -> cls:
         """
         Load mapping configurations from YAML file
+
+        :param fpath:
+            file-path to yaml with Mapper configurations
+        :returns:
+            new `MapperConfigs` instance
         """
         with open(fpath, 'r') as f:
             try:
