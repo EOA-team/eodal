@@ -29,7 +29,6 @@ from eodal.config import get_settings
 from eodal.core.utils.geometry import multi_to_single_points
 from eodal.utils.exceptions import UnknownProcessingLevel, BandNotFoundError
 from eodal.utils.geometry import box_to_geojson
-from eodal.core.utils.geometry import multi_to_single_points
 
 Settings = get_settings()
 
