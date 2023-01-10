@@ -23,6 +23,7 @@ from __future__ import annotations
 import cv2
 import geopandas as gpd
 import numpy as np
+import pandas as pd
 import warnings
 import yaml
 
@@ -220,32 +221,44 @@ class Mapper:
         corresponding scene metadata as `GeoDataFrame`.
     """
 
-    def __init__(self, mapper_configs: MapperConfigs):
+    def __init__(
+        self, mapper_configs: MapperConfigs,
+        time_column: Optional[str] = 'sensing_time'
+    ):
         """
         Class constructor
 
         :param mapper_configs:
             `MapperConfig` instance defining search criteria
+        :param time_column:
+            name of the metadata column denoting the time stamps of the scenes.
+            `sensing_time` by default.
         """
         if not isinstance(mapper_configs, MapperConfigs):
             raise TypeError(f'Expected a MapperConfigs instance')
         self._mapper_configs = mapper_configs
+        self._time_column = time_column
         self._metadata = None
         self._data = None
+        self._geoms_are_points = False
 
     def __repr__(self) -> str:
         return f'EOdal Mapper\n============\n{self.mapper_configs.__repr__()}'
 
     @property
-    def data(self) -> None | SceneCollection:
-        """SceneCollection with scenes found"""
+    def data(self) -> None | SceneCollection | gpd.GeoDataFrame:
+        """
+        SceneCollection with scenes found or GeoDataFrame in case
+        single pixel values are extracted
+        """
         return self._data
 
     @data.setter
     def data(self, scoll: Optional[SceneCollection] = None):
         if scoll is not None:
-            if not isinstance(scoll, SceneCollection):
-                raise TypeError('Expected a EOdal SceneCollection')
+            if not isinstance(scoll, SceneCollection) and \
+            not isinstance(scoll, gpd.GeoDataFrame):
+                raise TypeError('Expected a EOdal SceneCollection or GeoDataFrame')
         self._data = scoll
 
     @property
@@ -266,6 +279,10 @@ class Mapper:
                 raise TypeError('Expected a GeoDataFrame')
         self._metadata = deepcopy(values)
 
+    @property
+    def time_column(self) -> str:
+        return self._time_column
+
     def query_scenes(self) -> None:
         """
         Query available scenes for the current `MapperConfigs` and loads
@@ -277,7 +294,9 @@ class Mapper:
         NOTE:
             This method only queries a metadata catalog without reading data.
         """
-        # TODO: handle point geometries
+        # check for point geometries
+        self._geoms_are_points = self.mapper_configs.feature.geometry.geom_type in \
+            ['Point', 'MultiPoint']
 
         # determine bounding box of the feature using
         # its representation in geographic coordinates (WGS84, EPSG: 4326)
@@ -312,16 +331,19 @@ class Mapper:
         # populate the metadata attribute
         self.metadata = scenes_df
 
-    def load_scenes(
+    def _load_scenes_collection(
         self,
         reprojection_method: Optional[int] = cv2.INTER_NEAREST_EXACT,
         scene_constructor: Optional[Callable[...,RasterCollection]] = RasterCollection.from_multi_band_raster,
         scene_constructor_kwargs: Optional[Dict[str, Any]] = {},
         scene_modifier: Optional[Callable[...,RasterCollection]] = None,
         scene_modifier_kwargs: Optional[Dict[str, Any]] = {}
-    ) -> None:
+    ):
         """
-        Load scenes from `~Mapper.query_scenes` result into a `SceneCollection`.
+        Auxiliary method to handle EOdal scenes and store them into a SceneCollection.
+
+        This method is called when the geometries used for calling the `Mapper`
+        instance are of type `Polygon` or `MultiPolygon`.
 
         :param scene_constructor:
             Callable used to read the scenes found into `RasterCollection` fulfilling
@@ -344,44 +366,6 @@ class Mapper:
         :param scene_modifier_kwargs:
             optional keyword arguments for `rcoll_modifier` (if any).
         """
-        # check if scenes have been queried and found
-        if self.metadata is None:
-            warnings.warn(
-                'No scenes are available - have you already executed Mapper.query_scenes()?'
-            )
-            return
-        if self.metadata.empty:
-            warnings.warn(
-                'No scenes were scenes - consider modifying your search criteria'
-            )
-            return
-
-        # check the spatial reference system of the scenes found. The mapper class
-        # will ensure that all of them will be available in the same CRS. The CRS
-        # is selected which most of the scenes already have to keep the reprojection
-        # costs as small as possible (and also to avoid resampling induced errors)
-        try:
-            self.metadata['target_epsg'] = self.metadata.epsg.mode().values[0]
-        except KeyError as e:
-            raise ValueError(f'Could not determine CRS of scenes: {e}')
-
-        # check if mosaicing scenes is required. This is done by checking the sensing_time
-        # time stamps. If there are multiple scenes with the same time stamp they must be
-        # mosaiced into a single scene
-        self.metadata['mosaicing'] = False
-        duplicated_idx = self.metadata[self.metadata.duplicated(['sensing_time'])].index
-        self.metadata.loc[duplicated_idx, 'mosaicing'] = True
-
-        # provide paths to raster data. Depending on th settings, this is a path on the
-        # file system or a URL
-        self.metadata['real_path'] = ''
-        if settings.USE_STAC:
-            self.metadata['real_path'] = self.metadata['assets']
-        else:
-            self.metadata['real_path'] = self.metadata.apply(
-                lambda x: reconstruct_path(record=x), axis=1
-            )
-
         # open a SceneCollection for storing the data
         scoll = SceneCollection()
 
@@ -397,7 +381,7 @@ class Mapper:
             try:
                 # call scene constructor. The file-path (or URL) goes first
                 scene = scene_constructor.__call__(item.real_path, **scene_constructor_kwargs)
-                scene.scene_properties.sensing_time = item.sensing_time
+                scene.scene_properties.sensing_time = item[self.time_column]
             except Exception as e:
                 raise ValueError(f'Could not load scene: {e}')
 
@@ -423,4 +407,109 @@ class Mapper:
 
         # sort scenes by their timestamps and save as data attribute to mapper instance
         self.data = scoll.sort()
-    
+
+    def _load_pixels(
+        self,
+        pixel_reader: Optional[Callable[...,gpd.GeoDataFrame]] = RasterCollection.read_pixels,
+        pixel_reader_kwargs: Optional[Dict[str, Any]] = {}
+    ) -> None:
+        """
+        Load pixel values from 0:N scenes into a `GeoDataFrame`
+
+        :param pixel_reader:
+            Callable to read the pixels from scenes. `RasterCollection.read_pixels` by
+            default. Any other callable can be provided as long as it returns a
+            GeoDataFrame and accepts `vector_features` and `fpath_raster` as input
+            keyword arguments.
+        :param pixel_reader_kwargs:
+            optional keyword arguments to pass on to `pixel_reader`.
+        """
+        # loop over scenes and read the pixel values. Carry out reprojection where
+        # necessary
+        pixel_scene_list = []
+        for _, item in self.metadata.iterrows():
+            pixel_reader_kwargs.update({
+                'vector_features': self.mapper_configs.feature.to_geoseries(),
+            })
+            try:
+                pixels = pixel_reader.__call__(item.real_path, **pixel_reader_kwargs)
+                pixels[self.time_column] = item[self.time_column]
+            except Exception as e:
+                raise ValueError(f'Could not read pixel data: {e}')
+
+            # reproject pixels if necessary
+            pixels.to_crs(epsg=item.target_epsg, inplace=True)
+            pixel_scene_list.append(pixels)
+
+        self.data = pd.concat(pixel_scene_list)
+
+    def load_scenes(
+        self,
+        scene_kwargs: Optional[Dict[str, Any]] = None,
+        pixel_kwargs: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """
+        Load scenes from `~Mapper.query_scenes` result into a `SceneCollection`
+        (Polygon and MultiPolygon geometries) or into a `GeoDataFrame` (Point
+        and MultiPoint geometries).
+
+        :param scene_kwargs:
+            key-word arguments to pass to `~Mapper._load_scenes_collection`
+            for handling EOdal scenes. These arguments *MUST* be provided when
+            using `Polygon` or `MulitPolygon` geometries in the `Mapper` call.
+        :param pixel_kwargs:
+            key-word arguments to pass to `~Mapper._load_pixels` for handling
+            single pixel values. These arguments *MUST* be provided when
+            using `Point` or `MulitPoint` geometries in the `Mapper` call.
+        """
+        # check if the correct keyword arguments have been passed
+        if not self._geoms_are_points:
+            if scene_kwargs is None:
+                raise ValueError(
+                    'Since Polygon/MultiPolygon geometries are provided ' + \
+                    '`pixel_kwargs` must not be empty'
+                )
+
+        # check if scenes have been queried and found
+        if self.metadata is None:
+            warnings.warn(
+                'No scenes are available - have you already executed Mapper.query_scenes()?'
+            )
+            return
+        if self.metadata.empty:
+            warnings.warn(
+                'No scenes were scenes - consider modifying your search criteria'
+            )
+            return
+
+        # check the spatial reference system of the scenes found. The mapper class
+        # will ensure that all of them will be available in the same CRS. The CRS
+        # is selected which most of the scenes already have to keep the reprojection
+        # costs as small as possible (and also to avoid resampling induced errors)
+        try:
+            self.metadata['target_epsg'] = self.metadata.epsg.mode().values[0]
+        except KeyError as e:
+            raise ValueError(f'Could not determine CRS of scenes: {e}')
+
+        # check if mosaicing scenes is required. This is done by checking the sensing_time
+        # time stamps. If there are multiple scenes with the same time stamp they must be
+        # mosaiced into a single scene
+        self.metadata['mosaicing'] = False
+        duplicated_idx = self.metadata[self.metadata.duplicated([self.time_column])].index
+        self.metadata.loc[duplicated_idx, 'mosaicing'] = True
+
+        # provide paths to raster data. Depending on th settings, this is a path on the
+        # file system or a URL
+        self.metadata['real_path'] = ''
+        if settings.USE_STAC:
+            self.metadata['real_path'] = self.metadata['assets']
+        else:
+            self.metadata['real_path'] = self.metadata.apply(
+                lambda x: reconstruct_path(record=x), axis=1
+            )
+
+        # load the data depending on the geometry type of the feature(s)
+        if self._geoms_are_points:
+            self._load_pixels(**pixel_kwargs)
+        else:
+            self._load_scenes_collection(**scene_kwargs)
