@@ -30,9 +30,8 @@ import geopandas as gpd
 import pandas as pd
 import planetary_computer
 
-from datetime import date
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from eodal.config import get_settings
 from eodal.core.band import Band
@@ -156,8 +155,8 @@ class Sentinel1(RasterCollection):
     @prepare_point_features
     def read_pixels_from_safe(
             cls,
+            in_dir: Dict[str, Any] | Path,
             vector_features: Path | gpd.GeoDataFrame,
-            in_dir: Path | Dict[str, str],
             polarizations: Optional[List[str]] = ['VV', 'VH']
         ) -> gpd.GeoDataFrame:
         """
@@ -169,12 +168,13 @@ class Sentinel1(RasterCollection):
             A point is dimension-less, therefore, the raster grid cell (pixel) closest
             to the point is returned if the point lies within the raster.
 
+        :param in_dir:
+            Sentinel-1 scene in .SAFE structure from which to extract pixel values at
+            the provided point locations (GRD or RTC).Can be either a dictionary
+            item returned from STAC or a physical file-path
         :param vector_features:
             vector file (e.g., ESRI shapefile or geojson) or ``GeoDataFrame``
             defining point locations for which to extract pixel values
-        :param in_dir:
-            Sentinel-1 scene in .SAFE structure from which to extract
-            pixel values at the provided point locations (GRD or RTC)
         :param polarizations:
             selection of polarization to read. 'VV' and 'VH' by default.
         :returns:
