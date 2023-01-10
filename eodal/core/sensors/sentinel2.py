@@ -36,10 +36,10 @@ from matplotlib import colors
 from numbers import Number
 from pathlib import Path
 from rasterio.mask import raster_geometry_mask
-from shapely.geometry import box, Polygon
-from typing import Dict, Optional, List, Tuple, Union
+from shapely.geometry import box
+from typing import Any, Dict, Optional, List, Tuple, Union
 
-from eodal.core.band import Band, WavelengthInfo, GeoInfo
+from eodal.core.band import Band, WavelengthInfo
 from eodal.core.raster import RasterCollection, SceneProperties
 from eodal.utils.constants.sentinel2 import (
     band_resolution,
@@ -482,8 +482,8 @@ class Sentinel2(RasterCollection):
     @prepare_point_features
     def read_pixels_from_safe(
         cls,
+        in_dir: Dict[str, Any] | Path,
         vector_features: Union[Path, gpd.GeoDataFrame],
-        in_dir: Path,
         band_selection: Optional[List[str]] = None,
         read_scl: Optional[bool] = True,
         apply_scaling: Optional[bool] = True,
@@ -511,12 +511,13 @@ class Sentinel2(RasterCollection):
             to do spatial resampling! The underlying ``rasterio.sample`` function always
             snaps to the closest pixel in the current spectral band.
 
+        :param in_dir:
+            Sentinel-2 scene in .SAFE structure from which to extract
+            pixel values at the provided point locations. Can be either a dictionary
+            item returned from STAC or a physical file-path
         :param vector_features:
             vector file (e.g., ESRI shapefile or geojson) or ``GeoDataFrame``
             defining point locations for which to extract pixel values
-        :param in_dir:
-            Sentinel-2 scene in .SAFE structure from which to extract
-            pixel values at the provided point locations
         :param band_selection:
             list of bands to read. Per default all raster bands available are read.
         :param read_scl:
