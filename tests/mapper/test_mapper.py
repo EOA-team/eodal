@@ -13,7 +13,7 @@ from shapely.geometry import Point, Polygon
 
 from eodal.config import get_settings
 from eodal.core.scene import SceneCollection
-from eodal.core.sensors import Sentinel2
+from eodal.core.sensors import Sentinel1, Sentinel2
 from eodal.mapper.feature import Feature
 from eodal.mapper.filter import Filter
 from eodal.mapper.mapper import MapperConfigs, Mapper
@@ -204,16 +204,59 @@ def get_mapper():
     return _get_mapper
 
 def test_mapper_load_scenes(get_mapper):
-    
+    """
+    test loading of Sentinel-2 scenes into a SceneCollection instance
+    """
     mapper = get_mapper()
     scene_constructor = Sentinel2.from_safe
     scene_constructor_kwargs = {'band_selection': ['B02', 'B03', 'B04']}
-    mapper.load_scenes(
-        scene_constructor=scene_constructor,
-        scene_constructor_kwargs=scene_constructor_kwargs
-    )
+    load_scenes_kwargs = {
+        'scene_constructor': scene_constructor,
+        'scene_constructor_kwargs': scene_constructor_kwargs
+    }
+    mapper.load_scenes(scene_kwargs=load_scenes_kwargs)
 
     assert isinstance(mapper.data, SceneCollection), 'expected a SceneCollection'
     assert isinstance(mapper.data[mapper.data.identifiers[0]], Sentinel2), 'expected a Sentinel 2 scene'
 
+@pytest.mark.parametrize(
+    'collection,time_start,time_end,geom,metadata_filters',
+    [(
+        'sentinel2-msi',
+        datetime(2022,7,1),
+        datetime(2022,7,15),
+        Point(493504.953633058525156, 5258840.576098721474409),
+        [Filter('cloudy_pixel_percentage','<', 100), Filter('processing_level', '==', 'Level-2A')],
+    )]
+)
+def test_mapper_get_pixels_stac(collection, time_start, time_end, geom, metadata_filters):
+    """
+    Test extraction of single pixel values for a single point location over time.
+    """
+    Settings.USE_STAC = True
+    feature = Feature(
+        name='Test Area',
+        geometry=geom,
+        epsg=32632,
+        attributes={'id': 1}
+    )
+    mapper_configs = MapperConfigs(
+        collection=collection,
+        time_start=time_start,
+        time_end=time_end,
+        feature=feature,
+        metadata_filters=metadata_filters
+    )
+    mapper = Mapper(mapper_configs)
+    mapper.query_scenes()
+
+    if collection == 'sentinel2-msi':
+        pixel_kwargs = {'pixel_reader': Sentinel2.read_pixels_from_safe}
+    # elif collection == 'sentinel1-grd':
+    #     pixel_kwargs = {'pixel_reader': Sentinel1.read_pixels_from_safe}
+    mapper.load_scenes(pixel_kwargs=pixel_kwargs)
+
+    assert isinstance(mapper.metadata, gpd.GeoDataFrame), 'expected a GeoDataFrame'
+    assert not mapper.metadata.empty, 'expected some items to be returned'
+    assert isinstance(mapper.data, gpd.GeoDataFrame), 'expected a GeoDataFrame'
     
