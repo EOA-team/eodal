@@ -25,6 +25,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import warnings
+import uuid
 import yaml
 
 from copy import deepcopy
@@ -35,13 +36,14 @@ from shapely.geometry import box
 from typing import Any, Callable, Dict, List, Optional
 
 from eodal.config import get_settings
+from eodal.core.algorithms import merge_datasets
 from eodal.core.scene import SceneCollection
 from eodal.mapper.feature import Feature
 from eodal.mapper.filter import Filter
 from eodal.metadata.database.querying import find_raw_data_by_bbox
 from eodal.metadata.utils import reconstruct_path
 from eodal.utils.exceptions import STACError
-from core.raster import RasterCollection
+from core.raster import RasterCollection, SceneProperties
 
 settings = get_settings()
 
@@ -223,7 +225,8 @@ class Mapper:
 
     def __init__(
         self, mapper_configs: MapperConfigs,
-        time_column: Optional[str] = 'sensing_time'
+        time_column: Optional[str] = 'sensing_time',
+        sensor: Optional[str] = None
     ):
         """
         Class constructor
@@ -233,12 +236,15 @@ class Mapper:
         :param time_column:
             name of the metadata column denoting the time stamps of the scenes.
             `sensing_time` by default.
+        :param sensor:
+            optional name of the sensor (in EOdal) to use for reading data
         """
         if not isinstance(mapper_configs, MapperConfigs):
             raise TypeError(f'Expected a MapperConfigs instance')
         self._mapper_configs = mapper_configs
         self._time_column = time_column
         self._metadata = None
+        self._sensor = sensor
         self._data = None
         self._geoms_are_points = False
 
@@ -278,6 +284,10 @@ class Mapper:
             if not isinstance(values, gpd.GeoDataFrame):
                 raise TypeError('Expected a GeoDataFrame')
         self._metadata = deepcopy(values)
+
+    @property
+    def sensor(self) -> str | None:
+        return self._sensor
 
     @property
     def time_column(self) -> str:
@@ -331,6 +341,41 @@ class Mapper:
         # populate the metadata attribute
         self.metadata = scenes_df
 
+    def _process_scene(
+        self,
+        item: pd.Series,
+        scene_constructor: Callable[...,RasterCollection],
+        scene_constructor_kwargs: Dict[str, Any],
+        scene_modifier: Callable[...,RasterCollection],
+        scene_modifier_kwargs: Dict[str, Any],
+        reprojection_method: int
+    ) -> RasterCollection:
+        """
+        Process a scene so it can be added to a SceneCollection
+        """
+        scene_constructor_kwargs.update({
+            'vector_features': self.mapper_configs.feature.to_geoseries()
+        })
+        try:
+            # call scene constructor. The file-path (or URL) goes first
+            scene = scene_constructor.__call__(item.real_path, **scene_constructor_kwargs)
+            scene.scene_properties.sensing_time = item[self.time_column]
+        except Exception as e:
+            raise ValueError(f'Could not load scene:  {e}')
+
+        # apply scene modifier callable if available
+        if scene_modifier is not None:
+            scene = scene_modifier.__call__(scene, **scene_modifier_kwargs)
+
+        # reproject scene if necessary
+        scene.reproject(
+            target_crs=item.target_epsg,
+            interpolation_method=reprojection_method,
+            inplace=True
+        )
+
+        return scene
+
     def _load_scenes_collection(
         self,
         reprojection_method: Optional[int] = cv2.INTER_NEAREST_EXACT,
@@ -344,6 +389,9 @@ class Mapper:
 
         This method is called when the geometries used for calling the `Mapper`
         instance are of type `Polygon` or `MultiPolygon`.
+
+        Mosaicing operations are handled on the fly so calling programs will
+        always receive analysis-ready data.
 
         :param scene_constructor:
             Callable used to read the scenes found into `RasterCollection` fulfilling
@@ -369,43 +417,95 @@ class Mapper:
         # open a SceneCollection for storing the data
         scoll = SceneCollection()
 
-        # loop over scenes and load the data. Carry out reprojection and mosaicing where
-        # necessary
-        datasets_to_mosaic = {}
-        for _, item in self.metadata.iterrows():
-            # update scene constructor kwargs with vector features
-            # for cropping
-            scene_constructor_kwargs.update({
-                'vector_features': self.mapper_configs.feature.to_geoseries()
-            })
-            try:
-                # call scene constructor. The file-path (or URL) goes first
-                scene = scene_constructor.__call__(item.real_path, **scene_constructor_kwargs)
-                scene.scene_properties.sensing_time = item[self.time_column]
-            except Exception as e:
-                raise ValueError(f'Could not load scene: {e}')
+        # filter out datasets where mosaicing is necessary (time stamp is the same)
+        self.metadata['_duplicated'] = self.metadata[self.time_column].duplicated(keep=False)
+        # datasets where the 'duplicated' entry is False are truely unqiue
+        _metadata_unique = self.metadata[~self.metadata._duplicated]
+        _metadata_nonunique = self.metadata[self.metadata._duplicated]
 
-            # reproject scene if necessary
-            scene.reproject(
-                target_crs=item.target_epsg,
-                interpolation_method=reprojection_method,
-                inplace=True
-            )
+        # mosaic the non-unique datasets first
+        if not _metadata_nonunique.empty:
+            _metadata_nonunique.sort_values(by=self.time_column, inplace=True)
+            unique_time_stamps = self.metadata[self.time_column].unique()
+            # loop over unique time stamps. In the end there should be a single
+            # scene per time stamp
+            update_scene_properties_list = []
+            for unique_time_stamp in unique_time_stamps:
+                scenes = _metadata_nonunique[_metadata_nonunique[self.time_column] == unique_time_stamp]
+                # read the datasets one by one, save them into a temporary directory
+                # and merge them using rasterio
+                dataset_list = []
+                scene_properties_list = []
+                band_aliases_list = []
+                for _, item in scenes.iterrows():
+                    scene = self._process_scene(
+                        item=item,
+                        scene_constructor=scene_constructor,
+                        scene_constructor_kwargs=scene_constructor_kwargs,
+                        reprojection_method=reprojection_method,
+                        scene_modifier=scene_modifier,
+                        scene_modifier_kwargs=scene_modifier_kwargs
+                    )
+                    fname_scene = settings.TEMP_WORKING_DIR.joinpath(f"{uuid.uuid4()}.tif")
+                    scene.to_rasterio(fname_scene)
+                    dataset_list.append(fname_scene)
+                    scene_properties_list.append(scene.scene_properties)
+                    band_aliases_list.append(scene.band_aliases)
+                # merge datasets using rasterio and read results back into a scene
+                scene = merge_datasets(
+                    datasets=dataset_list,
+                    target_crs=self.metadata.target_epsg.unique()[0],
+                    vector_features=self.mapper_configs.feature.to_geoseries(),
+                    sensor=self.sensor,
+                    band_options={'band_aliases': band_aliases_list[0]}
+                )
+                # handle scene properties. They need to be merged as well
+                merged_scene_properties = scene_properties_list[0]
+                for other_scene_properties in scene_properties_list[1::]:
+                    scene_props_keys = list(merged_scene_properties.__dict__.keys())
+                    for scene_prop in scene_props_keys:
+                        first_val = eval(f'merged_scene_properties.{scene_prop}')
+                        this_val =  eval(f'other_scene_properties.{scene_prop}')
+                        if first_val != this_val:
+                            # only string values can be merged (connected by '&&')
+                            if isinstance(first_val, str):
+                                new_val = first_val + '&&' + this_val
+                                exec(f'merged_scene_properties.{scene_prop} = new_val')
 
-            datasets_to_mosaic[item.sensing_time] = []
-            if item.mosaicing:
-                datasets_to_mosaic[item.sensing_time].append(scene.copy())
+                scene.scene_properties = merged_scene_properties
+                scoll.add_scene(scene)
+                update_scene_properties_list.append(merged_scene_properties)
 
-            # apply scene_modifier (if any)
-            if scene_modifier is not None:
-                modified_scene = scene_modifier.__call__(scene, **scene_modifier_kwargs)
-                scoll.add_scene(modified_scene)
-            else:
+            # update the metadata entries to avoid mis-matches in the number of
+            # scenes and their URIs
+            self.metadata.drop_duplicates(subset=[self.time_column], keep='first', inplace=True)
+            for updated_scene_properties in update_scene_properties_list:
+                # use the time stamp for finding the correct metadata records. There might be
+                # some disagreement in the milliseconds because of different precision levels
+                # therefore, an offset of less than 1 second is tolerated
+                idx = self.metadata[
+                    (self.metadata[self.time_column] - pd.to_datetime(updated_scene_properties.acquisition_time)
+                    ) < pd.Timedelta(1, unit='seconds')
+                ].index
+                for scene_property in updated_scene_properties.__dict__:
+                    self.metadata.loc[idx, scene_property] = \
+                        eval(f'updated_scene_properties.{scene_property}')
+
+        # then add those scenes that are unique, i.e., no mosaicing is required
+        if not _metadata_unique.empty:
+            for _, item in _metadata_unique.iterrows():
+                scene = self._process_scene(
+                    item=item,
+                    scene_constructor=scene_constructor,
+                    scene_constructor_kwargs=scene_constructor_kwargs,
+                    scene_modifier=scene_modifier,
+                    scene_modifier_kwargs=scene_modifier_kwargs,
+                    reprojection_method=reprojection_method
+                )
                 scoll.add_scene(scene)
 
-        # TODO: implement mosaicing
-
-        # sort scenes by their timestamps and save as data attribute to mapper instance
+        # sort scenes by their timestamps and save as data attribute
+        # to mapper instance
         self.data = scoll.sort()
 
     def _load_pixels(
@@ -452,6 +552,10 @@ class Mapper:
         Load scenes from `~Mapper.query_scenes` result into a `SceneCollection`
         (Polygon and MultiPolygon geometries) or into a `GeoDataFrame` (Point
         and MultiPoint geometries).
+
+        Mosaicing operations are handled on the fly so calling programs will
+        always receive analysis-ready data (e.g., when working across image
+        tiles).
 
         :param scene_kwargs:
             key-word arguments to pass to `~Mapper._load_scenes_collection`
