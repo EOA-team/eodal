@@ -247,7 +247,7 @@ def test_mapper_get_pixels_stac(collection, time_start, time_end, geom, metadata
         feature=feature,
         metadata_filters=metadata_filters
     )
-    mapper = Mapper(mapper_configs)
+    mapper = Mapper(mapper_configs, time_column='sensing_date')
     mapper.query_scenes()
 
     if collection == 'sentinel2-msi':
@@ -259,4 +259,6 @@ def test_mapper_get_pixels_stac(collection, time_start, time_end, geom, metadata
     assert isinstance(mapper.metadata, gpd.GeoDataFrame), 'expected a GeoDataFrame'
     assert not mapper.metadata.empty, 'expected some items to be returned'
     assert isinstance(mapper.data, gpd.GeoDataFrame), 'expected a GeoDataFrame'
+    assert mapper.metadata.shape[0] == len(mapper.data), \
+        'mis-match between length of metadata and data'
     
