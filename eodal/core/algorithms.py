@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 from __future__ import annotations
 
+import eodal
 import os
 import geopandas as gpd
 import uuid
@@ -80,7 +81,7 @@ def merge_datasets(
         to merge into a single raster
     :param out_file:
         name of the resulting raster dataset (optional). If None (default)
-        returns a new ``SatDataHandler`` instance otherwise writes the data
+        returns a new ``RasterCollection`` instance otherwise writes the data
         to disk as new raster dataset.
     :param target_crs:
         optional target spatial coordinate reference system in which the output
