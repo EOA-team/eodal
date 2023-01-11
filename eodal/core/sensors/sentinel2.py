@@ -357,6 +357,8 @@ class Sentinel2(RasterCollection):
                     # remember to mask the feature after clipping the data
                     if not kwargs.get("full_bounding_box_only", False):
                         masking_after_read_required = True
+                    # update the vector_features entry
+                    kwargs.update({"vector_features": bounds_df})
 
         # determine platform (S2A or S2B)
         try:
@@ -398,7 +400,6 @@ class Sentinel2(RasterCollection):
 
         # loop over bands and add them to the collection of bands
         sentinel2 = cls(scene_properties=scene_properties)
-        kwargs_orig = deepcopy(kwargs)
         for band_name in list(band_df_safe.band_name):
 
             # get entry from dataframe with file-path of band
@@ -428,17 +429,6 @@ class Sentinel2(RasterCollection):
 
             # read band
             try:
-                if align_shapes:
-                    # if the current band already has the lowest resolution
-                    # reading the mask directly is possible. Otherwise we use
-                    # the bounding of the coarsest resolution and apply the masking
-                    # later
-                    if band_safe.band_resolution.values != lowest_resolution:
-                        kwargs.update({"vector_features": bounds_df})
-                    else:
-                        kwargs.update(
-                            {"vector_features": kwargs_orig.get("vector_features")}
-                        )
                 sentinel2.add_band(
                     Band.from_rasterio,
                     fpath_raster=band_fpath,
