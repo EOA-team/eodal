@@ -351,7 +351,31 @@ class Mapper:
         reprojection_method: int
     ) -> RasterCollection:
         """
-        Process a scene so it can be added to a SceneCollection
+        Pre-process a scene so it can be added to a SceneCollection.
+        This includes applying user-defined reading and modification functions.
+        In addition, the `Scene` is projected into the target spatial reference
+        system by using the reference system the majority of the scenes in a
+        collection has in common.
+
+        IMPORTANT:
+            The reprojection step into the target spatial reference system (if
+            scene is not projected in it already) is **always** done!
+
+        :param item:
+            metadata item of the scene including its file-path or URL
+        :param scene_constructor:
+            Callable used to read the scenes found into `RasterCollection` fulfilling
+            the `is_scene` criterion (i.e., a time stamp is available).
+        :param scene_constructor_kwargs:
+            keyword-arguments to pass to `scene_constructor`. `fpath_raster`
+            and `vector_features` are filled in by the `Mapper` instance automatically,
+        :param scene_modifier:
+            optional Callable modifying a `RasterCollection` or returning a new
+            `RasterCollection`.
+        :param scene_modifier_kwargs:
+            keyword arguments for `scene_modifier`
+        :returns:
+            `Scene` with all pre-processing steps applied.
         """
         scene_constructor_kwargs.update({
             'vector_features': self.mapper_configs.feature.to_geoseries()
@@ -383,7 +407,7 @@ class Mapper:
         scene_constructor_kwargs: Optional[Dict[str, Any]] = {},
         scene_modifier: Optional[Callable[...,RasterCollection]] = None,
         scene_modifier_kwargs: Optional[Dict[str, Any]] = {}
-    ):
+    ) -> None:
         """
         Auxiliary method to handle EOdal scenes and store them into a SceneCollection.
 
