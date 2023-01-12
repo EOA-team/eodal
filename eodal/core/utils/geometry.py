@@ -42,7 +42,7 @@ def read_geometries(in_dataset: Union[Path, gpd.GeoDataFrame]) -> gpd.GeoDataFra
     if isinstance(in_dataset, gpd.GeoDataFrame):
         return in_dataset.copy()
     elif isinstance(in_dataset, gpd.GeoSeries):
-        return gpd.GeoDataFrame(in_dataset.copy())
+        return gpd.GeoDataFrame(geometry=in_dataset.copy())
     elif isinstance(in_dataset, Path):
         try:
             return gpd.read_file(in_dataset)
