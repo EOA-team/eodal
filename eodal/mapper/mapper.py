@@ -37,13 +37,13 @@ from typing import Any, Callable, Dict, List, Optional
 
 from eodal.config import get_settings
 from eodal.core.algorithms import merge_datasets
+from eodal.core.raster import RasterCollection
 from eodal.core.scene import SceneCollection
 from eodal.mapper.feature import Feature
 from eodal.mapper.filter import Filter
 from eodal.metadata.database.querying import find_raw_data_by_bbox
 from eodal.metadata.utils import reconstruct_path
 from eodal.utils.exceptions import STACError
-from core.raster import RasterCollection, SceneProperties
 
 settings = get_settings()
 
@@ -224,7 +224,8 @@ class Mapper:
     """
 
     def __init__(
-        self, mapper_configs: MapperConfigs,
+        self,
+        mapper_configs: MapperConfigs,
         time_column: Optional[str] = 'sensing_time',
         sensor: Optional[str] = None
     ):
@@ -436,7 +437,7 @@ class Mapper:
             `SceneCollection` when loaded by the `Mapper`. Can be used, e.g.,
             to calculate spectral indices on the fly or for applying masks.
         :param scene_modifier_kwargs:
-            optional keyword arguments for `rcoll_modifier` (if any).
+            optional keyword arguments for `scene_modifier` (if any).
         """
         # open a SceneCollection for storing the data
         scoll = SceneCollection()
