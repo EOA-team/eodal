@@ -638,7 +638,7 @@ class Sentinel2(RasterCollection):
 
     def mask_clouds_and_shadows(
         self,
-        bands_to_mask: List[str],
+        bands_to_mask: Optional[List[str]] = None,
         cloud_classes: Optional[List[int]] = [1, 2, 3, 7, 8, 9, 10, 11],
         **kwargs,
     ):
@@ -654,7 +654,8 @@ class Sentinel2(RasterCollection):
         ``cloud_classes``.
 
         :param bands_to_mask:
-            list of bands on which to apply the SCL mask
+            list of bands on which to apply the SCL mask. If not specified all bands
+            are masked.
         :param cloud_classes:
             list of SCL values to be considered as clouds/shadows and snow.
             By default, all three cloud classes and cloud shadows are considered
@@ -666,6 +667,8 @@ class Sentinel2(RasterCollection):
             or None
         """
         mask_band = "SCL"
+        if bands_to_mask is None:
+            bands_to_mask = self.band_names
         try:
             return self.mask(
                 mask=mask_band,
