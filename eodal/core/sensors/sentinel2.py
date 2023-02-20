@@ -699,12 +699,15 @@ class Sentinel2(RasterCollection):
             class occurences.
         """
         # check if SCL is available
-        if not "SCL" in self.band_names:
+        if not 'scl' in self.band_names and not 'SCL' in self.band_names:
             raise BandNotFoundError(
                 "Could not find scene classification layer. Is scene L2A?"
             )
 
-        scl = self.get_band("SCL")
+        try:
+            scl = self.get_band('SCL')
+        except BandNotFoundError:
+            scl = self.get_band('scl')
         # if the scl array is a masked array consider only those pixels
         # not masked out
         if scl.is_masked_array:
