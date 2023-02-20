@@ -91,7 +91,7 @@ class Sentinel2(RasterCollection):
         else:
             band_name = self.band_names[0]
             if self[band_name].is_masked_array:
-                return (self[band_name].values.date == 0).all()
+                return (self[band_name].values.data == 0).all()
             elif self[band_name].is_ndarray:
                 return (self[band_name].values == 0).all()
             elif self[band_name].is_zarr:
