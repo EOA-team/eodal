@@ -52,7 +52,7 @@ Settings.USE_STAC = True
 
 def preprocess_sentinel2_scenes(
 		ds: Sentinel2,
-		target_resoltion: int,
+		target_resolution: int,
 	) -> Sentinel2:
 	"""
 	Resample Sentinel-2 scenes and mask clouds, shadows, and snow
@@ -69,9 +69,10 @@ def preprocess_sentinel2_scenes(
 		resampled, cloud-masked Sentinel-2 scene.
 	"""
 	# resample scene
-	ds.resample(inplace=True, target_resoltion=target_resoltion)
+	ds.resample(inplace=True, target_resolution=target_resolution)
 	# mask clouds, shadows, and snow
-	return ds.mask_clouds_and_shadows()
+	ds.mask_clouds_and_shadows(inplace=True)
+	return ds
 
 if __name__ == '__main__':
 	#%% user-inputs
@@ -79,11 +80,12 @@ if __name__ == '__main__':
 	collection: str = 'sentinel2-msi'
 	
 	# ------------------------- Time Range ---------------------------------
-	time_start: datetime = datetime(2022,4,1)  		# year, month, day (incl.)
-	time_end: datetime = datetime(2022,4,14)   		# year, month, day (incl.)
+	time_start: datetime = datetime(2021,3,1)  		# year, month, day (incl.)
+	time_end: datetime = datetime(2022,6,14)   		# year, month, day (incl.)
 	
 	# ---------------------- Spatial Feature  ------------------------------
-	geom: Path = Path('../data/sample_polygons/lake_lucerne.gpkg')
+	# geom: Path = Path('../data/sample_polygons/lake_lucerne.gpkg')
+	geom = Path('/mnt/ides/Lukas/software/eodal_notebooks/data/sample_polygons/Parzelle35.shp')
 	
 	# ------------------------- Metadata Filters ---------------------------
 	metadata_filters: List[Filter] = [
