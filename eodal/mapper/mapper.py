@@ -46,6 +46,7 @@ from eodal.metadata.utils import reconstruct_path
 from eodal.utils.exceptions import STACError
 
 settings = get_settings()
+logger = settings.logger
 
 class MapperConfigs:
     """
@@ -441,29 +442,31 @@ class Mapper:
         """
         # open a SceneCollection for storing the data
         scoll = SceneCollection()
-
+        logger.info(f'Starting extraction of {self.sensor} scenes')
         # filter out datasets where mosaicing is necessary (time stamp is the same)
         self.metadata['_duplicated'] = self.metadata[self.time_column].duplicated(keep=False)
         # datasets where the 'duplicated' entry is False are truely unqiue
-        _metadata_unique = self.metadata[~self.metadata._duplicated]
-        _metadata_nonunique = self.metadata[self.metadata._duplicated]
+        _metadata_unique = self.metadata[~self.metadata._duplicated].copy()
+        _metadata_nonunique = self.metadata[self.metadata._duplicated].copy()
 
         # mosaic the non-unique datasets first
         if not _metadata_nonunique.empty:
             _metadata_nonunique.sort_values(by=self.time_column, inplace=True)
-            unique_time_stamps = self.metadata[self.time_column].unique()
+            unique_time_stamps = _metadata_nonunique[self.time_column].unique()
             # loop over unique time stamps. In the end there should be a single
             # scene per time stamp
             update_scene_properties_list = []
             for unique_time_stamp in unique_time_stamps:
-                scenes = _metadata_nonunique[_metadata_nonunique[self.time_column] == unique_time_stamp]
+                scenes = _metadata_nonunique[
+                    _metadata_nonunique[self.time_column].dt.strftime('%Y-%m-%d %H:%M') == \
+                    pd.to_datetime(unique_time_stamp).strftime('%Y-%m-%d %H:%M')[0:16]
+                ]
                 # read the datasets one by one, save them into a temporary directory
                 # and merge them using rasterio
                 dataset_list = []
                 scene_properties_list = []
-                band_aliases_list = []
                 for _, item in scenes.iterrows():
-                    scene = self._process_scene(
+                    _scene = self._process_scene(
                         item=item,
                         scene_constructor=scene_constructor,
                         scene_constructor_kwargs=scene_constructor_kwargs,
@@ -472,17 +475,16 @@ class Mapper:
                         scene_modifier_kwargs=scene_modifier_kwargs
                     )
                     fname_scene = settings.TEMP_WORKING_DIR.joinpath(f"{uuid.uuid4()}.tif")
-                    scene.to_rasterio(fname_scene)
+                    _scene.to_rasterio(fname_scene)
                     dataset_list.append(fname_scene)
-                    scene_properties_list.append(scene.scene_properties)
-                    band_aliases_list.append(scene.band_aliases)
+                    scene_properties_list.append(_scene.scene_properties)
                 # merge datasets using rasterio and read results back into a scene
                 scene = merge_datasets(
                     datasets=dataset_list,
                     target_crs=self.metadata.target_epsg.unique()[0],
                     vector_features=self.mapper_configs.feature.to_geoseries(),
                     sensor=self.sensor,
-                    band_options={'band_aliases': band_aliases_list[0]}
+                    band_options={'band_aliases': _scene.band_aliases}
                 )
                 # handle scene properties. They need to be merged as well
                 merged_scene_properties = scene_properties_list[0]
@@ -532,6 +534,7 @@ class Mapper:
         # sort scenes by their timestamps and save as data attribute
         # to mapper instance
         self.data = scoll.sort()
+        logger.info(f'Finished extraction of {self.sensor} scenes')
 
     def _load_pixels(
         self,
