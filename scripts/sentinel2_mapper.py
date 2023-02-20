@@ -38,6 +38,7 @@ import geopandas as gpd
 
 from datetime import datetime
 from eodal.config import get_settings
+from eodal.core.scene import SceneCollection
 from eodal.core.sensors.sentinel2 import Sentinel2
 from eodal.mapper.feature import Feature
 from eodal.mapper.filter import Filter
@@ -45,6 +46,7 @@ from eodal.mapper.mapper import Mapper, MapperConfigs
 
 from pathlib import Path
 from typing import List
+
 
 Settings = get_settings()
 # set to False to use a local data archove
@@ -80,12 +82,11 @@ if __name__ == '__main__':
 	collection: str = 'sentinel2-msi'
 	
 	# ------------------------- Time Range ---------------------------------
-	time_start: datetime = datetime(2021,3,1)  		# year, month, day (incl.)
-	time_end: datetime = datetime(2022,6,14)   		# year, month, day (incl.)
+	time_start: datetime = datetime(2022,3,1)  		# year, month, day (incl.)
+	time_end: datetime = datetime(2022,4,1)   		# year, month, day (incl.)
 	
 	# ---------------------- Spatial Feature  ------------------------------
-	# geom: Path = Path('../data/sample_polygons/lake_lucerne.gpkg')
-	geom = Path('/mnt/ides/Lukas/software/eodal_notebooks/data/sample_polygons/Parzelle35.shp')
+	geom: Path = Path('../data/sample_polygons/lake_lucerne.gpkg')
 	
 	# ------------------------- Metadata Filters ---------------------------
 	metadata_filters: List[Filter] = [
@@ -115,7 +116,7 @@ if __name__ == '__main__':
 	#%% load the scenes available from STAC
 	scene_kwargs = {
 	    'scene_constructor': Sentinel2.from_safe,
-	    'scene_constructor_kwargs': {'band_selection': ['B04', 'B08']},
+	    'scene_constructor_kwargs': {'band_selection': ['B02', 'B03', 'B04']},
 	    'scene_modifier': preprocess_sentinel2_scenes,
 	    'scene_modifier_kwargs': {'target_resolution': 10}
 	}
@@ -123,6 +124,14 @@ if __name__ == '__main__':
 	# the data loaded into `mapper.data` as a EOdal SceneCollection
 	mapper.data
 
+	# plot scenes in collection
+	f_scenes = mapper.data.plot(band_selection=['red', 'green', 'blue'])
+
 	# EOdal SceneCollections can be made persistent by storing them as serialized pickled
 	# objects on disk (and can be loaded from there)
-	
+	fpath = Path('../data/sample_mapper_data.pkl')
+	with open(fpath, 'wb+') as dst:
+		dst.write(mapper.data.to_pickle())
+
+	# read data from pickled file object into SceneCollectio
+	scoll = SceneCollection.from_pickle(stream=fpath)
