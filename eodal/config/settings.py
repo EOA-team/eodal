@@ -63,6 +63,8 @@ class Settings(BaseSettings):
     # define CREODIAS username and password
     CREODIAS_USER: str = ""
     CREODIAS_PASSWORD: str = ""
+    # maximum number of records per request: 2000 (CREODIAS currently does not allow more)
+    CREODIAS_MAX_RECORDS: int = 2000
 
     # define Planet-API token
     PLANET_API_KEY: str = ""
