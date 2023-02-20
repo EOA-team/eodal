@@ -56,12 +56,17 @@ def preprocess_sentinel2_scenes(
 	) -> Sentinel2:
 	"""
 	Resample Sentinel-2 scenes and mask clouds, shadows, and snow
-	based on the Scene Classification Layer (SCL)
+	based on the Scene Classification Layer (SCL).
+
+	NOTE:
+		Depending on your needs, the pre-processing function can be
+		fully customized using the full power of EOdal and its
+		interfacing libraries!
 
 	:param target_resolution:
-		spatial target resolution to resample all bands to
+		spatial target resolution to resample all bands to.
 	:returns:
-		resampled, cloud-masked Sentinel-2 scene
+		resampled, cloud-masked Sentinel-2 scene.
 	"""
 	# resample scene
 	ds.resample(inplace=True, target_resoltion=target_resoltion)
