@@ -640,18 +640,22 @@ class Sentinel2(RasterCollection):
         self,
         bands_to_mask: Optional[List[str]] = None,
         cloud_classes: Optional[List[int]] = [1, 2, 3, 7, 8, 9, 10, 11],
+        mask_band: Optional[str] = 'SCL',
         **kwargs,
-    ):
+    ) -> Sentinel2:
         """
         A Wrapper around the inherited ``mask`` method to mask clouds,
-        shadows, water and snow based on the SCL band. Works therefore on L2A data,
-        only.
+        shadows, water and snow based on (by default) the SCL band.
+        Works therefore on L2A data, only.
 
-        Masks the SCL classes 1, 2, 3, 7, 8, 9, 10, 11.
+        NOTE:
+            Since the `mask_band` can be set to *any* `Band` it is also
+            possible to use a different cloud/shadow etc. mask, e.g., from
+            a custom classifier.
 
-        If another class selection is desired consider using the mask function
-        from `eodal.utils.io` directly or change the default
-        ``cloud_classes``.
+        NOTE:
+            You might also use the mask function from `eodal.core.raster.RasterCollection`
+            directly.
 
         :param bands_to_mask:
             list of bands on which to apply the SCL mask. If not specified all bands
@@ -666,9 +670,12 @@ class Sentinel2(RasterCollection):
             depending on `inplace` (passed in the kwargs) a new `Sentinel2` instance
             or None
         """
-        mask_band = "SCL"
         if bands_to_mask is None:
             bands_to_mask = self.band_names
+        # the mask band should never be masked as otherwise the SCL functions
+        # might not work as expected
+        if mask_band in bands_to_mask:
+            bands_to_mask.remove('SCL')
         try:
             return self.mask(
                 mask=mask_band,
