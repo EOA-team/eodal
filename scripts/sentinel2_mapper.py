@@ -83,7 +83,7 @@ if __name__ == '__main__':
 	
 	# ------------------------- Time Range ---------------------------------
 	time_start: datetime = datetime(2022,3,1)  		# year, month, day (incl.)
-	time_end: datetime = datetime(2022,4,1)   		# year, month, day (incl.)
+	time_end: datetime = datetime(2022,6,30)   		# year, month, day (incl.)
 	
 	# ---------------------- Spatial Feature  ------------------------------
 	geom: Path = Path('../data/sample_polygons/lake_lucerne.gpkg')
@@ -108,7 +108,7 @@ if __name__ == '__main__':
 	mapper_configs.to_yaml('../data/sample_mapper_call.yaml')
 	
 	# now, a new Mapper instance is created
-	mapper = Mapper(mapper_configs, sensor='sentinel2')
+	mapper = Mapper(mapper_configs)
 	mapper.query_scenes()
 	# the metadata is loaded into a GeoPandas GeoDataFrame
 	mapper.metadata
