@@ -227,8 +227,7 @@ class Mapper:
     def __init__(
         self,
         mapper_configs: MapperConfigs,
-        time_column: Optional[str] = 'sensing_time',
-        sensor: Optional[str] = None
+        time_column: Optional[str] = 'sensing_time'
     ):
         """
         Class constructor
@@ -238,15 +237,13 @@ class Mapper:
         :param time_column:
             name of the metadata column denoting the time stamps of the scenes.
             `sensing_time` by default.
-        :param sensor:
-            optional name of the sensor (in EOdal) to use for reading data
         """
         if not isinstance(mapper_configs, MapperConfigs):
             raise TypeError(f'Expected a MapperConfigs instance')
         self._mapper_configs = mapper_configs
         self._time_column = time_column
         self._metadata = None
-        self._sensor = sensor
+        self._sensor = self.mapper_configs.collection.split('-')[0]
         self._data = None
         self._geoms_are_points = False
 
