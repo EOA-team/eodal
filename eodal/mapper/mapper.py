@@ -2,6 +2,8 @@
 The EOdal `Mapper` class allows to extract and handle EO data in space and time
 and bring the data into Analysis-Ready-Format (ARD).
 
+.. versionadded:: 0.2.0
+
 Copyright (C) 2022 Lukas Valentin Graf
 
 This program is free software: you can redistribute it and/or modify
