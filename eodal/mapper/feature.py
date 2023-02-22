@@ -146,7 +146,6 @@ class Feature:
             )
         except WKTReadingError as e:
             raise ValueError(f'Invalid Geometry: {e}')
-        
 
     def to_epsg(self, epsg: int):
         """
