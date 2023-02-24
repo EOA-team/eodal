@@ -483,7 +483,7 @@ class Mapper:
                     target_crs=self.metadata.target_epsg.unique()[0],
                     vector_features=self.mapper_configs.feature.to_geoseries(),
                     sensor=self.sensor,
-                    band_options={'band_aliases': _scene.band_aliases}
+                    band_options={'band_names': _scene.band_names, 'band_aliases': _scene.band_aliases}
                 )
                 # handle scene properties. They need to be merged as well
                 merged_scene_properties = scene_properties_list[0]
