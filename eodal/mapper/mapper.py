@@ -510,8 +510,8 @@ class Mapper:
                 # some disagreement in the milliseconds because of different precision levels
                 # therefore, an offset of less than 1 second is tolerated
                 idx = self.metadata[
-                    (self.metadata[self.time_column] - pd.to_datetime(updated_scene_properties.acquisition_time)
-                    ) < pd.Timedelta(1, unit='seconds')
+                    abs(self.metadata[self.time_column] - pd.to_datetime(updated_scene_properties.acquisition_time)
+                    ) < pd.Timedelta(60, unit='minutes')
                 ].index
                 for scene_property in updated_scene_properties.__dict__:
                     self.metadata.loc[idx, scene_property] = \
