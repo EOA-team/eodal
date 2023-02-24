@@ -195,28 +195,13 @@ def merge_datasets(
             unit=unit,
         )
 
-    # most likely we do not need the code below any more. However, since I'm
-    # not 100%, I'll leave it here for a while ...
-    # clip raster collection if required to vector_features
-    # if vector_features is not None:
-    #     tmp_dir = Settings.TEMP_WORKING_DIR
-    #     fname_tmp = tmp_dir.joinpath(f"{uuid.uuid4()}.tif")
-    #     raster.to_rasterio(fname_tmp)
-    #     if sensor is None:
-    #         expr = "RasterCollection"
-    #     else:
-    #         expr = f"eodal.core.sensors.{sensor.lower()}.{sensor[0].upper() + sensor[1::]}()"
-    #     if band_options is None:
-    #         band_options = {}
-    #     raster = eval(
-    #         f"""{expr}.from_multi_band_raster(
-    #         fpath_raster=fname_tmp,
-    #         vector_features=vector_features,
-    #         full_bounding_box_only=False
-    #     )""")
-    #     # set scene properties if available
-    #     if scene_properties is not None:
-    #         raster.scene_properties = scene_properties
-    #     os.remove(fname_tmp)
+    # clip raster collection if required to vector_features to keep consistency
+    # of masks - this ensures that is_masked_array is set to True
+    if vector_features is not None:
+        raster.clip_bands(inplace=True, clipping_bounds=vector_features)
+
+    # set scene properties
+    if scene_properties is not None:
+        raster.scene_properties = scene_properties
 
     return raster
