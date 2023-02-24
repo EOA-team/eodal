@@ -23,7 +23,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from __future__ import annotations
 
 import cv2
+import eodal
 import geopandas as gpd
+import getpass
 import numpy as np
 import pandas as pd
 import warnings
@@ -192,11 +194,11 @@ class MapperConfigs:
                 metadata_filters=filter_list
             )
         except KeyError as e:
-            raise ValueError(f'IMissing keys in yaml file: {e}')
+            raise ValueError(f'Missing keys in yaml file: {e}')
 
     def to_yaml(self, fpath: str | Path) -> None:
         """
-        save MapperConfig to YAML file (*.yml)
+        save MapperConfig and some meta-information to YAML file (*.yml)
 
         :param fpath:
             file-path where saving the Feature instance to
@@ -207,6 +209,11 @@ class MapperConfigs:
         mapper_configs_dict['time_start'] = self.time_start
         mapper_configs_dict['time_end'] = self.time_end
         mapper_configs_dict['metadata_filters'] = [x.__repr__() for x in self.metadata_filters]
+        # add some meta-information about creation time and current user
+        mapper_configs_dict['created_at'] = datetime.now()
+        mapper_configs_dict['created_by'] = getpass.getuser()
+        mapper_configs_dict['eodal_version'] = eodal.__version__
+
         with open(fpath, 'w+') as f:
             yaml.dump(mapper_configs_dict, f, allow_unicode=True)
 
@@ -478,12 +485,13 @@ class Mapper:
                     dataset_list.append(fname_scene)
                     scene_properties_list.append(_scene.scene_properties)
                 # merge datasets using rasterio and read results back into a scene
+                band_options={'band_names': _scene.band_names, 'band_aliases': _scene.band_aliases}
                 scene = merge_datasets(
                     datasets=dataset_list,
                     target_crs=self.metadata.target_epsg.unique()[0],
                     vector_features=self.mapper_configs.feature.to_geoseries(),
                     sensor=self.sensor,
-                    band_options={'band_names': _scene.band_names, 'band_aliases': _scene.band_aliases}
+                    band_options=band_options
                 )
                 # handle scene properties. They need to be merged as well
                 merged_scene_properties = scene_properties_list[0]
