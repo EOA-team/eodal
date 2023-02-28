@@ -507,7 +507,18 @@ class Mapper:
                                 exec(f'merged_scene_properties.{scene_prop} = new_val')
 
                 scene.scene_properties = merged_scene_properties
-                scoll.add_scene(scene)
+                # because ESA has some mess with the naming of their file names and
+                # metadata, there might be duplicated seems not detected by the mapper
+                # since the time stamps slightly differ (few seconds in some cases) but
+                # their IDs are the same
+                try:
+                    scoll.add_scene(scene)
+                except KeyError:
+                    logger.warn(
+                        f'Scene with ID {merged_scene_properties.product_uri} ' + \
+                        f'already added to SceneCollection - continue'
+                    )
+                    continue
                 update_scene_properties_list.append(merged_scene_properties)
 
             # update the metadata entries to avoid mis-matches in the number of
@@ -536,7 +547,18 @@ class Mapper:
                     scene_modifier_kwargs=scene_modifier_kwargs,
                     reprojection_method=reprojection_method
                 )
-                scoll.add_scene(scene)
+                # because ESA has some mess with the naming of their file names and
+                # metadata, there might be duplicated seems not detected by the mapper
+                # since the time stamps slightly differ (few seconds in some cases) but
+                # their IDs are the same
+                try:
+                    scoll.add_scene(scene)
+                except KeyError:
+                    logger.warn(
+                        f'Scene with ID {merged_scene_properties.product_uri} ' + \
+                        f'already added to SceneCollection - continue'
+                    )
+                    continue
 
         # sort scenes by their timestamps and save as data attribute
         # to mapper instance
@@ -617,7 +639,7 @@ class Mapper:
             return
         if self.metadata.empty:
             warnings.warn(
-                'No scenes were scenes - consider modifying your search criteria'
+                'No scenes were found - consider modifying your search criteria'
             )
             return
 
