@@ -71,8 +71,7 @@ class SceneCollection(MutableMapping):
         self.collection = dict()
         self._frozen = True
         self._is_sorted = True
-
-        object.__setattr__(self, 'indexed_by_timestamps', indexed_by_timestamps)
+        self._indexed_by_timestamps = indexed_by_timestamps
 
         self._identifiers = []
         if scene_constructor is not None:
@@ -233,6 +232,10 @@ class SceneCollection(MutableMapping):
             return f'EOdal SceneCollection\n----------------------\n' + \
                 f'# Scenes:    {len(self)}\nTimestamps:    {timestamps}\n' +  \
                 f'Scene Identifiers:    {", ".join(self.identifiers)}'
+
+    @property
+    def indexed_by_timestamps(self) -> bool:
+        return self._indexed_by_timestamps
 
     @staticmethod
     def _sort_keys(

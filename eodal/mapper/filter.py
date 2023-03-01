@@ -19,42 +19,77 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import annotations
 
+from typing import Any
+
+operators = ['<', '<=', '==', '!=', '>', '>=']
+
 class Filter:
     """
-    The generic filter class.
+    The generic filter class. A filter is used to query data catalogs.
+
+    Each filter follows the following structure:
+    
+    <entity> <operator> <value>
+
+    For instance, `cloudy_pixel_percentage < 10`, where
+
+        * `cloudy_pixel_percentage` is the entity to filter
+        * `<` is the operator
+        * `10` is the value
 
     :attrib entity:
         metadata entity to use for filtering
-    :attrib condition:
-        condition that must be met to keep a metadata item in the
-        selection
+    :attrib operator:
+            comparison operator to use, e.g., "gt" for "greater than" (>)
+    :attrib value:
+        value on the right-hand side of the filter expression
     """
-    def __init__(self, entity: str, condition: str):
+    def __init__(self, entity: str, operator: str, value: Any):
         """
         Constructor method
 
         :param entity:
             metadata entity to use for filtering
-        :param condition:
-            condition that must be met to keep a metadata item in the
-            selection
+        :param operator:
+            comparison operator to use, e.g., ">" for "greater than" (value)
+        :param value:
+            value on the right-hand side of the filter expression
         """
+        # check inputs
+        if not isinstance(entity, str):
+            raise TypeError('Entity argument must be a string')
+        if entity == '':
+            raise ValueError('Entity argument must not be an empty string')
+        if not isinstance(operator, str):
+            raise TypeError('Operator argument must be a string')
+        if operator not in operators:
+            raise ValueError('Operator must be one of: ' + ','.join(operators))
+        if value is None:
+            raise ValueError('Value cannot be None')
+
         self._entity = entity
-        self._condition = condition
+        self._operator = operator
+        self._value = value
 
     def __repr__(self) -> str:
-        return f'Filter by {self.entity} {self.condition}'
+        return self.expression
 
     @property
     def entity(self) -> str:
+        """metadata entity used to filter"""
         return self._entity
 
     @property
-    def condition(self) -> str:
-        return self._condition
+    def operator(self) -> str:
+        """filter operator"""
+        return self._operator
 
-if __name__ == '__main__':
-    
-    cc_filter = Filter(entity='cloudy_pixel_percentage', condition='<30')
-    cc_filter
-    
+    @property
+    def value(self) -> Any:
+        """right-side value of the filter"""
+        return self._value
+
+    @property
+    def expression(self) -> str:
+        """returns the filter expression as string"""
+        return f'{self.entity} {self.operator} {self.value}'

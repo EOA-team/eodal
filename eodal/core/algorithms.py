@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 from __future__ import annotations
 
+import eodal
 import os
 import geopandas as gpd
 import uuid
@@ -80,7 +81,7 @@ def merge_datasets(
         to merge into a single raster
     :param out_file:
         name of the resulting raster dataset (optional). If None (default)
-        returns a new ``SatDataHandler`` instance otherwise writes the data
+        returns a new ``RasterCollection`` instance otherwise writes the data
         to disk as new raster dataset.
     :param target_crs:
         optional target spatial coordinate reference system in which the output
@@ -135,7 +136,7 @@ def merge_datasets(
     # when out_file was provided the merged data is written to file directly
     if out_file is not None:
         return
-    # otherwise, create new SatDataHandler instance from merged datasets
+    # otherwise, create new RasterCollection instance from merged datasets
     # add scene properties if available
     if sensor is None:
         raster = RasterCollection(scene_properties=scene_properties)
@@ -164,46 +165,43 @@ def merge_datasets(
         offset = band_attrs.get("offsets")
         if isinstance(offset, tuple):
             offset = offset[0]
-        description = band_attrs.get("descriptions")
-        if isinstance(description, tuple):
-            description = description[0]
         unit = band_attrs.get("units")
         if isinstance(unit, tuple):
             unit = unit[0]
+
+        # get band name and alias if provided
+        band_name = band_options.get('band_names', f'B{idx+1}')
+        if isinstance(band_name, list):
+            if len(band_name) == n_bands:
+                band_name = band_name[idx]
+            else:
+                band_name = f'B{idx+1}'
+        band_alias = band_options.get('band_aliases', f'B{idx+1}')
+        if isinstance(band_alias, list):
+            if len(band_alias) == n_bands:
+                band_alias = band_alias[idx]
+            else:
+                band_alias = f'B{idx+1}'
+
         raster.add_band(
             band_constructor=Band,
-            band_name=f"B{idx+1}",
+            band_name=band_name,
             values=out_ds[idx, :, :],
             geo_info=geo_info,
             is_tiled=is_tiled,
             scale=scale,
             offset=offset,
-            band_alias=description,
+            band_alias=band_alias,
             unit=unit,
         )
 
-    # clip raster collection if required to vector_features
+    # clip raster collection if required to vector_features to keep consistency
+    # of masks - this ensures that is_masked_array is set to True
     if vector_features is not None:
-        tmp_dir = Settings.TEMP_WORKING_DIR
-        fname_tmp = tmp_dir.joinpath(f"{uuid.uuid4()}.tif")
-        raster.to_rasterio(fname_tmp)
-        if sensor is None:
-            expr = "RasterCollection"
-        else:
-            expr = f"eodal.core.sensors.{sensor.lower()}.{sensor[0].upper() + sensor[1::]}()"
-        if band_options is None:
-            band_options = {}
-        raster = eval(
-            f"""{expr}.from_multi_band_raster(
-            fpath_raster=fname_tmp,
-            vector_features=vector_features,
-            full_bounding_box_only=False,
-            **band_options
-        )"""
-        )
-        # set scene properties if available
-        if scene_properties is not None:
-            raster.scene_properties = scene_properties
-        os.remove(fname_tmp)
+        raster.clip_bands(inplace=True, clipping_bounds=vector_features)
+
+    # set scene properties
+    if scene_properties is not None:
+        raster.scene_properties = scene_properties
 
     return raster

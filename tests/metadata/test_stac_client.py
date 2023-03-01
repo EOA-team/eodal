@@ -6,7 +6,6 @@ import pytest
 
 from datetime import date
 
-from eodal.config import get_settings, STAC_Providers
 from eodal.metadata.stac import sentinel1, sentinel2
 from eodal.utils.sentinel1 import _url_to_safe_name
 from eodal.utils.sentinel2 import ProcessingLevels

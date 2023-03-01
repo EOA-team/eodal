@@ -37,9 +37,9 @@ from numbers import Number
 from pathlib import Path
 from rasterio.mask import raster_geometry_mask
 from shapely.geometry import box
-from typing import Dict, Optional, List, Tuple, Union
+from typing import Any, Dict, Optional, List, Tuple, Union
 
-from eodal.core.band import Band, WavelengthInfo, GeoInfo
+from eodal.core.band import Band, WavelengthInfo
 from eodal.core.raster import RasterCollection, SceneProperties
 from eodal.utils.constants.sentinel2 import (
     band_resolution,
@@ -91,7 +91,7 @@ class Sentinel2(RasterCollection):
         else:
             band_name = self.band_names[0]
             if self[band_name].is_masked_array:
-                return (self[band_name].values.date == 0).all()
+                return (self[band_name].values.data == 0).all()
             elif self[band_name].is_ndarray:
                 return (self[band_name].values == 0).all()
             elif self[band_name].is_zarr:
@@ -306,6 +306,12 @@ class Sentinel2(RasterCollection):
                         vector_features_df = gpd.read_file(vector_features)
                     elif isinstance(vector_features, gpd.GeoDataFrame):
                         vector_features_df = vector_features.copy()
+                    elif isinstance(vector_features, gpd.GeoSeries):
+                        vector_features_df = gpd.GeoDataFrame(vector_features.copy())
+                    else:
+                        raise TypeError(
+                            'Geometry must be vector file, GeoSeries or GeoDataFrame'
+                        )
 
                     # drop Nones in geometry column
                     none_idx = vector_features_df[
@@ -351,6 +357,8 @@ class Sentinel2(RasterCollection):
                     # remember to mask the feature after clipping the data
                     if not kwargs.get("full_bounding_box_only", False):
                         masking_after_read_required = True
+                    # update the vector_features entry
+                    kwargs.update({"vector_features": bounds_df})
 
         # determine platform (S2A or S2B)
         try:
@@ -392,7 +400,6 @@ class Sentinel2(RasterCollection):
 
         # loop over bands and add them to the collection of bands
         sentinel2 = cls(scene_properties=scene_properties)
-        kwargs_orig = deepcopy(kwargs)
         for band_name in list(band_df_safe.band_name):
 
             # get entry from dataframe with file-path of band
@@ -422,17 +429,6 @@ class Sentinel2(RasterCollection):
 
             # read band
             try:
-                if align_shapes:
-                    # if the current band already has the lowest resolution
-                    # reading the mask directly is possible. Otherwise we use
-                    # the bounding of the coarsest resolution and apply the masking
-                    # later
-                    if band_safe.band_resolution.values != lowest_resolution:
-                        kwargs.update({"vector_features": bounds_df})
-                    else:
-                        kwargs.update(
-                            {"vector_features": kwargs_orig.get("vector_features")}
-                        )
                 sentinel2.add_band(
                     Band.from_rasterio,
                     fpath_raster=band_fpath,
@@ -476,8 +472,8 @@ class Sentinel2(RasterCollection):
     @prepare_point_features
     def read_pixels_from_safe(
         cls,
+        in_dir: Dict[str, Any] | Path,
         vector_features: Union[Path, gpd.GeoDataFrame],
-        in_dir: Path,
         band_selection: Optional[List[str]] = None,
         read_scl: Optional[bool] = True,
         apply_scaling: Optional[bool] = True,
@@ -505,12 +501,13 @@ class Sentinel2(RasterCollection):
             to do spatial resampling! The underlying ``rasterio.sample`` function always
             snaps to the closest pixel in the current spectral band.
 
+        :param in_dir:
+            Sentinel-2 scene in .SAFE structure from which to extract
+            pixel values at the provided point locations. Can be either a dictionary
+            item returned from STAC or a physical file-path
         :param vector_features:
             vector file (e.g., ESRI shapefile or geojson) or ``GeoDataFrame``
             defining point locations for which to extract pixel values
-        :param in_dir:
-            Sentinel-2 scene in .SAFE structure from which to extract
-            pixel values at the provided point locations
         :param band_selection:
             list of bands to read. Per default all raster bands available are read.
         :param read_scl:
@@ -641,23 +638,28 @@ class Sentinel2(RasterCollection):
 
     def mask_clouds_and_shadows(
         self,
-        bands_to_mask: List[str],
+        bands_to_mask: Optional[List[str]] = None,
         cloud_classes: Optional[List[int]] = [1, 2, 3, 7, 8, 9, 10, 11],
+        mask_band: Optional[str] = 'SCL',
         **kwargs,
-    ):
+    ) -> Sentinel2:
         """
         A Wrapper around the inherited ``mask`` method to mask clouds,
-        shadows, water and snow based on the SCL band. Works therefore on L2A data,
-        only.
+        shadows, water and snow based on (by default) the SCL band.
+        Works therefore on L2A data, only.
 
-        Masks the SCL classes 1, 2, 3, 7, 8, 9, 10, 11.
+        NOTE:
+            Since the `mask_band` can be set to *any* `Band` it is also
+            possible to use a different cloud/shadow etc. mask, e.g., from
+            a custom classifier.
 
-        If another class selection is desired consider using the mask function
-        from `eodal.utils.io` directly or change the default
-        ``cloud_classes``.
+        NOTE:
+            You might also use the mask function from `eodal.core.raster.RasterCollection`
+            directly.
 
         :param bands_to_mask:
-            list of bands on which to apply the SCL mask
+            list of bands on which to apply the SCL mask. If not specified all bands
+            are masked.
         :param cloud_classes:
             list of SCL values to be considered as clouds/shadows and snow.
             By default, all three cloud classes and cloud shadows are considered
@@ -668,7 +670,12 @@ class Sentinel2(RasterCollection):
             depending on `inplace` (passed in the kwargs) a new `Sentinel2` instance
             or None
         """
-        mask_band = "SCL"
+        if bands_to_mask is None:
+            bands_to_mask = self.band_names
+        # the mask band should never be masked as otherwise the SCL functions
+        # might not work as expected
+        if mask_band in bands_to_mask:
+            bands_to_mask.remove('SCL')
         try:
             return self.mask(
                 mask=mask_band,
@@ -692,12 +699,15 @@ class Sentinel2(RasterCollection):
             class occurences.
         """
         # check if SCL is available
-        if not "SCL" in self.band_names:
+        if not 'scl' in self.band_names and not 'SCL' in self.band_names:
             raise BandNotFoundError(
                 "Could not find scene classification layer. Is scene L2A?"
             )
 
-        scl = self.get_band("SCL")
+        try:
+            scl = self.get_band('SCL')
+        except BandNotFoundError:
+            scl = self.get_band('scl')
         # if the scl array is a masked array consider only those pixels
         # not masked out
         if scl.is_masked_array:

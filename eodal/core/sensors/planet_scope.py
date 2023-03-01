@@ -124,8 +124,8 @@ class SuperDove(PlanetScope):
     @classmethod
     def read_pixels(
         cls,
-        vector_features: Union[Path, gpd.GeoDataFrame],
         in_dir: Path,
+        vector_features: Union[Path, gpd.GeoDataFrame],
         band_selection: Optional[List[str]] = None,
         read_ql: Optional[bool] = True,
         apply_scaling: Optional[bool] = True,    
@@ -135,12 +135,12 @@ class SuperDove(PlanetScope):
         vector geometry features read from a vector file (e.g., ESRI shapefile) or
         ``GeoDataFrame``.
 
-        :param point_features:
-            vector file (e.g., ESRI shapefile or geojson) or ``GeoDataFrame``
-            defining point locations for which to extract pixel values
         :param in_dir:
             Planet Scope SuperDove scene from which to extract
             pixel values at the provided point locations
+        :param point_features:
+            vector file (e.g., ESRI shapefile or geojson) or ``GeoDataFrame``
+            defining point locations for which to extract pixel values
         :param band_selection:
             list of bands to read. Per default all raster bands available are read.
         :param read_ql:

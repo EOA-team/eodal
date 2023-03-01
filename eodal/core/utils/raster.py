@@ -71,6 +71,8 @@ def spatial_to_image_coordinates(x: float, y: float, affine: Affine, op=math.flo
     """
     Convert spatial x and y coordinat to image coordinates (row + column)
 
+    .. versionadded:: 0.1.1
+
     taken from:
         `rasterstats` package under BSD 3-Clause "New" or "Revised" License
         Copyright (c) 2013 Matthew Perry
@@ -84,6 +86,8 @@ def bounds_window(bounds: Tuple[float,float,float,float], affine: Affine
     ) -> Tuple[Tuple[int,int], Tuple[int,int]]:
     """
     Create a full cover rasterio-style window
+
+    .. versionadded:: 0.1.1
 
     taken from:
         `rasterstats` package under BSD 3-Clause "New" or "Revised" License

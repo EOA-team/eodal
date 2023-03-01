@@ -35,13 +35,12 @@ from typing import Any, Dict, Optional, Tuple
 from datetime import date
 
 from eodal.config import get_settings
-from eodal.config.sentinel2 import Sentinel2
+from eodal.utils.constants.sentinel2 import s2_band_mapping
 from eodal.utils.exceptions import UnknownProcessingLevel
 from eodal.utils.exceptions import InputError
 from eodal.utils.warnings import NothingToDo
 
 logger = get_settings().logger
-S2 = Sentinel2()
 
 
 def parse_MTD_DS(in_file: Path) -> Dict[str, Any]:
@@ -64,7 +63,7 @@ def parse_MTD_DS(in_file: Path) -> Dict[str, Any]:
 
     # now, the values of some relevant tags can be extracted:
     metadata = dict()
-    band_names = list(S2.BAND_INDICES.keys())
+    band_names = list(s2_band_mapping.keys())
 
     datatakeIdentifier_xml = xmldoc.getElementsByTagName("Datatake_Info")
     element = datatakeIdentifier_xml[0]

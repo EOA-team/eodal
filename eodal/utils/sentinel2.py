@@ -20,7 +20,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import annotations
 
-import os
 import glob
 import pandas as pd
 import planetary_computer
@@ -32,14 +31,10 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from eodal.config import get_settings
 from eodal.config.stac_providers import STAC_Providers
-from eodal.config import Sentinel2
 from eodal.utils.exceptions import BandNotFoundError, MetadataNotFoundError
 from eodal.utils.constants.sentinel2 import ProcessingLevels
 
-# global definition of spectral bands and their spatial resolution
-s2 = Sentinel2()
 Settings = get_settings()
-
 
 def _url_to_safe_name(stac_asset: Union[str, Dict[str, Any]]) -> str:
     """

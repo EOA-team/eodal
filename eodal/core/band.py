@@ -55,6 +55,7 @@ from rasterstats.utils import check_stats
 from shapely.geometry import box, MultiPolygon, Point, Polygon
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+from eodal.config import get_settings
 from eodal.core.operators import Operator
 from eodal.core.utils.geometry import check_geometry_types, convert_3D_2D
 from eodal.core.utils.raster import get_raster_attributes, bounds_window
@@ -66,6 +67,8 @@ from eodal.utils.exceptions import (
     ReprojectionError,
 )
 from eodal.utils.reprojection import reproject_raster_dataset, check_aoi_geoms
+
+Settings = get_settings()
 
 class BandOperator(Operator):
     """
@@ -636,7 +639,7 @@ class Band(object):
     @classmethod
     def from_rasterio(
         cls,
-        fpath_raster: Path,
+        fpath_raster: Path | Dict,
         band_idx: Optional[int] = 1,
         band_name_src: Optional[str] = "",
         band_name_dst: Optional[str] = "B1",
@@ -655,7 +658,11 @@ class Band(object):
             For Point features refer to the `read_pixels` method.
 
         :param fpath_raster:
-            file-path to the raster file from which to read a band
+            file-path to the raster file from which to read a band or
+
+            .. versionadd:: 0.2.0
+                can be also an `assets` dictionary returned from a STAC query
+
         :param band_idx:
             band index of the raster band to read (starting with 1). If not
             provided the first band will be always read. Ignored if
@@ -689,14 +696,21 @@ class Band(object):
         :returns:
             new ``Band`` instance from a ``rasterio`` dataset.
         """
+        _fpath_raster = deepcopy(fpath_raster)
+        # check if fpath_raster is STAC item or file system path
+        if isinstance(fpath_raster, dict):
+            if band_name_src is not None:
+                _fpath_raster = _fpath_raster[band_name_src]['href']
+            else:
+                _fpath_raster = _fpath_raster[list(_fpath_raster.keys())[band_idx]]['href']
+
         # check vector features if provided
         masking = False
         if vector_features is not None:
-
             masking = True
             gdf_aoi = check_aoi_geoms(
                 in_dataset=vector_features,
-                fname_raster=fpath_raster,
+                fname_raster=_fpath_raster,
                 full_bounding_box_only=full_bounding_box_only,
             )
             # check for third dimension (has_z) and flatten it to 2d
@@ -709,7 +723,7 @@ class Band(object):
             )
 
         # read data using rasterio
-        with rio.open(fpath_raster, "r") as src:
+        with rio.open(_fpath_raster, "r") as src:
 
             # parse image attributes
             attrs = get_raster_attributes(riods=src)
@@ -1118,7 +1132,7 @@ class Band(object):
 
     def clip(
         self,
-        clipping_bounds: Path | gpd.GeoDataFrame | Tuple[float,float,float,float] | Polygon  | MultiPolygon,
+        clipping_bounds: Path | gpd.GeoDataFrame | gpd.GeoSeries | Tuple[float,float,float,float] | Polygon  | MultiPolygon,
         full_bounding_box_only: Optional[bool] = False,
         inplace: Optional[bool] = False
     ):
@@ -1134,7 +1148,7 @@ class Band(object):
 
         :param clipping_bounds:
             spatial bounds to clip the Band to. Can be either a vector file, a shapely
-            `Polygon` or `MultiPolygon`, a `GeoDataFrame` or a coordinate tuple with
+            `Polygon` or `MultiPolygon`, a `GeoDataFrame`, `GeoSeries` or a coordinate tuple with
             (xmin, ymin, xmax, ymax).
             Vector files and `GeoDataFrame` are reprojected into the bands' coordinate
             system if required, while the coordinate tuple and shapely geometry **MUST**
@@ -1143,6 +1157,7 @@ class Band(object):
             if False (default), clips to the bounding box of the geometry and masks values
             outside the actual geometry boundaries. To obtain all values within the
             bounding box set to True.
+            .. versionadded:: 0.1.1
         :param inplace:
             if False (default) returns a copy of the ``Band`` instance
             with the changes applied. If True overwrites the values
@@ -1150,23 +1165,28 @@ class Band(object):
         :returns:
             clipped band instance.
         """
+        # prepare geometries
         if isinstance(clipping_bounds, Path):
             clipping_bounds = gpd.read_file(clipping_bounds)
-
-        # check inputs
+        if isinstance(clipping_bounds, gpd.GeoSeries):
+            clipping_bounds = gpd.GeoDataFrame(geometry=clipping_bounds)
         if isinstance(clipping_bounds, tuple):
             if len(clipping_bounds) != 4:
                 raise ValueError('Expected four coordinates (xmin, ymin, xmax, ymax)')
             xmin, ymin, xmax, ymax = clipping_bounds
             actual_geom = box(*clipping_bounds)
-        elif isinstance(clipping_bounds, gpd.GeoDataFrame):
-            # get the bounding box of the FIRST feature
+
+        # get bounding box
+        if isinstance(clipping_bounds, gpd.GeoDataFrame):
+            # reproject GeoDataFrame if necessary
             _clipping_bounds = clipping_bounds.copy()
-            _clipping_bounds = _clipping_bounds.bounds
-            xmin, ymin, xmax, ymax = _clipping_bounds.values[0]
+            _clipping_bounds.to_crs(epsg=self.geo_info.epsg, inplace=True)
+            # get the bounding box of the FIRST feature
+            _clipping_bounds_boundaries = _clipping_bounds.bounds
+            xmin, ymin, xmax, ymax = _clipping_bounds_boundaries.values[0]
             # the actual geometries are dissolved in case there is more than one record
             # and converted to a shapely object
-            actual_geom = clipping_bounds.dissolve().geometry.values[0]
+            actual_geom = _clipping_bounds.dissolve().geometry.values[0]
         elif (isinstance(clipping_bounds, Polygon) or isinstance(clipping_bounds, MultiPolygon)):
             xmin, ymin, xmax, ymax = clipping_bounds.bounds
             actual_geom = clipping_bounds

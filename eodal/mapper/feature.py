@@ -1,6 +1,8 @@
 '''
 Module defining geographic features for mapping.
 
+.. versionadded:: 0.1.1
+
 Copyright (C) 2022 Lukas Valentin Graf
 
 This program is free software: you can redistribute it and/or modify
@@ -65,7 +67,7 @@ class Feature:
         if name == '':
             raise ValueError(f'Empty feature names are not allowed')
         if type(geometry) not in allowed_geom_types:
-            raise ValueError(f'geometry must of type {",".join(allowed_geom_types)}')
+            raise ValueError(f'geometry must of type {allowed_geom_types}')
         if type(epsg) != int or epsg <= 0:
             raise ValueError('EPSG code must be a positive integer value')
         if not isinstance(attributes, pd.Series) and not isinstance(attributes, dict):
@@ -144,7 +146,6 @@ class Feature:
             )
         except WKTReadingError as e:
             raise ValueError(f'Invalid Geometry: {e}')
-        
 
     def to_epsg(self, epsg: int):
         """
@@ -171,8 +172,7 @@ class Feature:
         gds = gpd.GeoSeries([self.geometry], crs=f'EPSG:{self.epsg}')
         # add attributes from Feature
         gds.attrs = self.attributes
-        # set name of Feature to GeoSeries
-        gds.name = self.name
+        gds.name = 'geometry'
         return gds
 
     def to_dict(self) -> Dict[str, Any]:
@@ -188,42 +188,3 @@ class Feature:
         feature_dict['geometry'] = self.geometry.wkt
         feature_dict['attributes'] = self.attributes
         return feature_dict
-
-if __name__ == '__main__':
-
-    # working constructor calls
-    geom = Point([49,11])
-    epsg = 4326
-    name = 'Test Point'
-    feature = Feature(name, geom, epsg)
-
-    assert feature.geometry == geom, 'geometry differs'
-    assert feature.epsg == epsg, 'EPSG code differs'
-    assert feature.name == name, 'name differs'
-    assert feature.attributes == {}, 'attributes must be empty'
-
-    attributes = {'key': 'value'}
-    feature = Feature(name, geom, epsg, attributes)
-    assert feature.attributes == attributes, 'attributes differ'
-
-    attributes = pd.Series({'key1': 'value1', 'key2': 'value2'})
-    feature = Feature(name, geom, epsg, attributes)
-    assert feature.attributes == attributes.to_dict(), 'attributes differ'
-
-    gds = feature.to_geoseries()
-    assert gds.name == feature.name, 'name differs'
-    assert gds.crs.to_epsg() == feature.epsg, 'EPSG differs'
-    assert gds.attrs == feature.attributes, 'attributes differ'
-
-    # from_geoseries class method
-    gds.attrs = {}
-    feature = Feature.from_geoseries(gds)
-    assert gds.name == feature.name, 'name differs'
-    assert gds.crs.to_epsg() == feature.epsg, 'EPSG differs'
-    assert gds.attrs == feature.attributes, 'attributes differ'
-
-    # project into another spatial reference system
-    feature_utm = feature.to_epsg(epsg=32632)
-    assert feature_utm.epsg == 32632, 'projection had no effect'
-    assert feature_utm.name == feature.name, 'name got lost'
-    assert feature_utm.attributes == feature.attributes, 'attributes got lost'
