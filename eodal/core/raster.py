@@ -655,7 +655,7 @@ class RasterCollection(MutableMapping):
                     band_names_src = band_names
             # is a selection of bands provided? If no use all available bands
             # otherwise check the band indices
-            if band_names_src is None:
+            if band_names_src is None or set(band_names_src) == {None}:
                 # get band indices of all bands, add 1 since GDAL starts
                 # counting at 1
                 band_idxs = [x + 1 for x in range(band_count)]
