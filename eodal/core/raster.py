@@ -671,11 +671,11 @@ class RasterCollection(MutableMapping):
             raise ValueError("No band indices could be determined")
 
         # make sure band_names_src are set
-        if band_names_src is None:
+        if band_names_src is None or set(band_names_src) == {None}:
             band_names_src = [f"B{idx+1}" for idx in range(band_count)]
 
         # set band_names_dst to values of band_names_src or default names
-        if band_names_dst is None:
+        if band_names_dst is None or set(band_names_src) == {None}:
             band_names_dst = band_names_src
 
         return {
