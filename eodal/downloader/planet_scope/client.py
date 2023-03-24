@@ -374,11 +374,16 @@ class PlanetAPIClient(object):
                 'tools': processing_tools
             })
         order_request_json = json.dumps(order_request)
-        response = self.session.post(orders_url, data=order_request_json, headers=headers)
+        response = self.session.post(
+            orders_url,
+            data=order_request_json,
+            headers=headers,
+            auth=self.session.auth
+        )
     
         if not response.ok:
             raise APIError(
-                f'[HTTP:{response.status_code}]: Placing order faild: {response.content}'
+                f'[HTTP:{response.status_code}]: Placing order failed: {response.content}'
             )
 
         # get order ID and return its URL

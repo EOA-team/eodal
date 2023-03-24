@@ -81,6 +81,7 @@ import zarr
 
 from collections.abc import MutableMapping
 from copy import deepcopy
+from functools import reduce
 from itertools import chain
 from matplotlib.axes import Axes
 from matplotlib.pyplot import Figure
@@ -655,7 +656,7 @@ class RasterCollection(MutableMapping):
                     band_names_src = band_names
             # is a selection of bands provided? If no use all available bands
             # otherwise check the band indices
-            if band_names_src is None:
+            if band_names_src is None or set(band_names_src) == {None}:
                 # get band indices of all bands, add 1 since GDAL starts
                 # counting at 1
                 band_idxs = [x + 1 for x in range(band_count)]
@@ -671,11 +672,11 @@ class RasterCollection(MutableMapping):
             raise ValueError("No band indices could be determined")
 
         # make sure band_names_src are set
-        if band_names_src is None:
+        if band_names_src is None or set(band_names_src) == {None}:
             band_names_src = [f"B{idx+1}" for idx in range(band_count)]
 
         # set band_names_dst to values of band_names_src or default names
-        if band_names_dst is None:
+        if band_names_dst is None or set(band_names_src) == {None}:
             band_names_dst = band_names_src
 
         return {
@@ -1572,8 +1573,14 @@ class RasterCollection(MutableMapping):
                     gdf[band_name] = gdf_band[band_name]
                 # otherwise we can try to merge the pixels passed on
                 # their geometries
+                # use the suggestions made by @atoparseks
+                # https://github.com/EOA-team/eodal_notebooks/issues/11
                 else:
-                    gdf = gdf.join(gdf_band[band_name, "geometry"], on="geometry")
+                    px_list =  [self[b].to_dataframe() for b in self.band_names]
+                    gdf = reduce(lambda left, right:   
+                        pd.merge(left , right, on = ['geometry']),
+                        px_list
+                    )
         return gdf
 
     def to_rasterio(
