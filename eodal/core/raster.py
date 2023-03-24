@@ -81,6 +81,7 @@ import zarr
 
 from collections.abc import MutableMapping
 from copy import deepcopy
+from functools import reduce
 from itertools import chain
 from matplotlib.axes import Axes
 from matplotlib.pyplot import Figure
@@ -1572,8 +1573,14 @@ class RasterCollection(MutableMapping):
                     gdf[band_name] = gdf_band[band_name]
                 # otherwise we can try to merge the pixels passed on
                 # their geometries
+                # use the suggestions made by @atoparseks
+                # https://github.com/EOA-team/eodal_notebooks/issues/11
                 else:
-                    gdf = gdf.join(gdf_band[band_name, "geometry"], on="geometry")
+                    px_list =  [self[b].to_dataframe() for b in self.band_names]
+                    gdf = reduce(lambda left, right:   
+                        pd.merge(left , right, on = ['geometry']),
+                        px_list
+                    )
         return gdf
 
     def to_rasterio(
