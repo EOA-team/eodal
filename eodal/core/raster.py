@@ -1562,25 +1562,26 @@ class RasterCollection(MutableMapping):
         if band_selection is None:
             band_selection = self.band_names
         # loop over bands and convert each band to a GeoDataFrame
-        for idx, band_name in enumerate(band_selection):
-            gdf_band = self[band_name].to_dataframe()
-            if idx == 0:
-                gdf = gdf_band
-            else:
-                # if the bands have the same extent, pixel size and
-                # CRS we cam simply append the extracted band data
-                if self.is_bandstack(band_selection):
-                    gdf[band_name] = gdf_band[band_name]
-                # otherwise we can try to merge the pixels passed on
-                # their geometries
-                # use the suggestions made by @atoparseks
-                # https://github.com/EOA-team/eodal_notebooks/issues/11
+        if self.is_bandstack(band_selection):
+            for idx, band_name in enumerate(band_selection):
+                gdf_band = self[band_name].to_dataframe()
+                if idx == 0:
+                    gdf = gdf_band
                 else:
-                    px_list =  [self[b].to_dataframe() for b in self.band_names]
-                    gdf = reduce(lambda left, right:   
-                        pd.merge(left , right, on = ['geometry']),
-                        px_list
-                    )
+                    # if the bands have the same extent, pixel size and
+                    # CRS we cam simply append the extracted band data
+                    if self.is_bandstack(band_selection):
+                        gdf[band_name] = gdf_band[band_name]
+        # otherwise we can try to merge the pixels passed on
+        # their geometries
+        # use the suggestions made by @atoparseks
+        # https://github.com/EOA-team/eodal_notebooks/issues/11
+        else:
+            px_list =  [self[b].to_dataframe() for b in band_selection]
+            gdf = reduce(lambda left, right:   
+                pd.merge(left , right, on = ['geometry']),
+                px_list
+            )
         return gdf
 
     def to_rasterio(
