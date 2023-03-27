@@ -2029,7 +2029,7 @@ class Band(object):
             if self.is_masked_array:
                 vals = vals.astype(float)
                 vals = vals.filled(np.nan)
-            stats = zonal_stats(features, vals, affine=affine, stats=method)
+            stats = zonal_stats(features, vals, affine=affine, stats=method, nodata=self.nodata)
         else:
             stats_operator_list = []
             # loop over operators in method list and make them rasterstats compatible
