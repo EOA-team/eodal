@@ -2024,8 +2024,12 @@ class Band(object):
         except ValueError:
             default_stats = False
         # default rasterstats call
-        if default_stats and not self.is_masked_array:
-            stats = zonal_stats(features, self.values, affine=affine, stats=method)
+        if default_stats:
+            vals = self.values.copy()
+            if self.is_masked_array:
+                vals = vals.astype(float)
+                vals = vals.filled(np.nan)
+            stats = zonal_stats(features, vals, affine=affine, stats=method)
         else:
             stats_operator_list = []
             # loop over operators in method list and make them rasterstats compatible
