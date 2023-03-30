@@ -2030,7 +2030,7 @@ class Band(object):
                     )
                 # check if the operator is a standard rasterstats operator
                 # raises a ValueError if the passed operator is not implemented
-                check_stats(stats=[operator], categorial=False)
+                check_stats(stats=[operator], categorical=False)
                 stats=[operator]
             # the passed operator can be also a function prototype (callable)
             elif callable(operator):
@@ -2066,7 +2066,11 @@ class Band(object):
                     _operator = _operator.__name__
                 feature_operator_res = stats_operator_list[odx][idx][_operator]
                 if not keep_nans:
-                    if np.isnan(feature_operator_res): continue
+                    try:
+                        if np.isnan(feature_operator_res): continue
+                    except TypeError:
+                        # rasterstats returns None instead of nan
+                        if feature_operator_res is None: continue
                 feature_stats[_operator] = feature_operator_res
             # do not add features without statistics
             if len(feature_stats) == 0:
