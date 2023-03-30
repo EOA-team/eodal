@@ -53,7 +53,7 @@ from rasterio.enums import Resampling
 from rasterstats import zonal_stats
 from rasterstats.utils import check_stats
 from shapely.geometry import box, MultiPolygon, Point, Polygon
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from eodal.config import get_settings
 from eodal.core.operators import Operator
@@ -1948,8 +1948,9 @@ class Band(object):
 
     def reduce(
         self,
-        method: Optional[str | List[str]] = ['min', 'mean', 'std', 'max', 'count'],
+        method: Optional[List[str | Callable[np.ndarray | np.ma.MaskedArray, Number]]] = ['min', 'mean', 'std', 'max', 'count'],
         by: Optional[Path | gpd.GeoDataFrame | Polygon | str] = None,
+        keep_nans: Optional[bool] = False
     ) -> List[Dict[str, int | float]]:
         """
         Reduces the raster data to scalar values by calling `rasterstats`.
@@ -1963,16 +1964,21 @@ class Band(object):
             masks.
 
         :param method:
-            any ``numpy`` function taking a two-dimensional array as input
-            and returning a single scalar. Can be a single function name
-            (e.g., "mean") or a list of function names (e.g., ["mean", "median"]).
-            By default ['min', 'mean', 'std', 'max', 'count'] are returned.
+            list of `numpy` function names and/ or custom function prototypes to use
+            for reducing raster data. Please see also the official `rasterstats` docs
+            /https://pythonhosted.org/rasterstats/manual.html#user-defined-statistics)
+            about how to pass custom functions.
         :param by:
             define optional vector features by which to reduce the band. By passing
             `'self'` the method uses the features with which the band was read, otherwise
             specify a file-path to vector features or provide a GeoDataFrame.
+        :param keep_nans:
+            .. versionadded:: 0.2.0
+            whether to keep or discard results that were `nan`. This could happen
+            if a feature does not overlap the raster.
         :returns:
-            list of dictionaries with scalar results per feature
+            list of dictionaries with scalar results per feature including
+            their geometry and further attributes
         """
         # check by what features the Band should be reduced spatially
         # if `by` is None use the full spatial extent of the band
@@ -2003,90 +2009,74 @@ class Band(object):
         if isinstance(method, str):
             method = [method]
 
-        # determine numpy prefix
-        if self.is_masked_array:
-            numpy_prefix = "np.ma"
-        elif self.is_ndarray:
-            numpy_prefix = "np"
-        elif self.is_zarr:
-            raise NotImplemented()
-
         # compute statistics by calling rasterstats. rasterstats needs the
         # Affine transformation matrix to work on numpy arrays
         affine = self.geo_info.as_affine()
-        # check if the passed methods are all within the default list supported
-        # by rasterstats. If not a ValueError is raised meaning we have to define
-        # these metrics as additional statistics.
-        # When the array is masked we also have to define custom functions
-        default_stats = True
-        try:
-            check_stats(stats=method, categorical=False)
-        except ValueError:
-            default_stats = False
-        # default rasterstats call
-        if default_stats:
-            vals = self.values.copy()
-            if self.is_masked_array:
-                vals = vals.astype(float)
-                vals = vals.filled(np.nan)
-            stats = zonal_stats(features, vals, affine=affine, stats=method, nodata=self.nodata)
-        else:
-            stats_operator_list = []
-            # loop over operators in method list and make them rasterstats compatible
-            for operator in method:
-                # check if operator stats with 'nan' -> this is discouraged to avoid
-                # errors in rasterstats as rasterstats checks for NaNs internally
+        # check the passed functions. Depending on the type passed rasterstats
+        # has to be called slightly differently
+        stats = ['count']  # set the default to count to bypass rasterstats defaults
+        add_stats = {}
+        stats_operator_list = []
+        # loop over operators in method list and make them rasterstats compatible
+        for operator in method:
+            # check if operator passed is a string
+            if isinstance(operator, str):
+                # the usage of nan-functions is discouraged
                 if operator.startswith('nan'):
                     raise ValueError(
                         'The usage of numpy-nan functions is discouraged and therefore raises an error.' + \
                         '\nThe handling of NaNs is done by `rasterstats` internally and therefore does not' + \
                         '\n need to be specified. Please pass operators by their standard numpy names (e.g., "mean")'
                     )
-                expression = f"{numpy_prefix}.{operator}"
-                # When the array is masked, we have to set masked arrays to NaN
-                if self.is_masked_array:
-                    _operator = operator
-                    _operator = 'nan' + operator
-                    expression = f"{numpy_prefix}.{_operator[3::]}"
-                elif operator.endswith("nonzero"):
-                    expression = f"{numpy_prefix}.count"
-                
-                def _fun_prototype(x: np.ndarray | np.ma.MaskedArray):
-                    """
-                    a function prototype to by-pass custom numpy functions
-                    to rasterstats
-                    """
-                    return eval(f'{expression}(x)')
-                add_stats = {operator: deepcopy(_fun_prototype)}
-                # work-around for masked arrays (unfortunately, rasterstats works not that
-                # nicely)
-                vals = self.values.copy()
-                # cast array to float to set masked arrays to NaN; then we can call np.nan-something
-                # and force rasterstats to return the correct values
-                if self.is_masked_array:
-                    vals = vals.astype(float)
-                    vals = vals.filled(np.nan)
-                # unfortunately, rasterstats always calculates some default statistcs. We therefore
-                # trick it by calling only the count method and delete the result afterwards
-                # Also, there seems to be a bug in rasterstats preventing more than a single
-                # operator to be passed in add_stats (otherwise the values are returned are wrong)
-                stats = zonal_stats(
-                    features, vals, affine=affine, stats='median', add_stats=add_stats
+                # check if the operator is a standard rasterstats operator
+                # raises a ValueError if the passed operator is not implemented
+                check_stats(stats=[operator], categorial=False)
+                stats=[operator]
+            # the passed operator can be also a function prototype (callable)
+            elif callable(operator):
+                add_stats = {operator.__name__: deepcopy(operator)}
+            else:
+                raise ValueError(
+                    f'Could not pass {operator} to rasterstats.\n' + \
+                    'Please check the rasterstats docs how to pass user-defined statistics:\n' + \
+                    'https://pythonhosted.org/rasterstats/manual.html#user-defined-statistics'
                 )
-                stats_operator_list.append(stats)
-            # combine the list of stats into a format consistent with the standard zonal_stats call
-            stats = []
-            for idx in range(features.shape[0]):
-                feature_stats = {}
-                for odx, operator in enumerate(method):
-                    feature_stats[operator] = stats_operator_list[odx][idx][operator]
-                stats.append(feature_stats)
 
-        # save the geometries and all other attributes of the feature(s) used
+            # get raster values from EOdal band
+            vals = self.values.copy()
+
+            # call rasterstats.zonal_stats for the current operator
+            res = zonal_stats(
+                features,
+                vals,
+                affine=affine,
+                stats=stats,
+                add_stats=add_stats,
+                nodata=self.nodata
+            )
+            stats_operator_list.append(res)
+            
+        # combine the list of stats into a format consistent with the standard zonal_stats call
+        _stats = []
         for idx in range(features.shape[0]):
-            stats[idx].update(features.iloc[idx].to_dict())
-            stats[idx].update({'crs': features.crs})
-        return stats
+            feature_stats = {}
+            for odx, operator in enumerate(method):
+                _operator = operator
+                if callable(_operator):
+                    _operator = _operator.__name__
+                feature_operator_res = stats_operator_list[odx][idx][_operator]
+                if not keep_nans:
+                    if np.isnan(feature_operator_res): continue
+                feature_stats[_operator] = feature_operator_res
+            # do not add features without statistics
+            if len(feature_stats) == 0:
+                continue
+            # save the geometries and all other attributes of the feature(s) used
+            feature_stats.update(features.iloc[idx].to_dict())
+            feature_stats.update({'crs': features.crs})
+            _stats.append(feature_stats)
+
+        return _stats
 
     def scale_data(
         self,
