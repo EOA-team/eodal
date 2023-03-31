@@ -95,11 +95,13 @@ def query_creodias(
 
     # get rid of the last %2C
     coord_str = coord_str[:-3]
+    # adopt the processing level
+    processing_level_creodias = processing_level.value.replace('-','').upper()
     # construct the REST query
     query = CREODIAS_FINDER_URL + f"maxRecords={max_records}&"
     query += f"startDate={start_date_str}T00%3A00%3A00Z&completionDate={end_date_str}T23%3A59%3A59Z&"
     query += f"cloudCover=%5B0%2C{cloud_cover_threshold}%5D&"
-    query += f"processingLevel={processing_level.value}&"
+    query += f"processingLevel={processing_level_creodias}&"
     query += f"geometry=POLYGON(({coord_str}))&"
     query += "sortParam=startDate&sortOrder=descending&status=all&dataset=ESA-DATASET"
 
