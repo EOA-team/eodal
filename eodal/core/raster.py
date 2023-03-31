@@ -1264,11 +1264,23 @@ class RasterCollection(MutableMapping):
             stats.append(band_stats)
         # since the geometry information was passed on, a GeoDataFrame can be returned
         df = pd.DataFrame(list(chain(*stats)))
+        # check if the returned DataFrame is empty. In this case return an empty
+        # GeoDataFrame
+        if df.empty:
+            return gpd.GeoDataFrame()
+
         gdf = gpd.GeoDataFrame(df, geometry=df['geometry'], crs=df['crs'].iloc[0])
         # cast columns to float; otherwise pandas throws an error:
         # TypeError: unhashable type: 'MaskedConstant'
         methods = kwargs.get('method', ['min', 'mean', 'std', 'max', 'count'])
-        gdf[methods] = gdf[methods].astype(float)
+        # check if method contains callable functions
+        cleaned_methods = []
+        for method in methods:
+            if callable(method):
+                cleaned_methods.append(method.__name__)
+            else:
+                cleaned_methods.append(method)
+        gdf[cleaned_methods] = gdf[cleaned_methods].astype(float)
         gdf.drop(columns=['crs'], inplace=True)
         return gdf
 
