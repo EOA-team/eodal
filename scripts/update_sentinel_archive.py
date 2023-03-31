@@ -315,6 +315,12 @@ def sentinel_creodias_update(
     )
 
     """
+    sensor = kwargs.get('sensor')
+    if sensor is None:
+        raise TypeError('Sensor is required')
+    if sensor not in ['sentinel1', 'sentinel2']:
+        raise ValueError(f'Unknown sensor: {sensor}')
+
     # since the data is stored by year (each year is a single sub-directory) we
     # can simple loop over the sub-directories and do the check
     for path in Path(sentinel_raw_data_archive).iterdir():
@@ -369,7 +375,6 @@ def sentinel_creodias_update(
                 # once the dataset is moved successfully parse its metadata and
                 # ingest it into the database
                 in_dir = path.joinpath(record.dataset_name)
-                sensor = kwargs.get('sensor')
                 try:
                     if sensor == 'sentinel1':
                         scene_metadata = parse_s1_metadata(in_dir=in_dir)
