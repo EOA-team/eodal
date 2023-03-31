@@ -100,7 +100,7 @@ def query_creodias(
     query += f"startDate={start_date_str}T00%3A00%3A00Z&completionDate={end_date_str}T23%3A59%3A59Z&"
     query += f"cloudCover=%5B0%2C{cloud_cover_threshold}%5D&"
     query += f"processingLevel={processing_level.value}&"
-    query += f"geometry=Polygon(({coord_str}))&"
+    query += f"geometry=POLYGON(({coord_str}))&"
     query += "sortParam=startDate&sortOrder=descending&status=all&dataset=ESA-DATASET"
 
     # GET to CREODIAS Finder API
