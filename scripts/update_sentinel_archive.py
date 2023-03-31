@@ -198,7 +198,11 @@ def pull_from_creodias(
 
     # unzip datasets
     if unzip:
-        unzip_datasets(download_dir=path_out)
+        if sensor == 'sentinel1':
+            platform = 'S1'
+        elif sensor == 'sentinel2':
+            platform = 'S2'
+        unzip_datasets(download_dir=path_out, platform=platform)
 
     return datasets_filtered
 
