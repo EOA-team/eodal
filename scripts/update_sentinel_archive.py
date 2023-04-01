@@ -55,10 +55,16 @@ from eodal.metadata.sentinel2.database.ingestion import meta_df_to_database as s
 from eodal.metadata.sentinel2.database.querying import find_raw_data_by_bbox as s2_db_query
 from eodal.metadata.sentinel2.parsing import parse_s2_scene_metadata
 from eodal.utils.constants import ProcessingLevels
+from eodal.utils.exceptions import DataNotFoundError
 
 settings = get_settings()
 logger = settings.logger
 max_records = settings.CREODIAS_MAX_RECORDS
+
+required_subdirectories = {
+    'sentinel1': ['measurement'],
+    'sentinel2': ['GRANULE', 'AUX_DATA']
+}
 
 def pull_from_creodias(
     date_start: date,
@@ -198,7 +204,14 @@ def pull_from_creodias(
 
     # unzip datasets
     if unzip:
-        unzip_datasets(download_dir=path_out)
+        if sensor == 'sentinel1':
+            platform = 'S1'
+        elif sensor == 'sentinel2':
+            platform = 'S2'
+        try:
+            unzip_datasets(download_dir=path_out, platform=platform)
+        except DataNotFoundError as e:
+            logger.warn(e)
 
     return datasets_filtered
 
@@ -302,6 +315,12 @@ def sentinel_creodias_update(
     )
 
     """
+    sensor = kwargs.get('sensor')
+    if sensor is None:
+        raise TypeError('Sensor is required')
+    if sensor not in ['sentinel1', 'sentinel2']:
+        raise ValueError(f'Unknown sensor: {sensor}')
+
     # since the data is stored by year (each year is a single sub-directory) we
     # can simple loop over the sub-directories and do the check
     for path in Path(sentinel_raw_data_archive).iterdir():
@@ -332,25 +351,43 @@ def sentinel_creodias_update(
                 continue
 
             # move the datasets into the actual SAT archive (on level up)
-            error_happened = False
-            errored_datasets = []
-            error_msgs = []
             parent_dir = path_out.parent
             for _, record in downloaded_ds.iterrows():
+                # check if the record exists first
+                if not path_out.joinpath(record.dataset_name).exists():
+                    logger.warn(f'{record.dataset_name} does not exist')
+                    continue
+
                 try:
                     shutil.move(record.dataset_name, "..")
                     logger.info(f"Moved {record.dataset_name} to {parent_dir}")
-                    # once the dataset is moved successfully parse its metadata and
-                    # ingest it into the database
-                    in_dir = path.joinpath(record.dataset_name)
-                    sensor = kwargs.get('sensor')
+                except Exception as e:
+                    logger.error(f'Could not move {record.dataset_name}: {e}')
+                    continue
+
+                # check if the SAFE folder is complete
+                for required_subdir in required_subdirectories[sensor]:
+                    if not parent_dir.joinpath(record.dataset_name).joinpath(required_subdir).exists():
+                        logger.error(f'{record.dataset_name} has no sub-directory {required_subdir}')
+                        shutil.rmtree(parent_dir.joinpath(record.dataset_name))
+                        continue
+
+                # once the dataset is moved successfully parse its metadata and
+                # ingest it into the database
+                in_dir = path.joinpath(record.dataset_name)
+                try:
                     if sensor == 'sentinel1':
                         scene_metadata = parse_s1_metadata(in_dir=in_dir)
                     elif sensor == 'sentinel2':
                         scene_metadata, _ = parse_s2_scene_metadata(in_dir=in_dir)
+                except Exception as e:
+                    logger.error(f'Parsing of metadata of {record.dataset_name} failed: {e}')
+                    shutil.rmtree(in_dir)
+                    continue
 
-                    # some path handling if required
-                    if path_options != {}:
+                # some path handling if required
+                if path_options != {}:
+                    try:
                         scene_metadata["storage_device_ip"] = path_options.get(
                             "storage_device_ip", ""
                         )
@@ -364,40 +401,27 @@ def sentinel_creodias_update(
                         scene_metadata["storage_share"] = scene_metadata[
                             "storage_share"
                         ].replace(mount_point, mount_point_replacement)
+                    except Exception as e:
+                        logger.error(f'Handling path options for {record.dataset_name} failed: {e}')
+                        shutil.rmtree(in_dir)
+                        continue
 
                     # database insert
-                    if sensor == 'sentinel1':
-                        s1_meta_to_db(meta_df=scene_metadata)
-                    elif sensor == 'sentinel2':
-                        s2_meta_to_db(meta_df=scene_metadata)
-
-                    logger.info(
-                        f"Ingested scene metadata for {record.dataset_name} into DB"
-                    )
-
-                except Exception as e:
-                    error_happened = True
-                    logger.error(f"{record.dataset_name} produced an error: {e}")
-                    errored_datasets.append(record.dataset_name)
-                    error_msgs.append(e)
+                    try:
+                        scene_metadata = pd.DataFrame([scene_metadata])
+                        if sensor == 'sentinel1':
+                            s1_meta_to_db(meta_df=scene_metadata)
+                        elif sensor == 'sentinel2':
+                            s2_meta_to_db(meta_df=scene_metadata)
+                        logger.info(
+                            f"Ingested scene metadata for {record.dataset_name} into DB"
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f'Could not ingest scene metadata for {record.dataset_name} into DB: {e}'
+                        )
+                        shutil.rmtree(in_dir)
+                        continue
 
             # delete the temp_dl directory
             shutil.rmtree(path_out)
-
-            # log the errored datasets if any error happened
-            if error_happened:
-                # get the timestamp (date) of the current run
-                processing_date = datetime.now().date().strftime("%Y-%m-%d")
-                # write to log directory
-                log_dir = path_out.parent.joinpath("logs")
-                if not log_dir.exists():
-                    log_dir.mkdir()
-                errored_logfile = log_dir.joinpath("datasets_errored.csv")
-                if not errored_logfile.exists():
-                    with open(errored_logfile, "w") as src:
-                        line = "download_date,dataset_name,error_message\n"
-                        src.writelines(line)
-                with open(errored_logfile, "a") as src:
-                    for error in list(zip(errored_datasets, error_msgs)):
-                        line = processing_date + "," + error[0] + "," + str(error[1])
-                        src.writelines(line + "\n")
