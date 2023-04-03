@@ -10,6 +10,18 @@ The format is based on `Keep a Changelog`_, and this project adheres to `Semanti
 
 Categories for changes are: Added, Changed, Deprecated, Removed, Fixed, Security.
 
+Version `0.2.0 < https://github.com/EOA-team/eodal/releases/tag/v0.2.0>`__
+--------------------------------------------------------------------------------
+
+Release date: 2023-04-03
+
+- Added: the new EOdal Mapper class has been fully implemented and replaces the old mapper version. Scripts calling the Mapper must be updated.
+- Deprecated: the previous EOdal Mapper class. The enitre eodal.operational sub-package has been deprecated.
+- Deprecated: the sub-package called eodal.operational.cli has been deprecated. Some useful scripts have been ported to the `scripts` folder in the main directory of the EOdal git repository.
+- Changed: The EOdal pystac client has been re-designed to provide a higher level of generalization. Still, future changes might apply.
+- Fixed: SceneCollection.get_feature_timeseries() had several bugs. Thanks to @atoparseks the code has been cleaned up, made simpler and works now with custom functions for computing user-defined zonal statistical metrics.
+- Fixed: Several small bugs in the core module with varying levels of severity.
+
 Version `0.1.1 < https://github.com/EOA-team/eodal/releases/tag/v0.1.1>`__
 --------------------------------------------------------------------------------
 
