@@ -6,6 +6,7 @@ import pytest
 
 from datetime import date
 
+from eodal.mapper.filter import Filter
 from eodal.metadata.stac import sentinel1, sentinel2
 from eodal.utils.sentinel1 import _url_to_safe_name
 from eodal.utils.sentinel2 import ProcessingLevels
@@ -19,9 +20,11 @@ def test_mspc_sentinel1(get_polygons):
     polys = get_polygons()
 
     res_s1 = sentinel1(
-        date_start=date_start,
-        date_end=date_end,
-        bounding_box=polys
+        time_start=date_start,
+        time_end=date_end,
+        bounding_box=polys,
+        metadata_filters=[],
+        platform='s1'
     )
 
     assert not res_s1.empty, 'no mapper found'
@@ -32,10 +35,11 @@ def test_mspc_sentinel1(get_polygons):
 
     # test GRD
     res_grd_s1 = sentinel1(
-        date_start=date_start,
-        date_end=date_end,
+        time_start=date_start,
+        time_end=date_end,
         bounding_box=polys,
-        collection='sentinel-1-grd'
+        platform='s1',
+        metadata_filters=[Filter('product_type','==','GRD')]
     )
 
     assert not res_grd_s1.empty, 'no mapper found'
@@ -52,19 +56,24 @@ def test_mspc_sentinel2(get_polygons):
     date_start = date(2022, 5, 1)
     date_end = date(2022, 5, 31)
     # select processing level
-    processing_level = ProcessingLevels.L2A
+    processing_level = 'Level-2A'
     # set scene cloud cover threshold [%]
     cloud_cover_threshold = 80
 
     polys = get_polygons()
 
+    metadata_filters = [
+        Filter('cloudy_pixel_percentage', '<', cloud_cover_threshold),
+        Filter('processing_level', '==', processing_level)
+    ]
+
     # run stack query and make sure some items are returned
     res_s2 = sentinel2(
-        date_start=date_start,
-        date_end=date_end,
-        processing_level=processing_level,
-        cloud_cover_threshold=cloud_cover_threshold,
-        bounding_box=polys
+        time_start=date_start,
+        time_end=date_end,
+        bounding_box=polys,
+        metadata_filters=metadata_filters,
+        platform='s2'
     )
     assert not res_s2.empty, 'no results found'
     assert 'assets' in res_s2.columns, 'no assets provided'
