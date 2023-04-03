@@ -36,6 +36,7 @@ from eodal.utils.constants.sentinel2 import ProcessingLevels
 
 Settings = get_settings()
 
+
 def _url_to_safe_name(stac_asset: Union[str, Dict[str, Any]]) -> str:
     """
     extracts the .SAFE name from the asset returned by the STAC query
@@ -46,10 +47,13 @@ def _url_to_safe_name(stac_asset: Union[str, Dict[str, Any]]) -> str:
         .SAFE dataset name extracted from the URL of B01
     """
     if isinstance(stac_asset, dict):
-        stac_asset = stac_asset['B01']['href']
-    url_parts = stac_asset.split('/')
-    dot_safe_name = [x for x in url_parts if x.startswith('S2') and x.endswith('.SAFE')][0]
+        stac_asset = stac_asset["B01"]["href"]
+    url_parts = stac_asset.split("/")
+    dot_safe_name = [
+        x for x in url_parts if x.startswith("S2") and x.endswith(".SAFE")
+    ][0]
     return dot_safe_name
+
 
 def get_S2_processing_level(dot_safe_name: Union[str, Path]) -> ProcessingLevels:
     """
@@ -73,6 +77,7 @@ def get_S2_processing_level(dot_safe_name: Union[str, Path]) -> ProcessingLevels
     else:
         raise ValueError(f"Could not determine processing level for {dot_safe_name}")
 
+
 def get_S2_acquistion_time_from_safe(dot_safe_name: Union[str, Path]) -> date:
     """
     Determines the image acquisition time of a dataset in .SAFE format
@@ -90,6 +95,7 @@ def get_S2_acquistion_time_from_safe(dot_safe_name: Union[str, Path]) -> date:
 
     return datetime.strptime(dot_safe_name.split("_")[2], "%Y%m%dT%H%M%S")
 
+
 def get_S2_acquistion_date_from_safe(dot_safe_name: Union[str, Path]) -> date:
     """
     Determines the image acquisition date of a dataset in .SAFE format
@@ -101,6 +107,7 @@ def get_S2_acquistion_date_from_safe(dot_safe_name: Union[str, Path]) -> date:
         image acquistion date
     """
     return get_S2_acquistion_time_from_safe(dot_safe_name).date()
+
 
 def get_S2_processing_baseline_from_safe(dot_safe_name: Union[str, Path]) -> int:
     """
@@ -119,6 +126,7 @@ def get_S2_processing_baseline_from_safe(dot_safe_name: Union[str, Path]) -> int
 
     return int(dot_safe_name.split("_")[3].replace("N", ""))
 
+
 def get_S2_platform_from_safe(dot_safe_name: Union[str, Path]) -> str:
     """
     Determines the platform (e.g., S2A) from the dataset in .SAFE format
@@ -135,6 +143,7 @@ def get_S2_platform_from_safe(dot_safe_name: Union[str, Path]) -> str:
         dot_safe_name = _url_to_safe_name(dot_safe_name)
 
     return dot_safe_name.split("_")[0]
+
 
 def get_S2_bandfiles(
     in_dir: Path, resolution: Optional[int] = None, is_L2A: Optional[bool] = True
@@ -163,6 +172,7 @@ def get_S2_bandfiles(
             search_pattern = f"GRANULE/*/IM*/*B*.jp2"
     files = glob.glob(str(in_dir.joinpath(search_pattern)))
     return [Path(x) for x in files]
+
 
 def get_S2_sclfile(
     in_dir: Path,
@@ -215,6 +225,7 @@ def get_S2_sclfile(
             f'Could not find SCL file based on "{search_pattern}": {e}'
         )
     return Path(scl_file)
+
 
 def get_S2_bandfiles_with_res(
     in_dir: Path,
@@ -273,6 +284,7 @@ def get_S2_bandfiles_with_res(
     # construct pandas DataFrame with all band entries and return
     band_df = pd.DataFrame(band_list)
     return band_df
+
 
 def get_S2_tci(
     in_dir: Path,

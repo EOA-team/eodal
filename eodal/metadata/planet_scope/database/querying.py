@@ -94,9 +94,11 @@ def find_raw_data_by_bbox(
             PS_SuperDove_Metadata.sun_azimuth,
             PS_SuperDove_Metadata.sun_elevation,
             PS_SuperDove_Metadata.satellite_azimuth,
-            PS_SuperDove_Metadata.view_angle
+            PS_SuperDove_Metadata.view_angle,
         )
-        .filter(ST_Intersects(PS_SuperDove_Metadata.geom, ST_GeomFromText(bounding_box)))
+        .filter(
+            ST_Intersects(PS_SuperDove_Metadata.geom, ST_GeomFromText(bounding_box))
+        )
         .filter(
             and_(
                 PS_SuperDove_Metadata.sensing_date <= date_end,
@@ -115,6 +117,7 @@ def find_raw_data_by_bbox(
         raise DataNotFoundError(
             f"Could not find Planet-Scope data by bounding box: {e}"
         )
+
 
 def get_scene_metadata(scene_id: str) -> pd.DataFrame:
     """

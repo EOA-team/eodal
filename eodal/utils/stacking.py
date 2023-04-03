@@ -31,7 +31,7 @@ def stack_dataframes(
     search_pattern: str,
     start_date: Optional[int] = None,
     end_date: Optional[int] = None,
-    **kwargs
+    **kwargs,
 ) -> pd.DataFrame:
     """
     stacks a list of pandas dataframes into a single big one

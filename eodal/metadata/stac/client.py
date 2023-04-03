@@ -21,6 +21,7 @@ from eodal.utils.reprojection import infer_utm_zone
 
 Settings = get_settings()
 
+
 def query_stac(
     time_start: datetime,
     time_end: datetime,
@@ -67,9 +68,9 @@ def query_stac(
     scenes = item_json["features"]
     return scenes
 
+
 def _filter_criteria_fulfilled(
-    metadata_dict: Dict[str, Any],
-    metadata_filters: List[Filter]
+    metadata_dict: Dict[str, Any], metadata_filters: List[Filter]
 ) -> bool:
     """
     Check if a scene fulfills the metadata filter criteria
@@ -84,11 +85,11 @@ def _filter_criteria_fulfilled(
     """
     criteria_fulfilled = True
     for filter in metadata_filters:
-        if filter.entity in ['processing_level', 'product_type']:
+        if filter.entity in ["processing_level", "product_type"]:
             continue
         if filter.entity not in metadata_dict.keys():
             warnings.warn(
-                f'{filter.entity} could not be retrieved from STAC -> skipping filter'
+                f"{filter.entity} could not be retrieved from STAC -> skipping filter"
             )
         # check if the filter condition is met
         condition_met = eval(
@@ -99,10 +100,9 @@ def _filter_criteria_fulfilled(
             break
     return criteria_fulfilled
 
+
 @prepare_bbox
-def sentinel2(
-    metadata_filters: List[Filter], **kwargs
-) -> gpd.GeoDataFrame:
+def sentinel2(metadata_filters: List[Filter], **kwargs) -> gpd.GeoDataFrame:
     """
     Sentinel-2 specific STAC query allows filtering by scene-wide cloudy pixel
     percentage.
@@ -116,15 +116,17 @@ def sentinel2(
     """
     # check for processing level of the data and set the collection accordingly
     filter_entities = [x.entity for x in metadata_filters]
-    if 'processing_level' in filter_entities:
-        processing_level = [x.value for x in metadata_filters if x.entity == 'processing_level'][0]
-        processing_level = processing_level.replace('-','_')
+    if "processing_level" in filter_entities:
+        processing_level = [
+            x.value for x in metadata_filters if x.entity == "processing_level"
+        ][0]
+        processing_level = processing_level.replace("-", "_")
     processing_level_stac = eval(f"Settings.STAC_BACKEND.S2{processing_level}")
     kwargs.update({"collection": processing_level_stac})
 
     # query STAC catalog
     stac_kwargs = kwargs.copy()
-    del stac_kwargs['platform']
+    del stac_kwargs["platform"]
     scenes = query_stac(**stac_kwargs)
     # get STAC provider specific naming conventions
     s2 = Settings.STAC_BACKEND.Sentinel2
@@ -170,7 +172,7 @@ def sentinel2(
             ),
             "sun_azimuth_angle": props[s2.sun_azimuth_angle],
             "sun_zenith_angle": props[s2.sun_zenith_angle],
-            "geom": Polygon(scene['geometry']['coordinates'][0])
+            "geom": Polygon(scene["geometry"]["coordinates"][0]),
         }
         # get links to actual Sentinel-2 bands
         meta_dict["assets"] = scene["assets"]
@@ -182,13 +184,12 @@ def sentinel2(
 
     # create geppandas GeoDataFrame out of scene metadata records
     df = pd.DataFrame(metadata_list)
-    df.sort_values(by='sensing_time', inplace=True)
-    return gpd.GeoDataFrame(df, geometry='geom', crs=4326)
+    df.sort_values(by="sensing_time", inplace=True)
+    return gpd.GeoDataFrame(df, geometry="geom", crs=4326)
+
 
 @prepare_bbox
-def sentinel1(
-    metadata_filters: List[Filter], **kwargs
-) -> gpd.GeoDataFrame:
+def sentinel1(metadata_filters: List[Filter], **kwargs) -> gpd.GeoDataFrame:
     """
     Sentinel-1 specific STAC query function to retrieve mapper from MSPC.
 
@@ -206,34 +207,36 @@ def sentinel1(
     """
 
     if Settings.STAC_BACKEND != STAC_Providers.MSPC:
-        raise ValueError('This method currently requires Microsoft Planetary Computer')
+        raise ValueError("This method currently requires Microsoft Planetary Computer")
 
     # construct collection string (defaults to S1RTC if not stated otherwise in the
     # metadata filters)
-    collection = 'S1'
-    if len([x.entity for x in metadata_filters if x.entity == 'product_type']) == 1:
-        collection += [x.value for x in metadata_filters if x.entity == 'product_type'][0]
+    collection = "S1"
+    if len([x.entity for x in metadata_filters if x.entity == "product_type"]) == 1:
+        collection += [x.value for x in metadata_filters if x.entity == "product_type"][
+            0
+        ]
     else:
-        collection += 'RTC'
+        collection += "RTC"
 
     # query the catalog
     stac_kwargs = kwargs.copy()
-    del stac_kwargs['platform']
-    stac_kwargs.update({'collection': eval(f"Settings.STAC_BACKEND.{collection}")})
+    del stac_kwargs["platform"]
+    stac_kwargs.update({"collection": eval(f"Settings.STAC_BACKEND.{collection}")})
     scenes = query_stac(**stac_kwargs)
     metadata_list = []
     for scene in scenes:
-        metadata_dict = scene['properties']
-        metadata_dict['assets'] = scene['assets']
-        metadata_dict['sensing_time'] = metadata_dict['datetime']
-        metadata_dict['sensing_date'] = datetime.strptime(
-            metadata_dict['sensing_time'].split("T")[0], "%Y-%m-%d"
+        metadata_dict = scene["properties"]
+        metadata_dict["assets"] = scene["assets"]
+        metadata_dict["sensing_time"] = metadata_dict["datetime"]
+        metadata_dict["sensing_date"] = datetime.strptime(
+            metadata_dict["sensing_time"].split("T")[0], "%Y-%m-%d"
         ).date()
-        del metadata_dict['datetime']
+        del metadata_dict["datetime"]
         # infer EPSG code of the scene in UTM coordinates from its bounding box
-        bbox = box(*scene['bbox'])
-        metadata_dict['epsg'] = infer_utm_zone(bbox)
-        metadata_dict['geom'] = bbox
+        bbox = box(*scene["bbox"])
+        metadata_dict["epsg"] = infer_utm_zone(bbox)
+        metadata_dict["geom"] = bbox
         # apply filters
         append_scene = _filter_criteria_fulfilled(metadata_dict, metadata_filters)
         if append_scene:
@@ -241,5 +244,5 @@ def sentinel1(
 
     # create geppandas GeoDataFrame out of scene metadata records
     df = pd.DataFrame(metadata_list)
-    df.sort_values(by='sensing_time', inplace=True)
-    return gpd.GeoDataFrame(df, geometry='geom', crs=4326)
+    df.sort_values(by="sensing_time", inplace=True)
+    return gpd.GeoDataFrame(df, geometry="geom", crs=4326)

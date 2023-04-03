@@ -43,9 +43,9 @@ class SpectralIndices(object):
     swir_2 = "swir_2"
 
     # polarizations (for SAR)
-    vv = 'VV'
-    vh = 'VH'
-    hh = 'HH'
+    vv = "VV"
+    vh = "VH"
+    hh = "HH"
 
     @classmethod
     def get_si_list(cls) -> List[str]:

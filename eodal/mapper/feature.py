@@ -1,4 +1,4 @@
-'''
+"""
 Module defining geographic features for mapping.
 
 .. versionadded:: 0.1.1
@@ -17,7 +17,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 from __future__ import annotations
 
@@ -30,6 +30,7 @@ from shapely.geometry import MultiPoint, MultiPolygon, Point, Polygon
 from typing import Any, Dict, Optional
 
 allowed_geom_types = [MultiPoint, MultiPolygon, Point, Polygon]
+
 
 class Feature:
     """
@@ -44,13 +45,14 @@ class Feature:
     :attrib attributes:
         optional attributes of the feature
     """
+
     def __init__(
-            self,
-            name: str,
-            geometry: MultiPoint | MultiPolygon | Point | Polygon,
-            epsg: int,
-            attributes: Optional[Dict[str, Any] | pd.Series] = {}
-        ):
+        self,
+        name: str,
+        geometry: MultiPoint | MultiPolygon | Point | Polygon,
+        epsg: int,
+        attributes: Optional[Dict[str, Any] | pd.Series] = {},
+    ):
         """
         Class constructor
 
@@ -64,14 +66,14 @@ class Feature:
             optional attributes of the feature
         """
         # check inputs
-        if name == '':
-            raise ValueError(f'Empty feature names are not allowed')
+        if name == "":
+            raise ValueError(f"Empty feature names are not allowed")
         if type(geometry) not in allowed_geom_types:
-            raise ValueError(f'geometry must of type {allowed_geom_types}')
+            raise ValueError(f"geometry must of type {allowed_geom_types}")
         if type(epsg) != int or epsg <= 0:
-            raise ValueError('EPSG code must be a positive integer value')
+            raise ValueError("EPSG code must be a positive integer value")
         if not isinstance(attributes, pd.Series) and not isinstance(attributes, dict):
-            raise ValueError('Attributes must pd.Series or dictionary')
+            raise ValueError("Attributes must pd.Series or dictionary")
 
         self._name = name
         self._geometry = geometry
@@ -79,9 +81,11 @@ class Feature:
         self._attributes = attributes
 
     def __repr__(self) -> str:
-        return f'Name\t\t{self.name}\nGeometry\t' + \
-            f'{self.geometry}\nEPSG Code\t{self.epsg}' + \
-            f'\nAttributes\t{self.attributes}'
+        return (
+            f"Name\t\t{self.name}\nGeometry\t"
+            + f"{self.geometry}\nEPSG Code\t{self.epsg}"
+            + f"\nAttributes\t{self.attributes}"
+        )
 
     @property
     def attributes(self) -> Dict:
@@ -120,7 +124,7 @@ class Feature:
             name=gds.name,
             geometry=gds.geometry.values[0],
             epsg=gds.crs.to_epsg(),
-            attributes=gds.attrs
+            attributes=gds.attrs,
         )
 
     @classmethod
@@ -135,17 +139,17 @@ class Feature:
         """
         try:
             return cls(
-                name=dictionary['name'],
-                geometry=wkt.loads(dictionary['geometry']),
-                epsg=int(dictionary['epsg']),
-                attributes=dictionary['attributes']
+                name=dictionary["name"],
+                geometry=wkt.loads(dictionary["geometry"]),
+                epsg=int(dictionary["epsg"]),
+                attributes=dictionary["attributes"],
             )
         except KeyError:
             raise ValueError(
-                'Dictionary does not have fields required to instantiate a new Feature'
+                "Dictionary does not have fields required to instantiate a new Feature"
             )
         except WKTReadingError as e:
-            raise ValueError(f'Invalid Geometry: {e}')
+            raise ValueError(f"Invalid Geometry: {e}")
 
     def to_epsg(self, epsg: int):
         """
@@ -169,7 +173,7 @@ class Feature:
         :returns:
             Feature object casted as `GeoSeries`
         """
-        gds = gpd.GeoSeries([self.geometry], crs=f'EPSG:{self.epsg}')
+        gds = gpd.GeoSeries([self.geometry], crs=f"EPSG:{self.epsg}")
         # add attributes from Feature
         gds.attrs = self.attributes
         gds.name = self.name
@@ -183,8 +187,8 @@ class Feature:
             Feature object as pure Python dictionary
         """
         feature_dict = {}
-        feature_dict['name'] = self.name
-        feature_dict['epsg'] = self.epsg
-        feature_dict['geometry'] = self.geometry.wkt
-        feature_dict['attributes'] = self.attributes
+        feature_dict["name"] = self.name
+        feature_dict["epsg"] = self.epsg
+        feature_dict["geometry"] = self.geometry.wkt
+        feature_dict["attributes"] = self.attributes
         return feature_dict

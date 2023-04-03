@@ -1,4 +1,4 @@
-'''
+"""
 Class for interacting with PlanetScope's Data and Order URL for checking
 available mapper, placing orders and downloading data.
 
@@ -26,7 +26,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 from __future__ import annotations
 
 import geopandas as gpd
@@ -54,6 +54,7 @@ logger = Settings.logger
 orders_url = Settings.ORDERS_URL
 data_url = Settings.DATA_URL
 
+
 class PlanetAPIClient(object):
     """
     `eodal` Planet-API client.
@@ -71,11 +72,11 @@ class PlanetAPIClient(object):
     """
 
     def __init__(
-            self,
-            request: Optional[Dict[str, Any]] = {},
-            features: Optional[List[Dict[str, Any]]] = [{}],
-            session: Optional[Session] = None
-        ):
+        self,
+        request: Optional[Dict[str, Any]] = {},
+        features: Optional[List[Dict[str, Any]]] = [{}],
+        session: Optional[Session] = None,
+    ):
         """
         Class constructor method
 
@@ -101,9 +102,9 @@ class PlanetAPIClient(object):
     @features.setter
     def features(self, val: List[Dict[str, Any]]):
         if not isinstance(val, list):
-            raise TypeError('Expected a list object')
+            raise TypeError("Expected a list object")
         if not all([isinstance(x, dict) for x in val]):
-            raise TypeError('all list elements must be dictionaries')
+            raise TypeError("all list elements must be dictionaries")
         self._features = val
 
     @property
@@ -113,7 +114,7 @@ class PlanetAPIClient(object):
     @request.setter
     def request(self, val: Dict[str, Any]) -> None:
         if not isinstance(val, dict):
-            raise TypeError('Expected a dictionary object')
+            raise TypeError("Expected a dictionary object")
         self._request = val
 
     @property
@@ -124,8 +125,7 @@ class PlanetAPIClient(object):
     def session(self, val: Session):
         if not isinstance(val, Session) and val is not None:
             raise TypeError(
-                'Expected a Session object ' + \
-                '(requests.sessions.Session object)'
+                "Expected a Session object " + "(requests.sessions.Session object)"
             )
         self._session = val
 
@@ -133,7 +133,7 @@ class PlanetAPIClient(object):
     def date_to_planet_dt(date_to_convert: date) -> str:
         """
         Converts datetime.date to format required by Planet API
-    
+
         :param date_to_convert:
             date to convert
         :returns:
@@ -146,9 +146,9 @@ class PlanetAPIClient(object):
     def quicksearch(session: Session, request_data: Dict[str, Any]) -> Response:
         """
         Queries the Planet Data API based on user-defined request.
-    
+
         This returns available datasets but does not place a order!
-    
+
         :param session:
             authenticated session object
         :param request_data:
@@ -156,28 +156,29 @@ class PlanetAPIClient(object):
         :returns:
             `Response` object whose json attribute contains the features found
         """
-        quick_url = f'{data_url}/quick-search'
+        quick_url = f"{data_url}/quick-search"
         # post request to the API quick search endpoint
         response = session.post(quick_url, json=request_data)
         if response.status_code != 200:
             raise APIError(
-                f'[HTTP:{response.status_code}] Could not query {quick_url}: {response.text}')
+                f"[HTTP:{response.status_code}] Could not query {quick_url}: {response.text}"
+            )
         return response
 
     @classmethod
     def query_planet_api(
-            cls,
-            start_date: date,
-            end_date: date,
-            bounding_box: Path | gpd.GeoDataFrame,
-            instrument: Optional[str] = 'PSB.SD',
-            item_type: Optional[str] = 'PSScene',
-            cloud_cover_threshold: Optional[int] = 100
-        ):
+        cls,
+        start_date: date,
+        end_date: date,
+        bounding_box: Path | gpd.GeoDataFrame,
+        instrument: Optional[str] = "PSB.SD",
+        item_type: Optional[str] = "PSScene",
+        cloud_cover_threshold: Optional[int] = 100,
+    ):
         """
         Queries the Planet API to retrieve available datasets (no download,
         no order placement).
-    
+
         :param start_date:
             start date of the queried time period (inclusive)
         :param end_date:
@@ -198,69 +199,61 @@ class PlanetAPIClient(object):
         """
         # open authenticated session
         cls.authenticate(self=cls, url=orders_url)
-    
+
         # check bounding box; re-project to WGS84 if necessary
         if isinstance(bounding_box, Path):
             bbox = gpd.read_file(bounding_box)
         elif isinstance(bounding_box, gpd.GeoDataFrame):
             bbox = bounding_box.copy()
         else:
-            raise TypeError('bounding_box must be Path object or GeoDataFrame')
+            raise TypeError("bounding_box must be Path object or GeoDataFrame")
         # convert bounding box to geojson
         bbox_feature = box_to_geojson(gdf=bbox)
 
         # scale cloud cover between 0 and 1
         cloud_cover_threshold *= 0.01
-    
+
         # adjust date time format required by Planet API
         start_time = cls.date_to_planet_dt(date_to_convert=start_date)
         end_time = cls.date_to_planet_dt(date_to_convert=end_date)
-    
+
         # define the date filter
         date_filter = {
             "type": "DateRangeFilter",
             "field_name": "acquired",
-            "config": {
-                "gte": start_time,
-                "lte": end_time
-            }
+            "config": {"gte": start_time, "lte": end_time},
         }
-        
+
         # define geometry filter
-        geom_filter ={
+        geom_filter = {
             "type": "GeometryFilter",
             "field_name": "geometry",
-            "config": bbox_feature
+            "config": bbox_feature,
         }
-        
+
         # define cloud cover filter with less than 50% cloud coverage
         cloud_cover_filter = {
             "type": "RangeFilter",
             "field_name": "cloud_cover",
-            "config":{
-                "lte": cloud_cover_threshold
-            }
+            "config": {"lte": cloud_cover_threshold},
         }
-    
+
         # define instrument filter
         instrument_filter = {
             "type": "StringInFilter",
             "field_name": "instrument",
-            "config": [instrument]
+            "config": [instrument],
         }
-    
+
         # put all filters together
         andfilter = {
             "type": "AndFilter",
-            "config": [date_filter, instrument_filter, geom_filter, cloud_cover_filter]
+            "config": [date_filter, instrument_filter, geom_filter, cloud_cover_filter],
         }
-    
+
         # setup the request for the API
-        request_data = {
-            "item_types": [item_type],
-            "filter": andfilter
-        }
-    
+        request_data = {"item_types": [item_type], "filter": andfilter}
+
         response = cls.quicksearch(session=cls.session, request_data=request_data)
         features = response.json()["features"]
 
@@ -269,19 +262,20 @@ class PlanetAPIClient(object):
     def authenticate(self, url: str) -> None:
         """
         Authentication for using the Planet (orders) API
-    
+
         :param url:
             API end-point for testing authentication
         """
         # open a session and try to authenticate
         self.session = requests.Session()
-        self.session.auth = (Settings.PLANET_API_KEY, '')
+        self.session.auth = (Settings.PLANET_API_KEY, "")
         response = self.session.get(url)
         # make sure authentication was successful (return code 200)
         if response.status_code != 200:
             raise AuthenticationError(
-                f'[HTTP:{response.status_code}] Could not authenticate at ' + \
-                f'{url}: {response.text}')
+                f"[HTTP:{response.status_code}] Could not authenticate at "
+                + f"{url}: {response.text}"
+            )
 
     def _check_order_status(self, order_url: str) -> str:
         """
@@ -294,10 +288,15 @@ class PlanetAPIClient(object):
         """
         r = self.session.get(order_url)
         response = r.json()
-        return response['state']
+        return response["state"]
 
-    def check_order_status(self, order_url: str, loop: Optional[bool] = False,
-                           sleep_time: Optional[int] = 10, max_iter: Optional[int] = 1000):
+    def check_order_status(
+        self,
+        order_url: str,
+        loop: Optional[bool] = False,
+        sleep_time: Optional[int] = 10,
+        max_iter: Optional[int] = 1000,
+    ):
         """
         Checks the order status of a placed order (authenticated session required).
 
@@ -321,17 +320,19 @@ class PlanetAPIClient(object):
         with alive_bar(max_iter, force_tty=True) as prog_bar:
             for _ in range(max_iter):
                 status = self._check_order_status(order_url)
-                if status in ['success', 'failed', 'partial']:
+                if status in ["success", "failed", "partial"]:
                     return status
                 time.sleep(sleep_time)
                 prog_bar()
 
         return status
 
-    def place_order(self, order_name: str,
-                    product_bundle: Optional[str] = 'analytic_8b_sr_udm2',
-                    processing_tools: Optional[List[Dict[str, Any]]] = None
-                    ) -> str:
+    def place_order(
+        self,
+        order_name: str,
+        product_bundle: Optional[str] = "analytic_8b_sr_udm2",
+        processing_tools: Optional[List[Dict[str, Any]]] = None,
+    ) -> str:
         """
         Places (activates) an order. Only activated orders can be downloaded
         once they are available.
@@ -354,41 +355,35 @@ class PlanetAPIClient(object):
             URL of the placed order
         """
         # set content-type to application/json
-        headers = {'content-type': 'application/json'}
+        headers = {"content-type": "application/json"}
         # prepare request body using (data part)
         data_request_dict = {}
-        data_request_dict.update({
-            'item_type': self.request['item_types'][0],
-            'item_ids': [x['id'] for x in self.features],
-            'product_bundle': product_bundle
-        })
+        data_request_dict.update(
+            {
+                "item_type": self.request["item_types"][0],
+                "item_ids": [x["id"] for x in self.features],
+                "product_bundle": product_bundle,
+            }
+        )
 
         # create the order request
-        order_request = {
-            'name': order_name,
-            'products': [data_request_dict]
-        }
+        order_request = {"name": order_name, "products": [data_request_dict]}
         # add further optional processing tools (clipping, band math, etc.)
         if processing_tools is not None:
-            order_request.update({
-                'tools': processing_tools
-            })
+            order_request.update({"tools": processing_tools})
         order_request_json = json.dumps(order_request)
         response = self.session.post(
-            orders_url,
-            data=order_request_json,
-            headers=headers,
-            auth=self.session.auth
+            orders_url, data=order_request_json, headers=headers, auth=self.session.auth
         )
-    
+
         if not response.ok:
             raise APIError(
-                f'[HTTP:{response.status_code}]: Placing order failed: {response.content}'
+                f"[HTTP:{response.status_code}]: Placing order failed: {response.content}"
             )
 
         # get order ID and return its URL
-        order_id = response.json()['id']
-        order_url = orders_url + '/' + order_id
+        order_id = response.json()["id"]
+        order_url = orders_url + "/" + order_id
         return order_url
 
     def get_orders(self) -> pd.DataFrame:
@@ -400,11 +395,15 @@ class PlanetAPIClient(object):
         """
         response = self.session.get(orders_url)
         response.raise_for_status()
-        orders = response.json()['orders']
+        orders = response.json()["orders"]
         return pd.DataFrame(orders)
 
-    def download_order(self, download_dir: Path, order_name: Optional[str] = '',
-                       order_url: Optional[str] = '') -> None:
+    def download_order(
+        self,
+        download_dir: Path,
+        order_name: Optional[str] = "",
+        order_url: Optional[str] = "",
+    ) -> None:
         """
         Download data from an order. Order must be activated!
 
@@ -419,48 +418,48 @@ class PlanetAPIClient(object):
             URL of an order. If provided, `order_name` is ignored.
         """
         # get all available orders and search for the order name
-        if order_url == '' and order_name == '':
-            raise ValueError('Either order URL or name must be provided')
+        if order_url == "" and order_name == "":
+            raise ValueError("Either order URL or name must be provided")
         # get order URL from its name if the URL is not provided
-        if order_url == '':
+        if order_url == "":
             order_df = self.get_orders()
             order_rec = order_df[order_df.name == order_name].copy()
             if order_rec.empty:
                 raise ValueError(f'Could not found a order named "{order_name}"')
             # extract the order URL
-            order_url = list(order_rec['_links'].values[0].values())[0]
+            order_url = list(order_rec["_links"].values[0].values())[0]
 
         # get URLs of the single assets (data sets) within the order
         r = self.session.get(order_url)
         response = r.json()
-        results = response['_links']['results']
-        results_urls = [r['location'] for r in results]
+        results = response["_links"]["results"]
+        results_urls = [r["location"] for r in results]
 
         # data handling stuff (file-naming) to prepar downloads
         results_folders = list()
         for f in results:
             # split paths
-            a = f["name"].rsplit("/",1)[1]
+            a = f["name"].rsplit("/", 1)[1]
             # take the id part split it again and put together so we can extract the item id
             results_folders.append("_".join(a.split("_", 4)[:4]))
 
         # To construct the whole path, the file name is required
         results_names = list()
         for f in results:
-            results_names.append(f['name'].rsplit("/",1)[1])
-        logger.info(f'{len(results_urls)} items to download from Planet')
+            results_names.append(f["name"].rsplit("/", 1)[1])
+        logger.info(f"{len(results_urls)} items to download from Planet")
 
         # actual downloading of data
         idx = 1
-        n_results = len(results_urls) - 1 # -1 because we skip manifest.json
+        n_results = len(results_urls) - 1  # -1 because we skip manifest.json
         for url, folder, name in zip(results_urls, results_folders, results_names):
             # skip manifest.json
-            if name == 'manifest.json':
+            if name == "manifest.json":
                 continue
             scene_dir = download_dir.joinpath(folder)
             scene_dir.mkdir(exist_ok=True)
             path = scene_dir.joinpath(name)
             r = requests.get(url, allow_redirects=True)
-            open(path, 'wb').write(r.content)
-            logger.info(f'Downloaded Planet scene {name} to {path} ({idx}/{n_results})')
+            open(path, "wb").write(r.content)
+            logger.info(f"Downloaded Planet scene {name} to {path} ({idx}/{n_results})")
             idx += 1

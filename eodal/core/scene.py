@@ -37,18 +37,20 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from eodal.core.raster import RasterCollection
 from eodal.utils.exceptions import SceneNotFoundError
 
+
 class SceneCollection(MutableMapping):
     """
     Collection of 0:N scenes where each scene is a RasterCollection with
     **non-empty** `SceneProperties` as each scene is indexed by its
     acquistion time.
     """
+
     def __init__(
         self,
         scene_constructor: Optional[Callable[..., RasterCollection]] = None,
         indexed_by_timestamps: Optional[bool] = True,
         *args,
-        **kwargs
+        **kwargs,
     ):
         """
         Initializes a SceneCollection object with 0 to N scenes.
@@ -79,7 +81,6 @@ class SceneCollection(MutableMapping):
             self.__setitem__(scene)
 
     def __getitem__(self, key: str | slice) -> RasterCollection:
-
         def _get_scene_from_key(key: str | Any) -> RasterCollection:
             if self.indexed_by_timestamps:
                 if str(key) in self.timestamps:
@@ -100,12 +101,14 @@ class SceneCollection(MutableMapping):
                 return _get_scene_from_key(key=key)
             except IndexError:
                 raise SceneNotFoundError(
-                    f'Could not find a scene for key {key} in collection'
+                    f"Could not find a scene for key {key} in collection"
                 )
 
         else:
             if not self.is_sorted:
-                raise ValueError('Slices are not permitted on unsorted SceneCollections')
+                raise ValueError(
+                    "Slices are not permitted on unsorted SceneCollections"
+                )
             # find the index of the start and the end of the slice
             slice_start = key.start
             slice_end = key.stop
@@ -118,7 +121,7 @@ class SceneCollection(MutableMapping):
                 if isinstance(slice_end, datetime.date):
                     if not self.indexed_by_timestamps:
                         raise ValueError(
-                            'Cannot slice on timestamps when `indexed_by_timestamps` is False'
+                            "Cannot slice on timestamps when `indexed_by_timestamps` is False"
                         )
                     slice_start = list(self.collection.keys())[0].date()
                 else:
@@ -132,7 +135,7 @@ class SceneCollection(MutableMapping):
                 if isinstance(slice_start, datetime.date):
                     if not self.indexed_by_timestamps:
                         raise ValueError(
-                            'Cannot slice on timestamps when `indexed_by_timestamps` is False'
+                            "Cannot slice on timestamps when `indexed_by_timestamps` is False"
                         )
                     slice_end = list(self.collection.keys())[-1].date()
                 else:
@@ -143,7 +146,7 @@ class SceneCollection(MutableMapping):
                 # to ensure that the :: operator works, we need to make
                 # sure the last band is also included in the slice
                 end_increment = 1
-            
+
             if set([slice_start, slice_end]).issubset(set(self.timestamps)):
                 idx_start = self.timestamps.index(slice_start)
                 idx_end = self.timestamps.index(slice_end) + end_increment
@@ -153,10 +156,12 @@ class SceneCollection(MutableMapping):
                 idx_end = self.identifiers.index(slice_end) + end_increment
                 scenes = self.identifiers
             # allow selection by date range
-            elif isinstance(slice_start, datetime.date) and isinstance(slice_end, datetime.date):
+            elif isinstance(slice_start, datetime.date) and isinstance(
+                slice_end, datetime.date
+            ):
                 if not self.indexed_by_timestamps:
                     raise ValueError(
-                        'Cannot slice on timestamps when `indexed_by_timestamps` is False'
+                        "Cannot slice on timestamps when `indexed_by_timestamps` is False"
                     )
                 out_scoll = SceneCollection()
                 for timestamp, scene in self:
@@ -168,7 +173,7 @@ class SceneCollection(MutableMapping):
                             out_scoll.add_scene(scene.copy())
                 return out_scoll
             else:
-                raise SceneNotFoundError(f'Could not find scenes in {key}')
+                raise SceneNotFoundError(f"Could not find scenes in {key}")
             slice_step = key.step
             if slice_step is None:
                 slice_step = 1
@@ -186,20 +191,22 @@ class SceneCollection(MutableMapping):
             raise TypeError("Only RasterCollection objects can be passed")
         if not item.is_scene:
             raise ValueError(
-                'Only RasterCollection with timestamps in their scene_properties can be passed'
+                "Only RasterCollection with timestamps in their scene_properties can be passed"
             )
         # scenes are index by their acquisition time
         key = item.scene_properties.acquisition_time
         if key in self.collection.keys():
             raise KeyError("Duplicate scene names are not permitted")
         if key is None:
-            raise ValueError("RasterCollection passed must have an acquisition time stamp")
+            raise ValueError(
+                "RasterCollection passed must have an acquisition time stamp"
+            )
         # it's important to make a copy of the scene before adding it
         # to the collection
         value = deepcopy(item)
         self.collection[key] = value
         # last, use the scene uri as an alias if available
-        if hasattr(item.scene_properties, 'product_uri'):
+        if hasattr(item.scene_properties, "product_uri"):
             self._identifiers.append(item.scene_properties.product_uri)
 
     def __setstate__(self, d):
@@ -223,15 +230,17 @@ class SceneCollection(MutableMapping):
 
     def __repr__(self) -> str:
         if self.empty:
-            return 'Empty EOdal SceneCollection'
+            return "Empty EOdal SceneCollection"
         else:
-            if self.indexed_by_timestamps:  
-                timestamps = ', '.join(self.timestamps)
+            if self.indexed_by_timestamps:
+                timestamps = ", ".join(self.timestamps)
             else:
-                timestamps = ', '.join([str(x) for x in self.timestamps])
-            return f'EOdal SceneCollection\n----------------------\n' + \
-                f'# Scenes:    {len(self)}\nTimestamps:    {timestamps}\n' +  \
-                f'Scene Identifiers:    {", ".join(self.identifiers)}'
+                timestamps = ", ".join([str(x) for x in self.timestamps])
+            return (
+                f"EOdal SceneCollection\n----------------------\n"
+                + f"# Scenes:    {len(self)}\nTimestamps:    {timestamps}\n"
+                + f'Scene Identifiers:    {", ".join(self.identifiers)}'
+            )
 
     @property
     def indexed_by_timestamps(self) -> bool:
@@ -240,19 +249,19 @@ class SceneCollection(MutableMapping):
     @staticmethod
     def _sort_keys(
         sort_direction: str,
-        raster_collections: List[RasterCollection] | Tuple[RasterCollection]
+        raster_collections: List[RasterCollection] | Tuple[RasterCollection],
     ) -> np.ndarray:
         """
         Returns sorted indices from a list/ tuple of RasterCollections.
         """
         # check sort_direction passed
-        if sort_direction not in ['asc', 'desc']:
-            raise ValueError('Sort direction must be one of: `asc`, `desc`')
+        if sort_direction not in ["asc", "desc"]:
+            raise ValueError("Sort direction must be one of: `asc`, `desc`")
         # get timestamps of the scenes and use np.argsort to bring them into the desired order
         timestamps = [x.scene_properties.acquisition_time for x in raster_collections]
-        if sort_direction == 'asc':
+        if sort_direction == "asc":
             sort_idx = np.argsort(timestamps)
-        elif sort_direction == 'desc':
+        elif sort_direction == "desc":
             sort_idx = np.argsort(timestamps)[::-1]
         return sort_idx
 
@@ -283,7 +292,7 @@ class SceneCollection(MutableMapping):
     def is_sorted(self, value: bool) -> None:
         """are the scenes sorted by their timestamps?"""
         if not type(value) == bool:
-            raise TypeError('Only boolean types are accepted')
+            raise TypeError("Only boolean types are accepted")
         self._is_sorted = value
 
     @classmethod
@@ -298,15 +307,15 @@ class SceneCollection(MutableMapping):
             `SceneCollection` instance.
         """
         if isinstance(stream, Path):
-            with open(stream, 'rb') as f:
+            with open(stream, "rb") as f:
                 reloaded = pickle.load(f)
         elif isinstance(stream, bytes):
             reloaded = pickle.loads(stream)
         else:
-            raise TypeError(f'{type(stream)} is not a supported data type')
+            raise TypeError(f"{type(stream)} is not a supported data type")
         # open empty scene collection and add scenes one by one
         scoll_out = cls()
-        for _, scene in reloaded['collection'].items():
+        for _, scene in reloaded["collection"].items():
             scoll_out.add_scene(scene)
         return scoll_out
 
@@ -315,8 +324,8 @@ class SceneCollection(MutableMapping):
         cls,
         raster_collections: List[RasterCollection] | Tuple[RasterCollection],
         sort_scenes: Optional[bool] = True,
-        sort_direction: Optional[str] = 'asc',
-        **kwargs
+        sort_direction: Optional[str] = "asc",
+        **kwargs,
     ):
         """
         Create a SceneCollection from a list/tuple of N RasterCollection objects.
@@ -336,12 +345,16 @@ class SceneCollection(MutableMapping):
             SceneCollection instance
         """
         # check inputs
-        if not isinstance(raster_collections, list) and not isinstance(raster_collections, tuple):
-            raise TypeError(f'Can only handle lists or tuples of RasterCollections')
-        if not np.array([isinstance(x, RasterCollection) for x in raster_collections]).all():
-            raise TypeError(f'All items passed must be RasterCollection instances')
+        if not isinstance(raster_collections, list) and not isinstance(
+            raster_collections, tuple
+        ):
+            raise TypeError(f"Can only handle lists or tuples of RasterCollections")
+        if not np.array(
+            [isinstance(x, RasterCollection) for x in raster_collections]
+        ).all():
+            raise TypeError(f"All items passed must be RasterCollection instances")
         if not np.array([x.is_scene for x in raster_collections]).all():
-            raise TypeError(f'All items passed must have an acquisition timestamp')
+            raise TypeError(f"All items passed must have an acquisition timestamp")
         # check if scenes shall be sorted
         if sort_scenes:
             sort_idx = cls._sort_keys(sort_direction, raster_collections)
@@ -358,8 +371,9 @@ class SceneCollection(MutableMapping):
 
     def add_scene(
         self,
-        scene_constructor: Callable[...,RasterCollection] | RasterCollection,
-        *args, **kwargs
+        scene_constructor: Callable[..., RasterCollection] | RasterCollection,
+        *args,
+        **kwargs,
     ) -> None:
         """
         Adds a Scene to the collection of scenes.
@@ -382,12 +396,12 @@ class SceneCollection(MutableMapping):
             else:
                 scene = scene_constructor.__call__(*args, **kwargs)
         except Exception as e:
-            raise ValueError(f'Cannot initialize new Scene instance: {e}')
+            raise ValueError(f"Cannot initialize new Scene instance: {e}")
         # try to add the scene to the SceneCollection
         try:
             self.__setitem__(scene)
         except Exception as e:
-            raise KeyError(f'Cannot add scene: {e}')
+            raise KeyError(f"Cannot add scene: {e}")
 
     def apply(self, func: Callable, *args, **kwargs) -> Any:
         """
@@ -408,11 +422,7 @@ class SceneCollection(MutableMapping):
         except Exception as e:
             raise ValueError from e
 
-    def clip_scenes(
-        self,
-        inplace: Optional[bool] = False,
-        **kwargs
-    ):
+    def clip_scenes(self, inplace: Optional[bool] = False, **kwargs):
         """
         Clip scenes in a SceneCollection to a user-defined spatial bounds.
 
@@ -427,9 +437,11 @@ class SceneCollection(MutableMapping):
         # initialize a new SceneCollection if inplace is False
         scoll_new = None
         if inplace:
-            kwargs.update({'inplace': True})
+            kwargs.update({"inplace": True})
         if not inplace:
-            scoll_new = SceneCollection(indexed_by_timestamps=self.indexed_by_timestamps)
+            scoll_new = SceneCollection(
+                indexed_by_timestamps=self.indexed_by_timestamps
+            )
         # loop over band reproject the selected ones
         for timestamp, scene in self:
             if inplace:
@@ -449,7 +461,7 @@ class SceneCollection(MutableMapping):
         self,
         vector_features: Path | gpd.GeoDataFrame | str,
         reindex_dataframe: Optional[bool] = False,
-        **kwargs
+        **kwargs,
     ) -> gpd.GeoDataFrame:
         """
         Get a time series for 1:N vector features from SceneCollection.
@@ -476,16 +488,24 @@ class SceneCollection(MutableMapping):
             elif isinstance(vector_features, gpd.GeoDataFrame):
                 gdf = vector_features.copy()
             else:
-                raise ValueError('Can only handle pathlibo objects, GeoDataFrames or "self"')
-            if set(gdf.geometry.geom_type.unique()).issubset(set(['Point', 'MulitPoint'])):
+                raise ValueError(
+                    'Can only handle pathlibo objects, GeoDataFrames or "self"'
+                )
+            if set(gdf.geometry.geom_type.unique()).issubset(
+                set(["Point", "MulitPoint"])
+            ):
                 pixels = True
-            elif set(gdf.geometry.geom_type.unique()).issubset(set(['Polygon', 'MultiPolygon'])):
+            elif set(gdf.geometry.geom_type.unique()).issubset(
+                set(["Polygon", "MultiPolygon"])
+            ):
                 pixels = False
             else:
-                raise ValueError('Can only handle (Multi)Point or (Multi)Polygon geometries')
+                raise ValueError(
+                    "Can only handle (Multi)Point or (Multi)Polygon geometries"
+                )
         else:
-            if vector_features == 'self':
-                gdf = 'self'
+            if vector_features == "self":
+                gdf = "self"
                 pixels = False
             else:
                 raise ValueError('When passing a string only "self" is permitted')
@@ -497,7 +517,7 @@ class SceneCollection(MutableMapping):
                 _gdf = scene.get_pixels(vector_features=gdf, **kwargs)
             else:
                 _gdf = scene.band_summaries(by=gdf, **kwargs)
-            _gdf['acquisition_time'] = timestamp
+            _gdf["acquisition_time"] = timestamp
             gdf_list.append(_gdf)
         # reindex the resulting GeoDataFrame if required
         if reindex_dataframe:
@@ -513,7 +533,7 @@ class SceneCollection(MutableMapping):
         band_selection: str | List[str],
         max_scenes_in_row: Optional[int] = 6,
         eodal_plot_kwargs: Optional[Dict] = {},
-        **kwargs
+        **kwargs,
     ) -> plt.Figure:
         """
         Plots scenes in a `SceneCollection`
@@ -534,7 +554,7 @@ class SceneCollection(MutableMapping):
         if isinstance(band_selection, str):
             band_selection = [band_selection]
         if not len(band_selection) == 1 and not len(band_selection) == 3:
-            raise ValueError('You must pass a single band name or three band names')
+            raise ValueError("You must pass a single band name or three band names")
 
         plot_multiple_bands = True
         if len(band_selection) == 1:
@@ -545,11 +565,11 @@ class SceneCollection(MutableMapping):
         nrows = 1
         ncols = 1
         if self.empty:
-            raise ValueError('No scenes available for plotting')
+            raise ValueError("No scenes available for plotting")
         elif n_scenes == 1:
             f, ax = plt.subplots(**kwargs)
             # cast to array to allow indexing
-            ax = np.array([ax]).reshape(1,1)
+            ax = np.array([ax]).reshape(1, 1)
         else:
             if n_scenes <= max_scenes_in_row:
                 ncols = n_scenes
@@ -571,23 +591,27 @@ class SceneCollection(MutableMapping):
                 scene.plot_multiple_bands(
                     band_selection=band_selection,
                     ax=ax[row_idx, col_idx],
-                    **eodal_plot_kwargs
+                    **eodal_plot_kwargs,
                 )
             else:
                 scene[band_selection[0]].plot(
-                    ax=ax[row_idx, col_idx],
-                    **eodal_plot_kwargs
+                    ax=ax[row_idx, col_idx], **eodal_plot_kwargs
                 )
             ax[row_idx, col_idx].set_title(scene_labels[idx])
             idx += 1
 
             # switch off axes labels if sharex == True and sharey=True
-            if kwargs.get('sharex', False) and kwargs.get('sharey', False) \
-            and n_scenes > 1:
+            if (
+                kwargs.get("sharex", False)
+                and kwargs.get("sharey", False)
+                and n_scenes > 1
+            ):
                 if nrows > 1:
-                    if row_idx < (nrows - 1): ax[row_idx, col_idx].set_xlabel('')
+                    if row_idx < (nrows - 1):
+                        ax[row_idx, col_idx].set_xlabel("")
                 if nrows > 1:
-                    if col_idx > 0: ax[row_idx, col_idx].set_ylabel('')
+                    if col_idx > 0:
+                        ax[row_idx, col_idx].set_ylabel("")
 
             # increase column (and row) counter accordingly
             col_idx += 1
@@ -600,10 +624,7 @@ class SceneCollection(MutableMapping):
         f.tight_layout()
         return f
 
-    def sort(
-        self,
-        sort_direction: Optional[str] = 'asc'
-    ):
+    def sort(self, sort_direction: Optional[str] = "asc"):
         """
         Returns a sorted copy of the SceneCollection.
 
@@ -650,4 +671,4 @@ class SceneCollection(MutableMapping):
             _xr = _xr.expand_dims(time=[timestamp])
             xarray_list.append(_xr)
         # concatenate into a single xarray along the time dimension
-        return xr.concat(xarray_list, dim='time')
+        return xr.concat(xarray_list, dim="time")

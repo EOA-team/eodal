@@ -1,4 +1,4 @@
-'''
+"""
 This module contains functions to extract relevant scene-specific
 Sentinel-1 metadata
 
@@ -16,7 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 from __future__ import annotations
 
@@ -39,9 +39,8 @@ from eodal.utils.exceptions import DataNotFoundError, InputError
 Settings = get_settings()
 logger = Settings.logger
 
-def parse_s1_metadata(
-        in_dir: Path
-    ) -> Dict:
+
+def parse_s1_metadata(in_dir: Path) -> Dict:
     """
     Parses the metadata found in the "manifest.safe" document of S1_IW_GRDH Level-1 products and
     writes them into a Python dictionary
@@ -99,7 +98,9 @@ def parse_s1_metadata(
     for elem in domfile.getElementsByTagName("safe:startTime"):
         start_time = elem.firstChild.nodeValue
     metadata["sensing_time"] = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S.%f")
-    metadata["sensing_date"] = datetime.strptime(start_time.split('T')[0], '%Y-%m-%d').date()
+    metadata["sensing_date"] = datetime.strptime(
+        start_time.split("T")[0], "%Y-%m-%d"
+    ).date()
 
     # instrument_mode
     for elem in domfile.getElementsByTagName("s1sarl1:mode"):
@@ -129,7 +130,7 @@ def parse_s1_metadata(
     metadata["mission_data_take_id"] = int(mission_data_take_id)
 
     # scene footprint
-    metadata['geom'] = extract_s1_footprint(in_dir=in_dir)
+    metadata["geom"] = extract_s1_footprint(in_dir=in_dir)
 
     # add storage information
     metadata["storage_device_ip"] = ""
@@ -138,10 +139,8 @@ def parse_s1_metadata(
 
     return metadata
 
-def extract_s1_footprint(
-        in_dir: Path,
-        use_gml: Optional[bool] = True
-    ) -> str:
+
+def extract_s1_footprint(in_dir: Path, use_gml: Optional[bool] = True) -> str:
     """
     Extract the Footprint of the S1 scene from the metadata.safe document
 
@@ -189,10 +188,11 @@ def extract_s1_footprint(
         kml_poly = Polygon(LinearRing(kml_coords))
         wkt = kml_poly.wkt
 
-    out_wkt = f'SRID=4326;'
+    out_wkt = f"SRID=4326;"
     out_wkt += wkt
 
     return out_wkt
+
 
 def loop_s1_archive(
     in_dir: Path,
@@ -242,7 +242,7 @@ def loop_s1_archive(
     n_scenes = len(s1_scenes)
 
     if n_scenes == 0:
-        raise DataNotFoundError(f'No .SAFE mapper found in {in_dir}')
+        raise DataNotFoundError(f"No .SAFE mapper found in {in_dir}")
 
     # if only mapper after a specific timestamp shall be considered drop
     # those from the list which are "too old"
@@ -279,6 +279,7 @@ def loop_s1_archive(
     # convert to pandas dataframe and return
     return pd.DataFrame(metadata_scenes)
 
+
 # if __name__ == '__main__':
 #
 #     from eodal.metadata.sentinel1.parsing import parse_s1_metadata
@@ -296,4 +297,3 @@ def loop_s1_archive(
 #         metadata["storage_share"] = f"Evaluation/Satellite_data/Sentinel-1/Rawdata/{instrument_mode}/CH/{year}"
 #
 #         meta_df_to_database(metadata)
-    

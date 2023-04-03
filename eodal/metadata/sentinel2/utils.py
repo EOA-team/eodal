@@ -61,5 +61,7 @@ def identify_updated_scenes(
         baseline_sel = metadata.baseline.mode()
 
     # return only those data-set belonging to the selected baseline version
-    return (metadata[metadata.baseline == baseline_sel],
-            metadata[metadata.baseline != baseline_sel])
+    return (
+        metadata[metadata.baseline == baseline_sel],
+        metadata[metadata.baseline != baseline_sel],
+    )

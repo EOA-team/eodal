@@ -70,6 +70,7 @@ from eodal.utils.reprojection import reproject_raster_dataset, check_aoi_geoms
 
 Settings = get_settings()
 
+
 class BandOperator(Operator):
     """
     Band operator supporting basic algebraic operations on `Band` objects
@@ -83,7 +84,7 @@ class BandOperator(Operator):
         operator: str,
         inplace: Optional[bool] = False,
         band_name: Optional[str] = None,
-        right_sided: Optional[bool] = False
+        right_sided: Optional[bool] = False,
     ) -> Union[None, np.ndarray]:
         """
         executes a custom algebraic operator on Band objects
@@ -127,7 +128,7 @@ class BandOperator(Operator):
         try:
             # mind the order which is important for some operators
             if right_sided:
-                expr = f'other {operator} a.values'
+                expr = f"other {operator} a.values"
             else:
                 expr = f"a.values {operator} other"
             res = eval(expr)
@@ -386,7 +387,7 @@ class Band(object):
         nodata: Optional[Union[int, float]] = None,
         is_tiled: Optional[Union[int, bool]] = 0,
         area_or_point: Optional[str] = "Area",
-        vector_features: Optional[gpd.GeoDataFrame] = None
+        vector_features: Optional[gpd.GeoDataFrame] = None,
     ):
         """
         Constructor to instantiate a new band object.
@@ -454,7 +455,7 @@ class Band(object):
 
         # make sure vector features is a valid GeoDataFrame
         self._check_vector_features(vector_features)
-        
+
         object.__setattr__(self, "band_name", band_name)
         object.__setattr__(self, "values", values)
         object.__setattr__(self, "geo_info", geo_info)
@@ -478,7 +479,7 @@ class Band(object):
         return BandOperator.calc(a=self, other=other, operator="+")
 
     def __radd__(self, other):
-        return BandOperator.calc(a=self, other=other, operator='+')
+        return BandOperator.calc(a=self, other=other, operator="+")
 
     def __sub__(self, other):
         return BandOperator.calc(a=self, other=other, operator="-")
@@ -541,7 +542,7 @@ class Band(object):
         return BandOperator.calc(a=self, other=other, operator="<", right_sided=True)
 
     def __repr__(self) -> str:
-        return f'EOdal Band\n---------.\nName:    {self.band_name}\nGeoInfo:    {self.geo_info}'
+        return f"EOdal Band\n---------.\nName:    {self.band_name}\nGeoInfo:    {self.geo_info}"
 
     @property
     def alias(self) -> Union[str, None]:
@@ -633,7 +634,7 @@ class Band(object):
                 vector_features = gpd.read_file(vector_features)
             if vector_features.crs is None:
                 raise ValueError(
-                    f'Cannot handle vector features without spatial coordinate reference system'
+                    f"Cannot handle vector features without spatial coordinate reference system"
                 )
 
     @staticmethod
@@ -648,7 +649,7 @@ class Band(object):
         of the raster band and extraction of centroid coordinates if
         the vector features are of type ``Polygon`` or ``MultiPolygon``
 
-        :param vector_features: 
+        :param vector_features:
             passed vector features to calling instance or class method
         :param fpath_raster:
             optional file path to the raster dataset. To be used when
@@ -743,9 +744,11 @@ class Band(object):
         # check if fpath_raster is STAC item or file system path
         if isinstance(fpath_raster, dict):
             if band_name_src is not None:
-                _fpath_raster = _fpath_raster[band_name_src]['href']
+                _fpath_raster = _fpath_raster[band_name_src]["href"]
             else:
-                _fpath_raster = _fpath_raster[list(_fpath_raster.keys())[band_idx]]['href']
+                _fpath_raster = _fpath_raster[list(_fpath_raster.keys())[band_idx]][
+                    "href"
+                ]
 
         # check vector features if provided
         masking = False
@@ -767,7 +770,6 @@ class Band(object):
 
         # read data using rasterio
         with rio.open(_fpath_raster, "r") as src:
-
             # parse image attributes
             attrs = get_raster_attributes(riods=src)
             transform = src.meta["transform"]
@@ -857,7 +859,7 @@ class Band(object):
         if masking:
             # make sure to set the EPSG code
             gdf_aoi.set_crs(epsg=epsg, inplace=True)
-            kwargs.update({'vector_features': gdf_aoi})
+            kwargs.update({"vector_features": gdf_aoi})
 
         # is_tiled can only be retrived from the raster attribs
         is_tiled = attrs.get("is_tiled", 0)
@@ -895,7 +897,7 @@ class Band(object):
         nodata_dst: Optional[Union[int, float]] = 0,
         snap_bounds: Optional[Polygon] = None,
         dtype_src: Optional[str] = "float32",
-        **kwargs
+        **kwargs,
     ):
         """
         Creates a new ``Band`` instance from a ``GeoDataFrame`` or a file with
@@ -1175,9 +1177,14 @@ class Band(object):
 
     def clip(
         self,
-        clipping_bounds: Path | gpd.GeoDataFrame | gpd.GeoSeries | Tuple[float,float,float,float] | Polygon  | MultiPolygon,
+        clipping_bounds: Path
+        | gpd.GeoDataFrame
+        | gpd.GeoSeries
+        | Tuple[float, float, float, float]
+        | Polygon
+        | MultiPolygon,
         full_bounding_box_only: Optional[bool] = False,
-        inplace: Optional[bool] = False
+        inplace: Optional[bool] = False,
     ):
         """
         Clip a band object to a geometry or the bounding box of one or more
@@ -1215,7 +1222,7 @@ class Band(object):
             clipping_bounds = gpd.GeoDataFrame(geometry=clipping_bounds)
         if isinstance(clipping_bounds, tuple):
             if len(clipping_bounds) != 4:
-                raise ValueError('Expected four coordinates (xmin, ymin, xmax, ymax)')
+                raise ValueError("Expected four coordinates (xmin, ymin, xmax, ymax)")
             xmin, ymin, xmax, ymax = clipping_bounds
             clipping_bounds = box(*clipping_bounds)
 
@@ -1230,39 +1237,47 @@ class Band(object):
             # the actual geometries are dissolved in case there is more than one record
             # and converted to a shapely object
             actual_geom = _clipping_bounds.dissolve().geometry.values[0]
-        elif (isinstance(clipping_bounds, Polygon) or isinstance(clipping_bounds, MultiPolygon)):
+        elif isinstance(clipping_bounds, Polygon) or isinstance(
+            clipping_bounds, MultiPolygon
+        ):
             xmin, ymin, xmax, ymax = clipping_bounds.bounds
             actual_geom = clipping_bounds
         else:
-            raise TypeError(f'{type(clipping_bounds)} is not supported')
+            raise TypeError(f"{type(clipping_bounds)} is not supported")
 
         # make sure xmax and xmin as well as ymax and ymin are not the same
         if xmax == xmin:
-            raise ValueError('Cannot handle extent of zero length in x direction')
+            raise ValueError("Cannot handle extent of zero length in x direction")
         if ymax == ymin:
-            raise ValueError('Cannot handle extent of zero length in y direction')
+            raise ValueError("Cannot handle extent of zero length in y direction")
 
         # actual clipping operation. Calculate the rows and columns where to clip
         # the band
         clip_shape = box(minx=xmin, miny=ymin, maxx=xmax, maxy=ymax)
         # check for overlap first
-        if not (clip_shape.overlaps(self.bounds) or self.bounds.covers(clip_shape)
-                or self.bounds.equals(clip_shape) or self.bounds.overlaps(clip_shape)
-                or clip_shape.covers(self.bounds)
-            ):
-            raise ValueError(f'Clipping bounds do not overlap Band')
+        if not (
+            clip_shape.overlaps(self.bounds)
+            or self.bounds.covers(clip_shape)
+            or self.bounds.equals(clip_shape)
+            or self.bounds.overlaps(clip_shape)
+            or clip_shape.covers(self.bounds)
+        ):
+            raise ValueError(f"Clipping bounds do not overlap Band")
         # then determine the extent in image coordinates by search for the closest image
         # pixels
         row_start, row_stop, col_start, col_stop = bounds_window(
-            bounds=(xmin, ymin, xmax, ymax),
-            affine=self.geo_info.as_affine()
+            bounds=(xmin, ymin, xmax, ymax), affine=self.geo_info.as_affine()
         )
 
         # adopt bounds if clip shape is larger than the Band's spatial extent
-        if row_start < 0: row_start = 0
-        if row_stop > self.nrows: row_stop = self.nrows
-        if col_start < 0: col_start = 0
-        if col_start > self.ncols: col_stop = self.ncols
+        if row_start < 0:
+            row_start = 0
+        if row_stop > self.nrows:
+            row_stop = self.nrows
+        if col_start < 0:
+            col_start = 0
+        if col_start > self.ncols:
+            col_stop = self.ncols
 
         # get upper left coordinate tuple
         ulx, _ = self.geo_info.as_affine() * (col_start, row_stop)
@@ -1275,10 +1290,10 @@ class Band(object):
             ulx=ulx,
             uly=uly,
             pixres_x=geo_info.pixres_x,
-            pixres_y=geo_info.pixres_y
+            pixres_y=geo_info.pixres_y,
         )
         values = self.values.copy()
-        new_values = values[row_start:row_stop,col_start:col_stop]
+        new_values = values[row_start:row_stop, col_start:col_stop]
 
         # if full_bounding_box is False, mask out pixels not overlapping the
         # geometry (but located within the bounding box)
@@ -1293,12 +1308,9 @@ class Band(object):
                 transform=new_geo_info.as_affine(),
                 all_touched=True,
                 default_value=0,
-                dtype='uint8'
+                dtype="uint8",
             ).astype(bool)
-            new_values = np.ma.MaskedArray(
-                data=new_values,
-                mask=mask
-            )
+            new_values = np.ma.MaskedArray(data=new_values, mask=mask)
 
         if inplace:
             object.__setattr__(self, "values", new_values)
@@ -1578,7 +1590,7 @@ class Band(object):
                 try:
                     vmin = np.nanquantile(self.values, 0.02)
                 except ValueError:
-                    vmin = self.values.min() 
+                    vmin = self.values.min()
             if vmax is None:
                 try:
                     vmax = np.nanquantile(self.values, 0.98)
@@ -1991,9 +2003,11 @@ class Band(object):
 
     def reduce(
         self,
-        method: Optional[List[str | Callable[np.ndarray | np.ma.MaskedArray, Number]]] = ['min', 'mean', 'std', 'max', 'count'],
+        method: Optional[
+            List[str | Callable[np.ndarray | np.ma.MaskedArray, Number]]
+        ] = ["min", "mean", "std", "max", "count"],
         by: Optional[Path | gpd.GeoDataFrame | Polygon | str] = None,
-        keep_nans: Optional[bool] = False
+        keep_nans: Optional[bool] = False,
     ) -> List[Dict[str, int | float]]:
         """
         Reduces the raster data to scalar values by calling `rasterstats`.
@@ -2029,20 +2043,20 @@ class Band(object):
             features = gpd.GeoDataFrame(geometry=[self.bounds], crs=self.crs)
         else:
             if isinstance(by, str):
-                if by == 'self':
+                if by == "self":
                     features = deepcopy(self.vector_features)
                 else:
-                    raise ValueError('When passing a string you must pass `self`')
+                    raise ValueError("When passing a string you must pass `self`")
             elif isinstance(by, Path):
                 features = gpd.read_file(by)
             elif isinstance(by, gpd.GeoDataFrame):
                 features = deepcopy(by)
-            elif (isinstance(by, Polygon) or isinstance(by, MultiPolygon)):
+            elif isinstance(by, Polygon) or isinstance(by, MultiPolygon):
                 features = gpd.GeoDataFrame(geometry=[by], crs=self.crs)
             else:
                 raise TypeError(
-                    'by expected "self", Path, (Multi)Polygon and GeoDataFrame ' + \
-                    f'objects - got {type(by)} instead'
+                    'by expected "self", Path, (Multi)Polygon and GeoDataFrame '
+                    + f"objects - got {type(by)} instead"
                 )
         # check if features has the same CRS as the band. Reproject features if required
         if not features.crs == self.crs:
@@ -2057,7 +2071,7 @@ class Band(object):
         affine = self.geo_info.as_affine()
         # check the passed functions. Depending on the type passed rasterstats
         # has to be called slightly differently
-        stats = ['count']  # set the default to count to bypass rasterstats defaults
+        stats = ["count"]  # set the default to count to bypass rasterstats defaults
         add_stats = {}
         stats_operator_list = []
         # loop over operators in method list and make them rasterstats compatible
@@ -2065,24 +2079,24 @@ class Band(object):
             # check if operator passed is a string
             if isinstance(operator, str):
                 # the usage of nan-functions is discouraged
-                if operator.startswith('nan'):
+                if operator.startswith("nan"):
                     raise ValueError(
-                        'The usage of numpy-nan functions is discouraged and therefore raises an error.' + \
-                        '\nThe handling of NaNs is done by `rasterstats` internally and therefore does not' + \
-                        '\n need to be specified. Please pass operators by their standard numpy names (e.g., "mean")'
+                        "The usage of numpy-nan functions is discouraged and therefore raises an error."
+                        + "\nThe handling of NaNs is done by `rasterstats` internally and therefore does not"
+                        + '\n need to be specified. Please pass operators by their standard numpy names (e.g., "mean")'
                     )
                 # check if the operator is a standard rasterstats operator
                 # raises a ValueError if the passed operator is not implemented
                 check_stats(stats=[operator], categorical=False)
-                stats=[operator]
+                stats = [operator]
             # the passed operator can be also a function prototype (callable)
             elif callable(operator):
                 add_stats = {operator.__name__: deepcopy(operator)}
             else:
                 raise ValueError(
-                    f'Could not pass {operator} to rasterstats.\n' + \
-                    'Please check the rasterstats docs how to pass user-defined statistics:\n' + \
-                    'https://pythonhosted.org/rasterstats/manual.html#user-defined-statistics'
+                    f"Could not pass {operator} to rasterstats.\n"
+                    + "Please check the rasterstats docs how to pass user-defined statistics:\n"
+                    + "https://pythonhosted.org/rasterstats/manual.html#user-defined-statistics"
                 )
 
             # get raster values from EOdal band
@@ -2105,10 +2119,10 @@ class Band(object):
                 affine=affine,
                 stats=stats,
                 add_stats=add_stats,
-                nodata=self.nodata
+                nodata=self.nodata,
             )
             stats_operator_list.append(res)
-            
+
         # combine the list of stats into a format consistent with the standard zonal_stats call
         _stats = []
         for idx in range(features.shape[0]):
@@ -2120,17 +2134,19 @@ class Band(object):
                 feature_operator_res = stats_operator_list[odx][idx][_operator]
                 if not keep_nans:
                     try:
-                        if np.isnan(feature_operator_res): continue
+                        if np.isnan(feature_operator_res):
+                            continue
                     except TypeError:
                         # rasterstats returns None instead of nan
-                        if feature_operator_res is None: continue
+                        if feature_operator_res is None:
+                            continue
                 feature_stats[_operator] = feature_operator_res
             # do not add features without statistics
             if len(feature_stats) == 0:
                 continue
             # save the geometries and all other attributes of the feature(s) used
             feature_stats.update(features.iloc[idx].to_dict())
-            feature_stats.update({'crs': features.crs})
+            feature_stats.update({"crs": features.crs})
             _stats.append(feature_stats)
 
         return _stats

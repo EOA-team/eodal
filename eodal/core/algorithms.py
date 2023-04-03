@@ -1,4 +1,4 @@
-'''
+"""
 Collection of algorithms working with EOdal core objects such as Bands,
 RasterCollections, Scenes and SceneCollections.
 
@@ -16,7 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 from __future__ import annotations
 
 import eodal
@@ -34,6 +34,7 @@ from eodal.core.band import Band, GeoInfo
 from eodal.core.raster import RasterCollection, SceneProperties
 
 Settings = get_settings()
+
 
 def _get_crs_and_attribs(
     in_file: Path, **kwargs
@@ -55,6 +56,7 @@ def _get_crs_and_attribs(
     geo_info = ds[ds.band_names[0]].geo_info
     attrs = [ds[x].get_attributes() for x in ds.band_names]
     return geo_info, attrs
+
 
 def merge_datasets(
     datasets: List[Path],
@@ -141,8 +143,10 @@ def merge_datasets(
     if sensor is None:
         raster = RasterCollection(scene_properties=scene_properties)
     else:
-        raster = eval(f'eodal.core.sensors.{sensor.lower()}.{sensor[0].upper() + sensor[1::]}' \
-                      + '(scene_properties=scene_properties)')
+        raster = eval(
+            f"eodal.core.sensors.{sensor.lower()}.{sensor[0].upper() + sensor[1::]}"
+            + "(scene_properties=scene_properties)"
+        )
     n_bands = out_ds.shape[0]
     # take attributes of the first dataset
     attrs = attrs_list[0]
@@ -170,18 +174,18 @@ def merge_datasets(
             unit = unit[0]
 
         # get band name and alias if provided
-        band_name = band_options.get('band_names', f'B{idx+1}')
+        band_name = band_options.get("band_names", f"B{idx+1}")
         if isinstance(band_name, list):
             if len(band_name) == n_bands:
                 band_name = band_name[idx]
             else:
-                band_name = f'B{idx+1}'
-        band_alias = band_options.get('band_aliases', f'B{idx+1}')
+                band_name = f"B{idx+1}"
+        band_alias = band_options.get("band_aliases", f"B{idx+1}")
         if isinstance(band_alias, list):
             if len(band_alias) == n_bands:
                 band_alias = band_alias[idx]
             else:
-                band_alias = f'B{idx+1}'
+                band_alias = f"B{idx+1}"
 
         raster.add_band(
             band_constructor=Band,
