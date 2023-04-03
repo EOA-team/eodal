@@ -306,7 +306,9 @@ class Sentinel2(RasterCollection):
                     elif isinstance(vector_features, gpd.GeoDataFrame):
                         vector_features_df = vector_features.copy()
                     elif isinstance(vector_features, gpd.GeoSeries):
-                        vector_features_df = gpd.GeoDataFrame(vector_features.copy())
+                        vector_features_df = gpd.GeoDataFrame(
+                            geometry=vector_features.copy()
+                        )
                     else:
                         raise TypeError(
                             'Geometry must be vector file, GeoSeries or GeoDataFrame'
