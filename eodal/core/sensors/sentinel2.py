@@ -59,13 +59,12 @@ from eodal.utils.sentinel2 import (
     get_S2_acquistion_time_from_safe,
     get_S2_processing_baseline_from_safe,
 )
-from copy import deepcopy
 from eodal.core.utils.geometry import convert_3D_2D
 from eodal.config import get_settings
 from eodal.utils.sentinel2 import _url_to_safe_name
 
 Settings = get_settings()
-
+Settings.USE_STAC = False
 
 class Sentinel2(RasterCollection):
     """
