@@ -172,7 +172,7 @@ class Feature:
         gds = gpd.GeoSeries([self.geometry], crs=f'EPSG:{self.epsg}')
         # add attributes from Feature
         gds.attrs = self.attributes
-        gds.name = 'geometry'
+        gds.name = self.name
         return gds
 
     def to_dict(self) -> Dict[str, Any]:
