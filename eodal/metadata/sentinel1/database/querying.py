@@ -55,8 +55,8 @@ def find_raw_data_by_bbox(
     date_start: date,
     date_end: date,
     bounding_box: Union[Polygon, str],
-    product_type: Optional[str] = 'GRD',
-    sensor_mode: Optional[str] = 'IW'
+    product_type: Optional[str] = "GRD",
+    sensor_mode: Optional[str] = "IW",
 ) -> pd.DataFrame:
     """
     Queries the metadata DB by Sentinel-1 bounding box, time period, product type,
@@ -118,6 +118,7 @@ def find_raw_data_by_bbox(
         return pd.read_sql(query_statement, session.bind)
     except Exception as e:
         raise DataNotFoundError(f"Could not find Sentinel-1 data by bounding box: {e}")
+
 
 def get_scene_metadata(product_uri: str) -> pd.DataFrame:
     """

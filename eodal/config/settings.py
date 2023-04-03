@@ -69,9 +69,8 @@ class Settings(BaseSettings):
     # define Planet-API token
     PLANET_API_KEY: str = ""
     # Planet API URLs
-    ORDERS_URL: str = 'https://api.planet.com/compute/ops/orders/v2'
-    DATA_URL: str = 'https://api.planet.com/data/v1'
-
+    ORDERS_URL: str = "https://api.planet.com/compute/ops/orders/v2"
+    DATA_URL: str = "https://api.planet.com/data/v1"
 
     # metadata base connection details
     DB_USER: str = "postgres"
@@ -89,10 +88,10 @@ class Settings(BaseSettings):
     LIMIT_ITEMS: int = 5
 
     # change the value of this variable to use a different STAC service provider
-    STAC_BACKEND: Any = STAC_Providers.MSPC # STAC_Providers.AWS
+    STAC_BACKEND: Any = STAC_Providers.MSPC  # STAC_Providers.AWS
 
     # subscription key for MS-PC (might be required for some data sets like Sentinel-1)
-    PC_SDK_SUBSCRIPTION_KEY: str = ''
+    PC_SDK_SUBSCRIPTION_KEY: str = ""
 
     # path to custom CA_BUNDLE when calling the pystac_client behind a proxy server
     # when a path a custom certificate is required set this variable to a path

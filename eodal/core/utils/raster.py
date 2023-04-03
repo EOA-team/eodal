@@ -66,8 +66,10 @@ def get_raster_attributes(riods: rio.io.DatasetReader) -> Dict[str, Any]:
 
     return attrs
 
-def spatial_to_image_coordinates(x: float, y: float, affine: Affine, op=math.floor
-    ) -> Tuple[int,int]:
+
+def spatial_to_image_coordinates(
+    x: float, y: float, affine: Affine, op=math.floor
+) -> Tuple[int, int]:
     """
     Convert spatial x and y coordinat to image coordinates (row + column)
 
@@ -82,8 +84,10 @@ def spatial_to_image_coordinates(x: float, y: float, affine: Affine, op=math.flo
     c = int(op((x - affine.c) / affine.a))
     return r, c
 
-def bounds_window(bounds: Tuple[float,float,float,float], affine: Affine
-    ) -> Tuple[Tuple[int,int], Tuple[int,int]]:
+
+def bounds_window(
+    bounds: Tuple[float, float, float, float], affine: Affine
+) -> Tuple[Tuple[int, int], Tuple[int, int]]:
     """
     Create a full cover rasterio-style window
 

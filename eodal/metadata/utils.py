@@ -86,7 +86,6 @@ def reconstruct_path(
     # check if ip points towards a network drive under Linux
     if path_to_nas:
         if os.name == "posix":
-
             # search for mount point of NAS file system
             mount_point = _check_linux_cifs(ip=ip)
 
@@ -104,7 +103,6 @@ def reconstruct_path(
 
         # Windows does not know about mount points, it should be able to work with network paths
         elif os.name == "nt":
-
             share = Path(record.storage_device_ip).joinpath(record.storage_share)
             # if share is not available test alias if available
             if not share.exists():

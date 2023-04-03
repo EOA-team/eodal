@@ -30,7 +30,10 @@ from eodal.utils.exceptions import DataNotFoundError
 Settings = get_settings()
 logger = Settings.logger
 
-def unzip_datasets(download_dir: Path, platform: str, remove_zips: Optional[bool] = True) -> None:
+
+def unzip_datasets(
+    download_dir: Path, platform: str, remove_zips: Optional[bool] = True
+) -> None:
     """
     Helper function to unzip Sentinel-1 and 2 mapper once they are
     downloaded from CREODIAS. Works currently on  *nix system only and requires
@@ -39,7 +42,7 @@ def unzip_datasets(download_dir: Path, platform: str, remove_zips: Optional[bool
     :param download_dir:
         directory where the zipped mapper in .SAFE format are located
     :param platform:
-        either 'S1' (Sentinel-1) or 'S2' (Sentinel-2) 
+        either 'S1' (Sentinel-1) or 'S2' (Sentinel-2)
     :param remove_zips:
         If set to False the zipped .SAFE mapper will be kept, otherwise
         (Default) they will be removed
@@ -58,7 +61,6 @@ def unzip_datasets(download_dir: Path, platform: str, remove_zips: Optional[bool
 
     # use unzip in subprocess call to unpack the zip files
     for idx, dot_safe_zip in enumerate(dot_safe_zips):
-
         os.chdir(download_dir)
         arg_list = ["unzip", "-n", Path(dot_safe_zip).name]
         process = subprocess.Popen(

@@ -1,6 +1,10 @@
 import pytest
 
+from eodal.config import get_settings
 from eodal.core.sensors import Sentinel2
+
+settings = get_settings()
+settings.USE_STAC = False
 
 @pytest.mark.parametrize('apply_scaling', [False, True])
 def test_sentinel2_vi(get_s2_safe_l2a, get_polygons_2, apply_scaling):

@@ -1,4 +1,4 @@
-'''
+"""
 Sentinel-1 specific helper functions to interact with datasets organized
 in .SAFE structure.
 
@@ -16,7 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -26,6 +26,7 @@ from typing import Any, Dict
 from eodal.config import get_settings
 
 Settings = get_settings()
+
 
 def _url_to_safe_name(stac_asset: str | Dict[str, Any]) -> str:
     """
@@ -37,10 +38,11 @@ def _url_to_safe_name(stac_asset: str | Dict[str, Any]) -> str:
         .SAFE dataset name extracted from the URL of the vh polarization
     """
     if isinstance(stac_asset, dict):
-        stac_asset = stac_asset['vh']['href']
-    url_parts = stac_asset.split('/')
-    dot_safe_name = [x for x in url_parts if x.startswith('S1')][0]
+        stac_asset = stac_asset["vh"]["href"]
+    url_parts = stac_asset.split("/")
+    dot_safe_name = [x for x in url_parts if x.startswith("S1")][0]
     return dot_safe_name
+
 
 def get_S1_acquistion_time_from_safe(dot_safe_name: Path | Dict[str, Any]) -> date:
     """
@@ -59,6 +61,7 @@ def get_S1_acquistion_time_from_safe(dot_safe_name: Path | Dict[str, Any]) -> da
 
     return datetime.strptime(dot_safe_name.split("_")[4], "%Y%m%dT%H%M%S")
 
+
 def get_S1_platform_from_safe(dot_safe_name: Path | Dict[str, str]) -> str:
     """
     Get the platform information from a .SAFE archive
@@ -74,6 +77,7 @@ def get_S1_platform_from_safe(dot_safe_name: Path | Dict[str, str]) -> str:
         dot_safe_name = _url_to_safe_name(dot_safe_name)
 
     return dot_safe_name.split("_")[0]
+
 
 def get_s1_imaging_mode_from_safe(dot_safe_name: Path | Dict[str, str]) -> str:
     """

@@ -40,14 +40,13 @@ engine = create_engine(DB_URL, echo=Settings.ECHO_DB)
 
 
 class Regions(Base):
-
     __tablename__ = "sentinel2_regions"
 
     region_uid = Column(String, nullable=False, primary_key=True)
     geom = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
 
-class S1_Raw_Metadata(Base):
 
+class S1_Raw_Metadata(Base):
     __tablename__ = "sentinel1_raw_metadata"
 
     scene_id = Column(String, nullable=False, primary_key=True)
@@ -74,8 +73,8 @@ class S1_Raw_Metadata(Base):
     # scene footprint
     geom = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=False)
 
-class S2_Raw_Metadata(Base):
 
+class S2_Raw_Metadata(Base):
     __tablename__ = "sentinel2_raw_metadata"
 
     # scene and tile id
@@ -168,8 +167,8 @@ class S2_Raw_Metadata(Base):
         String, nullable=False, comment="type of the path (e.g., POSIX-Path)"
     )
 
-class S2_Processed_Metadata(Base):
 
+class S2_Processed_Metadata(Base):
     __tablename__ = "sentinel2_processed_metadata"
 
     # scene and tile id
@@ -203,14 +202,14 @@ class S2_Processed_Metadata(Base):
         ),
     )
 
-class PS_SuperDove_Metadata(Base):
 
+class PS_SuperDove_Metadata(Base):
     __tablename__ = "ps_superdove_raw_metadata"
 
     scene_id = Column(String, nullable=False, primary_key=True)
 
     sensing_time = Column(TIMESTAMP, nullable=False)
-    gsd = Column(Float, nullable=False, comment='Ground Sampling Distance [m]')
+    gsd = Column(Float, nullable=False, comment="Ground Sampling Distance [m]")
 
     anomalous_pixels = Column(Integer, nullable=False)
     clear_confidence_percent = Column(Integer, nullable=False)
@@ -226,8 +225,8 @@ class PS_SuperDove_Metadata(Base):
     provider = Column(String, nullable=False)
     quality_category = Column(String, nullable=False)
     satellite_azimuth = Column(Float, nullable=False)
-    satellite_id =  Column(String, nullable=False)
-    shadow_percent =  Column(Integer, nullable=False)
+    satellite_id = Column(String, nullable=False)
+    shadow_percent = Column(Integer, nullable=False)
     snow_ice_percent = Column(Integer, nullable=False)
     strip_id = Column(String, nullable=False)
     sun_azimuth = Column(Float, nullable=False)
@@ -250,6 +249,7 @@ class PS_SuperDove_Metadata(Base):
         String, nullable=False, comment="type of the path (e.g., POSIX-Path)"
     )
 
+
 def create_tables() -> None:
     """
     creates all Sentinel-2 related tables in the current
@@ -261,6 +261,7 @@ def create_tables() -> None:
             logger.info(f"Created table {table}")
     except Exception as e:
         raise Exception(f"Could not create table: {e}")
+
 
 if __name__ == "__main__":
     create_tables()

@@ -50,9 +50,11 @@ class STAC_Providers:
         URL: str = "https://planetarycomputer.microsoft.com/api/stac/v1"
         S2Level_1C: str = "sentinel-2-l1c"
         S2Level_2A: str = "sentinel-2-l2a"
-        S1RTC: str = "sentinel-1-rtc" # radiometric and terrain corrected using PlanetDEM (IW mode)
-        S1GRD: str = "sentinel-1-grd" # corrected to ground range using ellipsoid model WGS84
-        
+        S1RTC: str = "sentinel-1-rtc"  # radiometric and terrain corrected using PlanetDEM (IW mode)
+        S1GRD: str = (
+            "sentinel-1-grd"  # corrected to ground range using ellipsoid model WGS84
+        )
+
         class Sentinel2:
             product_uri: str = "id"
             scene_id: str = "s2:granule_id"
@@ -64,4 +66,3 @@ class STAC_Providers:
             epsg: str = "proj:epsg"
             sun_zenith_angle = "s2:mean_solar_zenith"
             sun_azimuth_angle = "s2:mean_solar_azimuth"
-

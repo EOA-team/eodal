@@ -32,31 +32,36 @@ from eodal.utils.geometry import box_to_geojson
 
 Settings = get_settings()
 
+
 def prepare_bbox(f):
     """prepares a bounding box from 1:N vector features for STAC queries"""
+
     @wraps(f)
     def wrapper(**kwargs):
         # a bounding box (vector features) is required
-        vector_features = kwargs.get('bounding_box', None)
+        vector_features = kwargs.get("bounding_box", None)
         if vector_features is None:
-            raise ValueError('A bounding box must be specified')
+            raise ValueError("A bounding box must be specified")
         if isinstance(vector_features, Path):
             vector_features = gpd.read_file(vector_features)
         # construct the bounding box from vector features
         # the bbox must be provided as a polygon in geographic coordinates
         # and provide bounds as geojson (required by STAC)
         bbox = box_to_geojson(gdf=vector_features)
-        kwargs.update({'bounding_box': bbox})
+        kwargs.update({"bounding_box": bbox})
         return f(**kwargs)
+
     return wrapper
+
 
 def prepare_point_features(f):
     """
     casts MultiPoint geometries to single parts before calling pixel extraction methods
     """
+
     @wraps(f)
     def wrapper(*args, **kwargs):
-        vector_features = kwargs.get('vector_features')
+        vector_features = kwargs.get("vector_features")
         if vector_features is None:
             vector_features = args[2]
         # cast to single point geometries
@@ -64,14 +69,16 @@ def prepare_point_features(f):
             vector_features_updated = multi_to_single_points(vector_features)
         except Exception as e:
             print(e)
-        if 'vector_features' in kwargs.keys():
-            kwargs.update({'vector_features': vector_features_updated})
+        if "vector_features" in kwargs.keys():
+            kwargs.update({"vector_features": vector_features_updated})
         else:
             arg_list = list(args)
             arg_list[2] = vector_features_updated
             args = tuple(arg_list)
         return f(*args, **kwargs)
+
     return wrapper
+
 
 def check_processing_level(f):
     @wraps(f)
@@ -90,12 +97,12 @@ def check_processing_level(f):
 
     return wrapper
 
+
 def check_band_names(f):
     """checks if passed band name(s) are available"""
 
     @wraps(f)
     def wrapper(self, *args, **kwargs):
-
         band_names = None
         if len(args) == 0 and len(kwargs) == 0:
             return f(self, *args, **kwargs)
@@ -161,12 +168,12 @@ def check_band_names(f):
 
     return wrapper
 
+
 def check_metadata(f):
     """validates if passed image metadata items are valid"""
 
     @wraps(f)
     def wrapper(self, *args, **kwargs):
-
         meta_key, meta_values = None, None
 
         if len(args) > 0:

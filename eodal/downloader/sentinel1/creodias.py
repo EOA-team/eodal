@@ -1,4 +1,4 @@
-'''
+"""
 REST-API based downloading of Sentinel-1 datasets from CREODIAS.
 
 Make sure to have a valid CREODIAS account and provide your username and password
@@ -26,7 +26,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 from __future__ import annotations
 
 import pandas as pd
@@ -41,7 +41,10 @@ from eodal.config import get_settings
 Settings = get_settings()
 logger = Settings.logger
 
-CREODIAS_FINDER_URL = 'https://finder.creodias.eu/resto/api/collections/Sentinel1/search.json?'
+CREODIAS_FINDER_URL = (
+    "https://finder.creodias.eu/resto/api/collections/Sentinel1/search.json?"
+)
+
 
 def query_creodias(
     start_date: date,
@@ -50,7 +53,7 @@ def query_creodias(
     bounding_box: Polygon,
     product_type: Optional[str] = "GRD",
     sensor_mode: Optional[str] = "IW",
-    ) -> pd.DataFrame:
+) -> pd.DataFrame:
     """
     queries the CREODIAS Finder API to obtain available Sentinel-1
     datasets for a given geographic region, date range, product type,
@@ -78,29 +81,29 @@ def query_creodias(
     """
 
     # convert dates to strings in the required format
-    start_date_str = start_date.strftime('%Y-%m-%d')
-    end_date_str = end_date.strftime('%Y-%m-%d')
+    start_date_str = start_date.strftime("%Y-%m-%d")
+    end_date_str = end_date.strftime("%Y-%m-%d")
 
     # convert polygon to required format
     coords = bounding_box.exterior.coords.xy
-    coord_str = ''
+    coord_str = ""
     n_points = len(coords[0])
     for n_point in range(n_points):
         x = coords[0][n_point]
         y = coords[1][n_point]
-        coord_str += f'{x}+{y}%2C'
+        coord_str += f"{x}+{y}%2C"
 
     # get rid of the last %2C
     coord_str = coord_str[:-3]
 
     # construct the REST query
-    query = CREODIAS_FINDER_URL + f'maxRecords={max_records}&'
-    query += f'startDate={start_date_str}T00%3A00%3A00Z&'
-    query += f'completionDate={end_date_str}T23%3A59%3A59Z&'
-    query += f'productType={product_type}&'
-    query += f'sensorMode={sensor_mode}&'
-    query += f'geometry=Polygon(({coord_str}))&'
-    query += 'sortParam=startDate&sortOrder=descending&status=all&dataset=ESA-DATASET'
+    query = CREODIAS_FINDER_URL + f"maxRecords={max_records}&"
+    query += f"startDate={start_date_str}T00%3A00%3A00Z&"
+    query += f"completionDate={end_date_str}T23%3A59%3A59Z&"
+    query += f"productType={product_type}&"
+    query += f"sensorMode={sensor_mode}&"
+    query += f"geometry=Polygon(({coord_str}))&"
+    query += "sortParam=startDate&sortOrder=descending&status=all&dataset=ESA-DATASET"
 
     # GET to CREODIAS Finder API
     res = requests.get(query)
@@ -108,16 +111,16 @@ def query_creodias(
     res_json = res.json()
 
     # extract features (=available datasets)
-    features = res_json['features']
+    features = res_json["features"]
     datasets = pd.DataFrame(features)
 
     # make sure datasets is not empty otherwise return
     if datasets.empty:
-        raise Exception(f'CREODIAS query returned empty set')
+        raise Exception(f"CREODIAS query returned empty set")
 
     # get *.SAFE dataset names
-    datasets['dataset_name'] = datasets.properties.apply(
-        lambda x: x['productIdentifier'].split('/')[-1]
+    datasets["dataset_name"] = datasets.properties.apply(
+        lambda x: x["productIdentifier"].split("/")[-1]
     )
 
     return datasets

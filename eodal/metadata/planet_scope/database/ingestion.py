@@ -1,4 +1,4 @@
-'''
+"""
 Ingestion of PlanetScope metadata into the metadata DB.
 
 Copyright (C) 2022 Lukas Valentin Graf
@@ -15,7 +15,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 from __future__ import annotations
 
@@ -52,13 +52,11 @@ def metadata_dict_to_database(metadata: dict) -> None:
         session.rollback()
     session.commit()
 
-if __name__ == '__main__':
 
+if __name__ == "__main__":
     from pathlib import Path
     from eodal.metadata.planet_scope.parsing import parse_metadata
-    
-    in_dir = Path(
-        '/mnt/ides/Lukas/software/eodal/data/20220414_101133_47_227b'
-    )
+
+    in_dir = Path("/mnt/ides/Lukas/software/eodal/data/20220414_101133_47_227b")
     metadata = parse_metadata(in_dir)
     metadata_dict_to_database(metadata)

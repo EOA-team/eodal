@@ -1,4 +1,4 @@
-'''
+"""
 Vector geometry operations.
 
 Copyright (C) 2022 Lukas Valentin Graf
@@ -15,7 +15,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 from __future__ import annotations
 
 import geopandas as gpd
@@ -23,6 +23,7 @@ import json
 
 from copy import deepcopy
 from shapely.geometry import box, Point, Polygon
+
 
 def box_to_geojson(gdf: gpd.GeoDataFrame | Polygon) -> str:
     """
@@ -40,7 +41,7 @@ def box_to_geojson(gdf: gpd.GeoDataFrame | Polygon) -> str:
         gdf_wgs84 = gdf.to_crs(epsg=4326)
         bbox = gdf_wgs84.total_bounds
         bbox_poly = box(*bbox)
-    elif (isinstance(gdf, Polygon) or isinstance(gdf, Point)):
+    elif isinstance(gdf, Polygon) or isinstance(gdf, Point):
         bbox_poly = deepcopy(gdf)
     bbox_json = gpd.GeoSeries([bbox_poly]).to_json()
-    return json.loads(bbox_json)['features'][0]['geometry']
+    return json.loads(bbox_json)["features"][0]["geometry"]

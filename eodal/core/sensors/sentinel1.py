@@ -1,4 +1,4 @@
-'''
+"""
 This module contains the ``Sentinel1`` class that inherits from
 eodal's core ``RasterCollection`` class.
 
@@ -22,7 +22,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 from __future__ import annotations
 
@@ -37,12 +37,16 @@ from eodal.config import get_settings
 from eodal.core.band import Band
 from eodal.core.raster import RasterCollection, SceneProperties
 from eodal.utils.decorators import prepare_point_features
-from eodal.utils.sentinel1 import get_S1_platform_from_safe, \
-    get_S1_acquistion_time_from_safe, _url_to_safe_name, \
-    get_s1_imaging_mode_from_safe
+from eodal.utils.sentinel1 import (
+    get_S1_platform_from_safe,
+    get_S1_acquistion_time_from_safe,
+    _url_to_safe_name,
+    get_s1_imaging_mode_from_safe,
+)
 from eodal.utils.exceptions import DataNotFoundError
 
 Settings = get_settings()
+
 
 class Sentinel1(RasterCollection):
     """
@@ -51,7 +55,9 @@ class Sentinel1(RasterCollection):
     """
 
     @staticmethod
-    def _get_band_files(in_dir: Path | Dict[str, str], polarizations: List[str]) -> pd.DataFrame:
+    def _get_band_files(
+        in_dir: Path | Dict[str, str], polarizations: List[str]
+    ) -> pd.DataFrame:
         """
         Get file-paths to Sentinel-1 polarizations
 
@@ -67,29 +73,29 @@ class Sentinel1(RasterCollection):
         for polarization in polarizations:
             if Settings.USE_STAC:
                 # get band files from STAC (MS PC)
-                href = in_dir[polarization.lower()]['href']
+                href = in_dir[polarization.lower()]["href"]
                 # sign href (this works only with a valid API key)
                 ref = planetary_computer.sign_url(href)
             else:
                 try:
-                    ref = next(in_dir.glob(
-                        f'measurement/s1*-{polarization.lower()}-*.tiff')
+                    ref = next(
+                        in_dir.glob(f"measurement/s1*-{polarization.lower()}-*.tiff")
                     )
                 except Exception as e:
                     raise DataNotFoundError(
-                        f'Could not find data for polarization {polarization} in {in_dir}: {e}'
+                        f"Could not find data for polarization {polarization} in {in_dir}: {e}"
                     )
-            item = {'polarization': polarization, 'file_path': ref}
+            item = {"polarization": polarization, "file_path": ref}
             band_items.append(item)
         return pd.DataFrame(band_items)
 
     @classmethod
     def from_safe(
-            cls,
-            in_dir: Path | Dict[str, str],
-            polarizations: Optional[List[str]] = ['VV', 'VH'],
-            **kwargs
-        ):
+        cls,
+        in_dir: Path | Dict[str, str],
+        polarizations: Optional[List[str]] = ["VV", "VH"],
+        **kwargs,
+    ):
         """
         Reads a Sentinel-1 RTC (radiometrically terrain corrected) or
         GRD (Ground Range Detected) products
@@ -113,22 +119,22 @@ class Sentinel1(RasterCollection):
         try:
             platform = get_S1_platform_from_safe(dot_safe_name=in_dir)
         except Exception as e:
-            raise ValueError(f'Could not determine platform: {e}')
+            raise ValueError(f"Could not determine platform: {e}")
         try:
             acqui_time = get_S1_acquistion_time_from_safe(dot_safe_name=in_dir)
         except Exception as e:
-            raise ValueError(f'Could not determine acquisition time: {e}')
+            raise ValueError(f"Could not determine acquisition time: {e}")
         try:
             mode = get_s1_imaging_mode_from_safe(dot_safe_name=in_dir)
         except Exception as e:
-            raise ValueError(f'Could not determine imaging mode: {e}')
+            raise ValueError(f"Could not determine imaging mode: {e}")
         try:
             if isinstance(in_dir, Path):
                 product_uri = in_dir.name
             elif Settings.USE_STAC:
                 product_uri = _url_to_safe_name(in_dir)
         except Exception as e:
-            raise ValueError(f'Could not determine product uri: {e}')
+            raise ValueError(f"Could not determine product uri: {e}")
 
         # get a new RasterCollection
         scene_properties = SceneProperties(
@@ -136,7 +142,7 @@ class Sentinel1(RasterCollection):
             platform=platform,
             sensor="SAR",
             product_uri=product_uri,
-            mode=mode
+            mode=mode,
         )
         sentinel1 = cls(scene_properties=scene_properties)
 
@@ -146,7 +152,7 @@ class Sentinel1(RasterCollection):
                 band_constructor=Band.from_rasterio,
                 fpath_raster=band_item.file_path,
                 band_name_dst=band_item.polarization,
-                **kwargs
+                **kwargs,
             )
 
         return sentinel1
@@ -154,11 +160,11 @@ class Sentinel1(RasterCollection):
     @classmethod
     @prepare_point_features
     def read_pixels_from_safe(
-            cls,
-            in_dir: Dict[str, Any] | Path,
-            vector_features: Path | gpd.GeoDataFrame,
-            polarizations: Optional[List[str]] = ['VV', 'VH']
-        ) -> gpd.GeoDataFrame:
+        cls,
+        in_dir: Dict[str, Any] | Path,
+        vector_features: Path | gpd.GeoDataFrame,
+        polarizations: Optional[List[str]] = ["VV", "VH"],
+    ) -> gpd.GeoDataFrame:
         """
         Extracts Sentinel-1 raster values at locations defined by one or many
         vector geometry features read from a vector file (e.g., ESRI shapefile) or
@@ -204,8 +210,9 @@ class Sentinel1(RasterCollection):
         gdf = gdf.loc[:, ~gdf.columns.duplicated()]
         return gdf
 
-if __name__ == '__main__':
 
-    in_dir = Path('/home/graflu/public/Evaluation/Satellite_data/Sentinel-1/Rawdata/IW/CH/2021/S1A_IW_GRDH_1SDV_20210106T053505_20210106T053530_036013_043833_C728.SAFE')
+if __name__ == "__main__":
+    in_dir = Path(
+        "/home/graflu/public/Evaluation/Satellite_data/Sentinel-1/Rawdata/IW/CH/2021/S1A_IW_GRDH_1SDV_20210106T053505_20210106T053530_036013_043833_C728.SAFE"
+    )
     s1 = Sentinel1.from_safe(in_dir=in_dir, epsg_code=4326)
-

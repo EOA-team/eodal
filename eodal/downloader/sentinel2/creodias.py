@@ -43,6 +43,7 @@ CREODIAS_FINDER_URL = (
     "https://finder.creodias.eu/resto/api/collections/Sentinel2/search.json?"
 )
 
+
 def query_creodias(
     start_date: date,
     end_date: date,
@@ -96,7 +97,7 @@ def query_creodias(
     # get rid of the last %2C
     coord_str = coord_str[:-3]
     # adopt the processing level
-    processing_level_creodias = processing_level.value.replace('-','').upper()
+    processing_level_creodias = processing_level.value.replace("-", "").upper()
     # construct the REST query
     query = CREODIAS_FINDER_URL + f"maxRecords={max_records}&"
     query += f"startDate={start_date_str}T00%3A00%3A00Z&completionDate={end_date_str}T23%3A59%3A59Z&"

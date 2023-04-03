@@ -36,9 +36,8 @@ DB_URL = f"postgresql://{Settings.DB_USER}:{Settings.DB_PW}@{Settings.DB_HOST}:{
 engine = create_engine(DB_URL, echo=Settings.ECHO_DB)
 session = sessionmaker(bind=engine)()
 
-def meta_df_to_database(
-        meta_df: pd.DataFrame
-    ) -> None:
+
+def meta_df_to_database(meta_df: pd.DataFrame) -> None:
     """
     Once the metadata from one or more mapper have been extracted
     the data can be ingested into the metadata base (strongly
@@ -80,6 +79,7 @@ def metadata_dict_to_database(metadata: dict) -> None:
         logger.error(f"Database INSERT failed: {e}")
         session.rollback()
     session.commit()
+
 
 def update_raw_metadata(meta_df: pd.DataFrame, columns_to_update: List[str]) -> None:
     """

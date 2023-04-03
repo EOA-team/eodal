@@ -1,4 +1,4 @@
-'''
+"""
 Predefined filters for EO data selection by metadata.
 
 Copyright (C) 2022 Lukas Valentin Graf
@@ -15,20 +15,21 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 
 from __future__ import annotations
 
 from typing import Any
 
-operators = ['<', '<=', '==', '!=', '>', '>=']
+operators = ["<", "<=", "==", "!=", ">", ">="]
+
 
 class Filter:
     """
     The generic filter class. A filter is used to query data catalogs.
 
     Each filter follows the following structure:
-    
+
     <entity> <operator> <value>
 
     For instance, `cloudy_pixel_percentage < 10`, where
@@ -44,6 +45,7 @@ class Filter:
     :attrib value:
         value on the right-hand side of the filter expression
     """
+
     def __init__(self, entity: str, operator: str, value: Any):
         """
         Constructor method
@@ -57,15 +59,15 @@ class Filter:
         """
         # check inputs
         if not isinstance(entity, str):
-            raise TypeError('Entity argument must be a string')
-        if entity == '':
-            raise ValueError('Entity argument must not be an empty string')
+            raise TypeError("Entity argument must be a string")
+        if entity == "":
+            raise ValueError("Entity argument must not be an empty string")
         if not isinstance(operator, str):
-            raise TypeError('Operator argument must be a string')
+            raise TypeError("Operator argument must be a string")
         if operator not in operators:
-            raise ValueError('Operator must be one of: ' + ','.join(operators))
+            raise ValueError("Operator must be one of: " + ",".join(operators))
         if value is None:
-            raise ValueError('Value cannot be None')
+            raise ValueError("Value cannot be None")
 
         self._entity = entity
         self._operator = operator
@@ -92,4 +94,4 @@ class Filter:
     @property
     def expression(self) -> str:
         """returns the filter expression as string"""
-        return f'{self.entity} {self.operator} {self.value}'
+        return f"{self.entity} {self.operator} {self.value}"

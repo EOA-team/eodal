@@ -157,6 +157,7 @@ s2_band_mapping = {
 # apply this gain factor
 s2_gain_factor = 0.0001
 
+
 # scene classification layer (Sen2Cor)
 class SCL_Classes(object):
     """

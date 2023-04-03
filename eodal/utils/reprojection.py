@@ -33,7 +33,8 @@ from geopandas import GeoDataFrame
 
 from eodal.core.utils.geometry import read_geometries
 
-UTMZone = namedtuple('Point', 'zone hemisphere')
+UTMZone = namedtuple("Point", "zone hemisphere")
+
 
 def _infer_utm_zone(shape: Polygon | MultiPolygon) -> NamedTuple:
     """
@@ -50,13 +51,14 @@ def _infer_utm_zone(shape: Polygon | MultiPolygon) -> NamedTuple:
     centroid = shape.centroid
     lon = centroid.x
     lat = centroid.y
-    
+
     if lat > 84 or lat < -80:
-        raise Exception('UTM Zones only valid within [-80, 84] latitude')
-    
-    zone = int((lon + 180)/ 6 + 1)
-    hemisphere = 'north' if lat > 0 else 'south'
+        raise Exception("UTM Zones only valid within [-80, 84] latitude")
+
+    zone = int((lon + 180) / 6 + 1)
+    hemisphere = "north" if lat > 0 else "south"
     return UTMZone(zone, hemisphere)
+
 
 def _epsg_from_utm_zone(utmzone: UTMZone) -> int:
     """
@@ -67,15 +69,16 @@ def _epsg_from_utm_zone(utmzone: UTMZone) -> int:
     :returns:
         integer EPSG code
     """
-    epsg_str = '32'
-    if utmzone.hemisphere == 'north':
-        epsg_str += '6'
-    elif utmzone.hemisphere == 'south':
-        epsg_str += '7'
+    epsg_str = "32"
+    if utmzone.hemisphere == "north":
+        epsg_str += "6"
+    elif utmzone.hemisphere == "south":
+        epsg_str += "7"
     else:
-        raise ValueError('Not a valid hemisphere (allowed: north or south)')
+        raise ValueError("Not a valid hemisphere (allowed: north or south)")
     epsg_str += str(utmzone.zone)
     return int(epsg_str)
+
 
 def infer_utm_zone(shape: Polygon | MultiPolygon) -> int:
     """
@@ -88,6 +91,7 @@ def infer_utm_zone(shape: Polygon | MultiPolygon) -> int:
     """
     utmzone = _infer_utm_zone(shape)
     return _epsg_from_utm_zone(utmzone)
+
 
 def check_aoi_geoms(
     in_dataset: Union[Path, gpd.GeoDataFrame],
@@ -143,6 +147,7 @@ def check_aoi_geoms(
         gdf = gpd.GeoDataFrame(geometry=gpd.GeoSeries(bbox))
 
     return gdf
+
 
 def reproject_raster_dataset(
     raster: Union[Path, np.ndarray], **kwargs

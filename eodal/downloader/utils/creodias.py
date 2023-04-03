@@ -1,4 +1,4 @@
-'''
+"""
 Utility functions for downloading data from CREODIAS
 
 Copyright (C) 2022 Lukas Valentin Graf
@@ -15,7 +15,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-'''
+"""
 from __future__ import annotations
 
 import os
@@ -31,6 +31,7 @@ logger = Settings.logger
 
 # fixed chunk size for downloading data
 CHUNK_SIZE = 2096
+
 
 def get_keycloak() -> str:
     """
@@ -64,6 +65,7 @@ def get_keycloak() -> str:
             f"Keycloak token creation failed. Reponse from the server was: {r.json()}"
         )
     return r.json()["access_token"]
+
 
 def download_datasets(
     datasets: pd.DataFrame,

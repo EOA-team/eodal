@@ -1,4 +1,3 @@
-
 # `name` is the name of the package as used for `pip install package`
 name = "eodal"
 # `path` is the name of the package for `import package`

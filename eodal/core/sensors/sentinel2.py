@@ -59,12 +59,12 @@ from eodal.utils.sentinel2 import (
     get_S2_acquistion_time_from_safe,
     get_S2_processing_baseline_from_safe,
 )
-from copy import deepcopy
 from eodal.core.utils.geometry import convert_3D_2D
 from eodal.config import get_settings
 from eodal.utils.sentinel2 import _url_to_safe_name
 
 Settings = get_settings()
+Settings.USE_STAC = False
 
 
 class Sentinel2(RasterCollection):
@@ -307,10 +307,12 @@ class Sentinel2(RasterCollection):
                     elif isinstance(vector_features, gpd.GeoDataFrame):
                         vector_features_df = vector_features.copy()
                     elif isinstance(vector_features, gpd.GeoSeries):
-                        vector_features_df = gpd.GeoDataFrame(vector_features.copy())
+                        vector_features_df = gpd.GeoDataFrame(
+                            geometry=vector_features.copy()
+                        )
                     else:
                         raise TypeError(
-                            'Geometry must be vector file, GeoSeries or GeoDataFrame'
+                            "Geometry must be vector file, GeoSeries or GeoDataFrame"
                         )
 
                     # drop Nones in geometry column
@@ -364,23 +366,23 @@ class Sentinel2(RasterCollection):
         try:
             platform = get_S2_platform_from_safe(dot_safe_name=in_dir)
         except Exception as e:
-            raise ValueError(f'Could not determine platform: {e}')
+            raise ValueError(f"Could not determine platform: {e}")
         # set scene properties (platform, sensor, acquisition date)
         try:
             acqui_time = get_S2_acquistion_time_from_safe(dot_safe_name=in_dir)
         except Exception as e:
-            raise ValueError(f'Could not determine acquisition time: {e}')
+            raise ValueError(f"Could not determine acquisition time: {e}")
         try:
             processing_level = get_S2_processing_level(dot_safe_name=in_dir)
         except Exception as e:
-            raise ValueError(f'Could not determine processing level: {e}')
+            raise ValueError(f"Could not determine processing level: {e}")
         try:
             if isinstance(in_dir, Path):
                 product_uri = in_dir.name
             elif Settings.USE_STAC:
                 product_uri = _url_to_safe_name(in_dir)
         except Exception as e:
-            raise ValueError(f'Could not determine product uri: {e}')
+            raise ValueError(f"Could not determine product uri: {e}")
 
         scene_properties = SceneProperties(
             acquisition_time=acqui_time,
@@ -401,7 +403,6 @@ class Sentinel2(RasterCollection):
         # loop over bands and add them to the collection of bands
         sentinel2 = cls(scene_properties=scene_properties)
         for band_name in list(band_df_safe.band_name):
-
             # get entry from dataframe with file-path of band
             band_safe = band_df_safe[band_df_safe.band_name == band_name]
             band_fpath = band_safe.band_path.values[0]
@@ -534,7 +535,6 @@ class Sentinel2(RasterCollection):
         # loop over spectral bands and extract the pixel values
         band_gdfs = []
         for idx, band_name in enumerate(list(band_df_safe.band_name)):
-
             # get entry from dataframe with file-path of band
             band_safe = band_df_safe[band_df_safe.band_name == band_name]
             band_fpath = Path(band_safe.band_path.values[0])
@@ -567,8 +567,9 @@ class Sentinel2(RasterCollection):
                     gdf_scaled[band_name] = 0.0
                     # use only pixel values were reflectance is != 0
                     gdf_scaled[band_name] = gdf_band[band_name].apply(
-                        lambda x, offset=offset, gain=gain:
-                        (offset + x) * gain if x != 0 else 0 
+                        lambda x, offset=offset, gain=gain: (offset + x) * gain
+                        if x != 0
+                        else 0
                     )
                     band_gdfs.append(gdf_scaled)
                     continue
@@ -582,10 +583,10 @@ class Sentinel2(RasterCollection):
         # skip all pixels with zero reflectance (either blackfilled or outside of the
         # scene extent); in case of dtype float check for NaNs
         band_names = gdf.columns[gdf.columns.str.startswith("B")]
-        if gdf.dtypes[band_names].unique() in ['float32', 'float64']:
-            gdf[band_names] = gdf[band_names].replace({0., np.nan})
+        if gdf.dtypes[band_names].unique() in ["float32", "float64"]:
+            gdf[band_names] = gdf[band_names].replace({0.0, np.nan})
             gdf.dropna(axis=0, inplace=True)
-        elif gdf.dtypes[band_names].unique() in ['int16', 'int32', 'int64']:
+        elif gdf.dtypes[band_names].unique() in ["int16", "int32", "int64"]:
             gdf = gdf.loc[~(gdf[band_df_safe.band_name] == 0).all(axis=1)]
 
         return gdf
@@ -640,7 +641,7 @@ class Sentinel2(RasterCollection):
         self,
         bands_to_mask: Optional[List[str]] = None,
         cloud_classes: Optional[List[int]] = [1, 2, 3, 7, 8, 9, 10, 11],
-        mask_band: Optional[str] = 'SCL',
+        mask_band: Optional[str] = "SCL",
         **kwargs,
     ) -> Sentinel2:
         """
@@ -675,7 +676,7 @@ class Sentinel2(RasterCollection):
         # the mask band should never be masked as otherwise the SCL functions
         # might not work as expected
         if mask_band in bands_to_mask:
-            bands_to_mask.remove('SCL')
+            bands_to_mask.remove("SCL")
         try:
             return self.mask(
                 mask=mask_band,
@@ -699,15 +700,15 @@ class Sentinel2(RasterCollection):
             class occurences.
         """
         # check if SCL is available
-        if not 'scl' in self.band_names and not 'SCL' in self.band_names:
+        if not "scl" in self.band_names and not "SCL" in self.band_names:
             raise BandNotFoundError(
                 "Could not find scene classification layer. Is scene L2A?"
             )
 
         try:
-            scl = self.get_band('SCL')
+            scl = self.get_band("SCL")
         except BandNotFoundError:
-            scl = self.get_band('scl')
+            scl = self.get_band("scl")
         # if the scl array is a masked array consider only those pixels
         # not masked out
         if scl.is_masked_array:
@@ -726,7 +727,6 @@ class Sentinel2(RasterCollection):
         scl_class_mapping = SCL_Classes.values()
         scl_stats_list = []
         for class_occurence in class_occurences.items():
-
             # unpack tuple
             class_code, class_count = class_occurence
 
@@ -755,10 +755,14 @@ class Sentinel2(RasterCollection):
                     scl_stats_dict["Class_Abs_Count"] = 0
                     scl_stats_dict["Class_Rel_Count"] = 0
 
-                    scl_stats_df = pd.concat([
-                        scl_stats_df,
-                        pd.DataFrame(scl_stats_dict, index=[scl_stats_df.index.max()+1])
-                    ])
+                    scl_stats_df = pd.concat(
+                        [
+                            scl_stats_df,
+                            pd.DataFrame(
+                                scl_stats_dict, index=[scl_stats_df.index.max() + 1]
+                            ),
+                        ]
+                    )
 
         return scl_stats_df
 
@@ -800,7 +804,6 @@ class Sentinel2(RasterCollection):
 
 
 if __name__ == "__main__":
-
     in_dir = Path(
         "/mnt/ides/Lukas/03_Debug/Sentinel2/S2A_MSIL2A_20171213T102431_N0206_R065_T32TMT_20171213T140708.SAFE"
     )
