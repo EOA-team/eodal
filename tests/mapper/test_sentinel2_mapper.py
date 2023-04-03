@@ -4,6 +4,7 @@ Created on Jan 11, 2023
 @author: graflu
 '''
 
+import geopandas as gpd
 import pytest
 
 from datetime import datetime
@@ -54,8 +55,10 @@ def test_sentinel2_mapper(collection, time_start, time_end, geom, metadata_filte
         feature=feature,
         metadata_filters=metadata_filters
     )
-    mapper = Mapper(mapper_configs, sensor='sentinel2')
+    mapper = Mapper(mapper_configs)
     mapper.query_scenes()
+    assert isinstance(mapper.metadata, gpd.GeoDataFrame), 'expected a GeoDataFrame'
+    assert not mapper.metadata.empty, 'metadata must not be empty'
 
     def resample(ds: RasterCollection, **kwargs):
         return ds.resample(inplace=False, **kwargs)
