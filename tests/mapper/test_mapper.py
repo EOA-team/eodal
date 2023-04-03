@@ -19,6 +19,7 @@ from eodal.mapper.filter import Filter
 from eodal.mapper.mapper import MapperConfigs, Mapper
 
 Settings = get_settings()
+Settings.USE_STAC = True
 
 def test_mapper_configs(tmppath):
 
