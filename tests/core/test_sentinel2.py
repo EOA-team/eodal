@@ -10,10 +10,13 @@ from shapely.geometry import Polygon
 from matplotlib.figure import Figure
 from datetime import date
 
+from eodal.config import get_settings
 from eodal.core.sensors import Sentinel2
 from eodal.core.band import Band
 from eodal.utils.exceptions import BandNotFoundError, InputError
 
+settings = get_settings()
+settings.USE_STAC = False
 
 def test_read_pixels_from_safe(get_s2_safe_l1c, get_s2_safe_l2a, get_points2, get_points3):
     """
