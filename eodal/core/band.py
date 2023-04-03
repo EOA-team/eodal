@@ -1217,7 +1217,7 @@ class Band(object):
             if len(clipping_bounds) != 4:
                 raise ValueError('Expected four coordinates (xmin, ymin, xmax, ymax)')
             xmin, ymin, xmax, ymax = clipping_bounds
-            actual_geom = box(*clipping_bounds)
+            clipping_bounds = box(*clipping_bounds)
 
         # get bounding box
         if isinstance(clipping_bounds, gpd.GeoDataFrame):
