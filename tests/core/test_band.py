@@ -474,7 +474,8 @@ def test_reduce_band_by_polygons(get_polygons, get_test_band):
     band = get_test_band()
     method = ['mean', 'median', 'max']
     poly_stats = band.reduce(method=method, by=polys)
-    assert len(poly_stats) == gpd.read_file(polys).shape[0], 'wrong number of polygons returned'
+    # comment out this test because in v0.2.0 empty results are discarded by default
+    # assert len(poly_stats) == gpd.read_file(polys).shape[0], 'wrong number of polygons returned'
     assert set(method).issubset(poly_stats[0].keys()), 'expected different naming of results'
     assert 'geometry' in poly_stats[0].keys(), 'geometry attribute was lost'
 
@@ -486,7 +487,8 @@ def test_reduce_band_by_polygons(get_polygons, get_test_band):
 
     # reduce by passing the "self" keyword (features must be set)
     poly_stats_self = band.reduce(method=method, by='self')
-    assert len(poly_stats_self) == band.vector_features.shape[0], 'wrong number of polygons'
+    # comment out this test because in v0.2.0 empty results are discarded by default
+    # assert len(poly_stats_self) == band.vector_features.shape[0], 'wrong number of polygons'
     assert poly_stats_self == poly_stats, 'both approaches should return exactly the same'
 
     # call reduce without passing "by" -> should return a single result

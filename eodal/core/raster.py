@@ -261,6 +261,7 @@ class RasterOperator(Operator):
         operator: str,
         inplace: Optional[bool] = False,
         band_selection: Optional[List[str]] = None,
+        right_sided: Optional[bool] = False
     ) -> Union[None, np.ndarray]:
         """
         executes a custom algebraic operator on `RasterCollection` objects
@@ -283,6 +284,11 @@ class RasterOperator(Operator):
             overwrites the current `RasterCollection` data in `a`
         :param band_selection:
             optional selection of bands in `a` to which apply the operation
+        :param right_sided:
+            optional flag indicated that the order of `a` and `other` has to be
+            switched. `False` by default. Set to `True` if the order of argument
+            matters, i.e., for right-hand sided expression in case of subtraction,
+            division and power.
         :returns:
             `numpy.ndarray` if inplace is False, None instead
         """
@@ -327,7 +333,11 @@ class RasterOperator(Operator):
 
         # perform the operation
         try:
-            expr = f"_a.get_values(band_selection) {operator} _other"
+            # mind the order which is important for some operators
+            if right_sided:
+                expr = f"_other {operator} _a.get_values(band_selection)"
+            else:
+                expr = f"_a.get_values(band_selection) {operator} _other"
             res = eval(expr)
         except Exception as e:
             raise cls.BandMathError(f"Could not execute {expr}: {e}")
@@ -503,35 +513,68 @@ class RasterCollection(MutableMapping):
     def __add__(self, other):
         return RasterOperator.calc(a=self, other=other, operator="+")
 
+    def __radd__(self, other):
+        return RasterOperator.calc(a=self, other=other, operator="+")
+
     def __sub__(self, other):
         return RasterOperator.calc(a=self, other=other, operator="-")
+
+    def __rsub__(self, other):
+        return RasterOperator.calc(a=self, other=other, operator="-", right_sided=True)
 
     def __pow__(self, other):
         return RasterOperator.calc(a=self, other=other, operator="**")
 
+    def __rpow__(self, other):
+        return RasterOperator.calc(a=self, other=other, operator="**", right_sided=True)
+
     def __le__(self, other):
         return RasterOperator.calc(a=self, other=other, operator="<=")
+
+    def __rle__(self, other):
+        return RasterOperator.calc(a=self, other=other, operator="<=", right_sided=True)
 
     def __ge__(self, other):
         return RasterOperator.calc(a=self, other=other, operator=">=")
 
+    def __rge__(self, other):
+        return RasterOperator.calc(a=self, other=other, operator=">=", right_sided=True)
+
     def __truediv__(self, other):
         return RasterOperator.calc(a=self, other=other, operator="/")
 
+    def __rtruediv__(self, other):
+        return RasterOperator.calc(a=self, other=other, operator="/", right_sided=True)
+
     def __mul__(self, other):
+        return RasterOperator.calc(a=self, other=other, operator="*")
+
+    def __rmul__(self, other):
         return RasterOperator.calc(a=self, other=other, operator="*")
 
     def __ne__(self, other):
         return RasterOperator.calc(a=self, other=other, operator="!=")
 
+    def __rne__(self, other):
+        return RasterOperator.calc(a=self, other=other, operator="!=")
+
     def __eq__(self, other):
+        return RasterOperator.calc(a=self, other=other, operator="==")
+
+    def __req__(self, other):
         return RasterOperator.calc(a=self, other=other, operator="==")
 
     def __gt__(self, other):
         return RasterOperator.calc(a=self, other=other, operator=">")
 
+    def __rgt__(self, other):
+        return RasterOperator.calc(a=self, other=other, operator=">", right_sided=True)
+
     def __lt__(self, other):
         return RasterOperator.calc(a=self, other=other, operator="<")
+
+    def __rlt__(self, other):
+        return RasterOperator.calc(a=self, other=other, operator="<", right_sided=True)
 
     def __repr__(self) -> str:
         if self.empty:
