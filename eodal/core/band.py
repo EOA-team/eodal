@@ -2093,6 +2093,11 @@ class Band(object):
                 vals = vals.astype(float)
                 vals = vals.filled(np.nan)
 
+            # check no-data value. Rasterstats fails when nodata is nan
+            # and the dtype of vals is int
+            if issubclass(vals.dtype.type, np.integer) and np.isnan(self.nodata):
+                vals = vals.astype(float)
+
             # call rasterstats.zonal_stats for the current operator
             res = zonal_stats(
                 features,
