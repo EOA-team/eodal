@@ -10,6 +10,7 @@ def test_raster_algebra_scalar(get_bandstack):
     rcoll = RasterCollection.from_multi_band_raster(fpath)
     scalar = 2
 
+    # arithmetic operators
     rcoll_add = rcoll + scalar
     assert (rcoll_add.get_values() == rcoll.get_values() + scalar).all(), 'wrong result'
     rcoll_sub = rcoll - scalar
@@ -21,6 +22,19 @@ def test_raster_algebra_scalar(get_bandstack):
     rcoll_pow = rcoll**scalar
     assert (rcoll_pow.get_values() == rcoll.get_values() ** scalar).all(), 'wrong result'
 
+    # flip order
+    rcoll_add = scalar + rcoll
+    assert (rcoll_add.get_values() == rcoll.get_values() + scalar).all(), 'wrong result'
+    rcoll_sub = scalar - rcoll
+    assert (rcoll_sub.get_values() == scalar - rcoll.get_values()).all(), 'wrong result'
+    rcoll_mul = scalar * rcoll
+    assert (rcoll_mul.get_values() == rcoll.get_values() * scalar).all(), 'wrong result'
+    rcoll_div = scalar / rcoll
+    assert (rcoll_div.get_values() == scalar / rcoll.get_values()).all(), 'wrong result'
+    rcoll_pow = scalar**rcoll
+    assert (rcoll_pow.get_values() == scalar ** rcoll.get_values()).all(), 'wrong result'
+
+    # comparison operators
     rcoll_eq = rcoll == scalar
     assert not rcoll_eq.get_values().all(), 'wrong results'
     rcoll_gt = rcoll > scalar
@@ -31,6 +45,35 @@ def test_raster_algebra_scalar(get_bandstack):
     assert rcoll_lt.get_values().any(), 'wrong results'
     rcoll_le = rcoll <= scalar
     assert rcoll_le.get_values().any(), 'wrong results'
+
+    # flip order
+    rcoll_eq_l = rcoll == scalar
+    rcoll_eq_r = scalar == rcoll
+    assert rcoll_eq_l == rcoll_eq_r, 'order must not matter'
+    rcoll_ne_l = rcoll != scalar
+    rcoll_ne_r = scalar != rcoll
+    assert rcoll_ne_l == rcoll_ne_r, 'order must not matter'
+    rcoll_gt_l = rcoll > scalar
+    rcoll_gt_r = scalar > rcoll
+    assert rcoll_gt_l.get_values().any(), 'wrong result'
+    assert rcoll_gt_r.get_values().any(), 'wrong result'
+    assert (rcoll_gt_l.get_values() != rcoll_gt_r.get_values()).all(), 'results must not be the same'
+    rcoll_ge_l = rcoll >= scalar
+    rcoll_ge_r = scalar >= rcoll
+    assert rcoll_ge_l.get_values().any(), 'wrong result'
+    assert rcoll_ge_r.get_values().any(), 'wrong result'
+    assert (rcoll_ge_l.get_values() != rcoll_ge_r.get_values()).all(), 'results must not be the same'
+    rcoll_lt_l = rcoll < scalar
+    rcoll_lt_r = scalar < rcoll
+    assert rcoll_lt_l.get_values().any(), 'wrong result'
+    assert rcoll_lt_r.get_values().any(), 'wrong result'
+    assert (rcoll_lt_l.get_values() != rcoll_lt_r.get_values()).all(), 'results must not be the same'
+    rcoll_le_l = rcoll <= scalar
+    rcoll_le_r = scalar <= rcoll
+    assert rcoll_le_l.get_values().any(), 'wrong result'
+    assert rcoll_le_r.get_values().any(), 'wrong result'
+    assert (rcoll_le_l.get_values() != rcoll_le_r.get_values()).all(), 'results must not be the same'
+    
 
 def test_raster_algebra_band_and_raster(get_bandstack):
     """test algebraic operations using Bands and Rasters on RasterCollections"""
