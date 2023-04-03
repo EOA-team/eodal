@@ -2088,6 +2088,11 @@ class Band(object):
             # get raster values from EOdal band
             vals = self.values.copy()
 
+            # check if data is masked array
+            if self.is_masked_array:
+                vals = vals.astype(float)
+                vals = vals.filled(np.nan)
+
             # call rasterstats.zonal_stats for the current operator
             res = zonal_stats(
                 features,
