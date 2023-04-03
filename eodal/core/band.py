@@ -83,6 +83,7 @@ class BandOperator(Operator):
         operator: str,
         inplace: Optional[bool] = False,
         band_name: Optional[str] = None,
+        right_sided: Optional[bool] = False
     ) -> Union[None, np.ndarray]:
         """
         executes a custom algebraic operator on Band objects
@@ -101,6 +102,11 @@ class BandOperator(Operator):
             the current `Band` data
         :param band_name:
             optional name of the resulting `Band` object if inplace is False.
+        :param right_sided:
+            optional flag indicated that the order of `a` and `other` has to be
+            switched. `False` by default. Set to `True` if the order of argument
+            matters, i.e., for right-hand sided expression in case of subtraction,
+            division and power.
         :returns:
             `numpy.ndarray` if inplace is False, None instead
         """
@@ -119,7 +125,11 @@ class BandOperator(Operator):
             other_is_band = True
         # perform the operation
         try:
-            expr = f"a.values {operator} other"
+            # mind the order which is important for some operators
+            if right_sided:
+                expr = f'other {operator} a.values'
+            else:
+                expr = f"a.values {operator} other"
             res = eval(expr)
         except Exception as e:
             raise cls.BandMathError(f"Could not execute {expr}: {e}")
@@ -467,35 +477,68 @@ class Band(object):
     def __add__(self, other):
         return BandOperator.calc(a=self, other=other, operator="+")
 
+    def __radd__(self, other):
+        return BandOperator.calc(a=self, other=other, operator='+')
+
     def __sub__(self, other):
         return BandOperator.calc(a=self, other=other, operator="-")
+
+    def __rsub__(self, other):
+        return BandOperator.calc(a=self, other=other, operator="-", right_sided=True)
 
     def __pow__(self, other):
         return BandOperator.calc(a=self, other=other, operator="**")
 
+    def __rpow__(self, other):
+        return BandOperator.calc(a=self, other=other, operator="**", right_sided=True)
+
     def __le__(self, other):
         return BandOperator.calc(a=self, other=other, operator="<=")
+
+    def __rle__(self, other):
+        return BandOperator.calc(a=self, other=other, operator="<=", right_sided=True)
 
     def __ge__(self, other):
         return BandOperator.calc(a=self, other=other, operator=">=")
 
+    def __rge__(self, other):
+        return BandOperator.calc(a=self, other=other, operator=">=", right_sided=True)
+
     def __truediv__(self, other):
         return BandOperator.calc(a=self, other=other, operator="/")
 
+    def __rtruediv__(self, other):
+        return BandOperator.calc(a=self, other=other, operator="/", right_sided=True)
+
     def __mul__(self, other):
+        return BandOperator.calc(a=self, other=other, operator="*")
+
+    def __rmul__(self, other):
         return BandOperator.calc(a=self, other=other, operator="*")
 
     def __ne__(self, other):
         return BandOperator.calc(a=self, other=other, operator="!=")
 
+    def __rne__(self, other):
+        return BandOperator.calc(a=self, other=other, operator="!=")
+
     def __eq__(self, other):
+        return BandOperator.calc(a=self, other=other, operator="==")
+
+    def __req__(self, other):
         return BandOperator.calc(a=self, other=other, operator="==")
 
     def __gt__(self, other):
         return BandOperator.calc(a=self, other=other, operator=">")
 
+    def __rgt__(self, other):
+        return BandOperator.calc(a=self, other=other, operator=">", right_sided=True)
+
     def __lt__(self, other):
         return BandOperator.calc(a=self, other=other, operator="<")
+
+    def __rlt__(self, other):
+        return BandOperator.calc(a=self, other=other, operator="<", right_sided=True)
 
     def __repr__(self) -> str:
         return f'EOdal Band\n---------.\nName:    {self.band_name}\nGeoInfo:    {self.geo_info}'
