@@ -290,3 +290,34 @@ class SpectralIndices(object):
         swir_1 = collection.get(cls.swir_1).values.astype("float")
         green = collection.get(cls.green).values.astype("float")
         return (swir_1 - green)/(swir_1 + green)
+        
+        
+    @classmethod
+    def NDTI(cls, collection):
+        """
+        Calculates the Normalized Tillage Index
+        """
+        swir_1 = collection.get(cls.swir_1).values.astype("float")
+        swir_2 = collection.get(cls.swir_2).values.astype("float")
+        return (swir_1 - swir_2)/(swir_1 + swir_2)
+        
+        
+    @classmethod
+    def NDRI(cls, collection):
+        """
+        Calculates the Normalized Difference Residue Index 
+        """
+        red = collection.get(cls.red).values.astype("float")
+        swir_2 = collection.get(cls.swir_2).values.astype("float")
+        return (red - swir_2)/(red + swir_2)
+        
+        
+         
+    @classmethod
+    def GNDVI(cls, collection):
+        """
+        Calculates the Green Normalized Difference Vegetation Index 
+        """
+        nir = collection.get(cls.nir_1).values.astype("float")
+        green = collection.get(cls.green).values.astype("float")
+        return (nir - green)/(nir + green)
