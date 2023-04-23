@@ -136,22 +136,25 @@ class UploadCommand(Command):
         sys.exit()
 
 setup(
-    name=meta['name'],
-    setup_requires=['setuptools_scm'],
-    use_scm_version={'version_scheme': 'post-release'},
-    description=meta['description'],
+    name='eodal',
+    # setup_requires=['setuptools_scm'],
+    # use_scm_version={'version_scheme': 'python-simplified-semver'},
+    version='0.2.0',
+    description='The Earth Observation Data Analysis Library EOdal',
     long_description=long_description,
+    # long_description='*A truely open-source package for unified analysis of Earth Observation (EO) data\nCloud-native by design providing access to Petabytes of EO data',
     long_description_content_type='text/markdown',
-    author=meta['author'],
-    author_email='NA',
+    author='Group of Crop Science, ETH Zurich & EOA-Team Agroscope Reckenholz, Zurich, Switzerland',
+    author_email='',
     install_requires=install_requires,
-    url='NA',
+    url='https://github.com/EOA-team/eodal',
     python_requires=">=3.8",
     packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
     include_package_data=True,
+    license='GNU General Public License v3',
     package_data={'': []},
     classifiers = [
-     "Natural Language :: English"
+     "Natural Language :: English",
      "Programming Language :: Python :: 3",
      "Operating System :: OS Independent",
      "Programming Language :: Python :: 3.8",

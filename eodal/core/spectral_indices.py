@@ -281,3 +281,12 @@ class SpectralIndices(object):
         vh = collection.get(cls.vh).values.astype("float")
         vv = collection.get(cls.vv).values.astype("float")
         return vh / vv
+        
+    @classmethod
+    def NHI(cls, collection):
+        """
+        Calculates the Normalized Humidity Index
+        """
+        swir_1 = collection.get(cls.swir_1).values.astype("float")
+        green = collection.get(cls.green).values.astype("float")
+        return (swir_1 - green)/(swir_1 + green)
