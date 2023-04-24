@@ -81,13 +81,13 @@ def check_geometry_types(
 
     # check for None geometries (might happen when buffering polygons)
     if remove_empty_geoms:
-        num_none_type_geoms = gdf[gdf.geometry == None].shape[0]
+        num_none_type_geoms = gdf[gdf.geometry == None].shape[0]  # noqa: E711
         if num_none_type_geoms > 0:
             warnings.warn(
                 f"Ignoring {num_none_type_geoms} records where "
                 f"geometries are of type None"
             )
-            gdf = gdf.drop(gdf[gdf.geometry == None].index)
+            gdf = gdf.drop(gdf[gdf.geometry == None].index)  # noqa: E711
 
     # check for allowed geometry types
     gdf_aoi_geoms_types = list(gdf.geom_type.unique())
@@ -97,14 +97,16 @@ def check_geometry_types(
 
     if len(not_allowed_types) > 0:
         raise ValueError(
-            f"Encounter geometry types not allowed for reading band data: ({not_allowed_types})"
+            "Encounter geometry types not allowed for reading "
+            f"band data: ({not_allowed_types})"
         )
     return gdf
 
 
 def convert_3D_2D(geometry: gpd.GeoSeries) -> gpd.GeoSeries:
     """
-    Takes a GeoSeries of 3D Multi/Polygons (has_z) and returns a list of 2D Multi/Polygons.
+    Takes a GeoSeries of 3D Multi/Polygons (has_z) and returns a list of
+    2D Multi/Polygons.
     Snippet taken from https://gist.github.com/rmania/8c88377a5c902dfbc134795a7af538d8
     (accessed latest Jan 18th 2021)
 

@@ -105,7 +105,7 @@ def find_raw_data_by_bbox(
 
     # build the query using "db_model" as a placeholder for the actual db-model
     # of the platform
-    bounding_box_wkt = f"SRID=4326;{bounding_box.wkt}"  # noqa: E841
+    bounding_box_wkt = f"SRID=4326;{bounding_box.wkt}"  # noqa: F841
     query_statement_exc = (
         """
         (session.query(db_model)

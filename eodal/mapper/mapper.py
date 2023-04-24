@@ -527,7 +527,7 @@ class Mapper:
                         if first_val != this_val:
                             # only string values can be merged (connected by '&&')
                             if isinstance(first_val, str):
-                                new_val = first_val + "&&" + this_val  # noqa: E841
+                                new_val = first_val + "&&" + this_val  # noqa: F841
                                 exec(f"merged_scene_properties.{scene_prop} = new_val")
 
                 scene.scene_properties = merged_scene_properties

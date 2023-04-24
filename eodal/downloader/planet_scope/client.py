@@ -11,7 +11,7 @@ Under Linux you can set your API key by running:
 .. code-block:: shell
 
     export PLANET_API_KEY = "<your-planet-api-key>"
- 
+
 Copyright (C) 2022 Samuel Wildhaber with some modifications by Lukas Valentin Graf
 
 This program is free software: you can redistribute it and/or modify
