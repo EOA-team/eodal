@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/PyCQA/isort
-    rev: 5.10.1
+    rev: 5.12.0
     hooks:
       - id: isort
         name: isort
@@ -11,37 +11,45 @@ repos:
         args: ["--profile=black"]
 
   - repo: https://github.com/psf/black
-    rev: 22.3.0
+    rev: 23.1.0
     hooks:
       - id: black
         args:
+            - "--target-version=py37"
+            - "--target-version=py38"
+            - "--target-version=py39"
             - "--target-version=py310"
+            - "--target-version=py311"
         types: [python]
 
   - repo: https://github.com/asottile/blacken-docs
-    rev: v1.12.1
+    rev: 1.13.0
     hooks:
       - id: blacken-docs
-        additional_dependencies: ["black==22.3.0"]
+        additional_dependencies: ["black==23.1.0"]
 
   - repo: https://github.com/kynan/nbstripout
-    rev: 0.5.0
+    rev: 0.6.1
     hooks:
       - id: nbstripout
 
   - repo: https://github.com/nbQA-dev/nbQA
-    rev: 1.3.1
+    rev: 1.6.4
     hooks:
       - id: nbqa-isort
         args: ["--profile=black"]
       - id: nbqa-black
         args:
+            - "--target-version=py37"
+            - "--target-version=py38"
+            - "--target-version=py39"
             - "--target-version=py310"
-        additional_dependencies: ["black==22.3.0"]
+            - "--target-version=py311"
+        additional_dependencies: ["black==23.1.0"]
       - id: nbqa-flake8
 
   - repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.9.0
+    rev: v1.10.0
     hooks:
       - id: python-check-blanket-noqa
       - id: python-check-blanket-type-ignore
@@ -54,7 +62,7 @@ repos:
         types: [text]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.2.0
+    rev: v4.4.0
     hooks:
       - id: check-added-large-files
       - id: check-ast
@@ -80,12 +88,12 @@ repos:
         exclude: \.(html|svg)$
 
   - repo: https://github.com/asottile/setup-cfg-fmt
-    rev: v1.20.1
+    rev: v2.2.0
     hooks:
       - id: setup-cfg-fmt
 
   - repo: https://github.com/PyCQA/flake8
-    rev: 4.0.1
+    rev: 6.0.0
     hooks:
       - id: flake8
         additional_dependencies:
