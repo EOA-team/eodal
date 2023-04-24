@@ -61,6 +61,7 @@ jobs:
 
     - name: Test with pytest
       run: |
+        python -m pip install pytest
         python -m pytest --cov=package_name --cov-report term --cov-report xml --cov-config .coveragerc --junitxml=testresults.xml
 
     - name: Upload coverage to Codecov
