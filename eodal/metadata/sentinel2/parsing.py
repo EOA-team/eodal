@@ -379,7 +379,7 @@ def get_scene_footprint(sensor_data: dict) -> str:
     lly, llx = transformer.transform(xx=llx, yy=lly)
     lry, lrx = transformer.transform(xx=lrx, yy=lry)
 
-    wkt = f"SRID=4326;"
+    wkt = "SRID=4326;"
     wkt += f"POLYGON(({ulx} {uly},{urx} {ury},{lrx} {lry},{llx} {lly},{ulx} {uly}))"
 
     return wkt
@@ -495,7 +495,8 @@ def loop_s2_archive(
     if get_newest_datasets:
         if last_execution_date is None:
             raise InputError(
-                "A timestamp must be provided when the only newest datasets shall be considered"
+                "A timestamp must be provided when the only newest " +
+                "datasets shall be considered"
             )
 
     # search for .SAFE subdirectories identifying the single mapper
@@ -523,7 +524,8 @@ def loop_s2_archive(
         s2_scenes = filtered_scenes
         if len(s2_scenes) == 0:
             raise NothingToDo(
-                f'No mapper younger than {datetime.strftime(last_execution_date, "%Y-%m-%d")} found'
+                'No mapper younger than ' +
+                f'{datetime.strftime(last_execution_date, "%Y-%m-%d")} found'
             )
 
     # loop over the mapper

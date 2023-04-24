@@ -111,9 +111,9 @@ class Sentinel2(RasterCollection):
         """
         # check the PDGS baseline
         baseline = get_S2_processing_baseline_from_safe(dot_safe_name=in_dir)
-        # starting with baseline N0400 (400) S2 reflectances have an offset value of -1000, i.e.,
-        # the values reported in the .jp2 files must be subtracted by 1000 to obtain the actual
-        # reflectance factor values
+        # starting with baseline N0400 (400) S2 reflectances have an offset
+        # value of -1000, i.e., the values reported in the .jp2 files must
+        # be subtracted by 1000 to obtain the actual reflectance factor values
         s2_offset = 0
         if baseline == 400:
             s2_offset = -1000
@@ -269,10 +269,11 @@ class Sentinel2(RasterCollection):
         :param apply_scaling:
             apply Sentinel-2 gain and offset factor to derive reflectance values scaled
             between 0 (negative values are possible from baseline N0400 onwards) and 1
-            (default behavior). Because of the reflectance offset of -1000 introduced with
-            PDGS baseline N0400 in January 2022 applying the automatized scaling is recommended
-            to always obtain physically correct reflectance factor values - at the cost of
-            higher storage requirements because scaling converts the data to float32.
+            (default behavior). Because of the reflectance offset of -1000 introduced
+            with PDGS baseline N0400 in January 2022 applying the automatized scaling
+            is recommended to always obtain physically correct reflectance factor
+            values - at the cost of higher storage requirements because scaling converts
+            the data to float32.
         :param kwargs:
             optional key-word arguments to pass to `~eodal.core.band.Band.from_rasterio`
         :returns:
@@ -284,18 +285,17 @@ class Sentinel2(RasterCollection):
         )
 
         # check the clipping extent of the raster with the lowest (coarsest) spatial
-        # resolution and remember it for all other bands with higher spatial resolutions.
+        # resolution and remember it for all other bands with higher spatial
+        # resolutions.
         # By doing so, it is ensured that all bands will be clipped to the same spatial
         # extent regardless of their pixel size. This works since all S2 bands share the
         # same coordinate origin.
         # get lowest spatial resolution (maximum pixel size) band
-        align_shapes = False
         masking_after_read_required = False
 
         if kwargs.get("vector_features") is not None:
             lowest_resolution = band_df_safe["band_resolution"].max()
             if band_df_safe["band_resolution"].unique().shape[0] > 1:
-                align_shapes = True
                 if kwargs.get("vector_features") is not None:
                     low_res_band = band_df_safe[
                         band_df_safe["band_resolution"] == lowest_resolution
@@ -317,7 +317,7 @@ class Sentinel2(RasterCollection):
 
                     # drop Nones in geometry column
                     none_idx = vector_features_df[
-                        vector_features_df.geometry == None
+                        vector_features_df.geometry == None  # noqa: E711
                     ].index
                     vector_features_df.drop(index=none_idx, inplace=True)
 
@@ -396,8 +396,8 @@ class Sentinel2(RasterCollection):
         kwargs.update({"area_or_point": "Area"})
         # set nodata to zero (unfortunately the S2 img metadata is incorrect here)
         kwargs.update({"nodata": 0})
-        # set correct scale factor (unfortunately not correct in S2 JP2 header but specified in
-        # the MTD_MSIL1C and MTD_MSIL2A.xml metadata document)
+        # set correct scale factor (unfortunately not correct in S2 JP2 header but
+        # specified in the MTD_MSIL1C and MTD_MSIL2A.xml metadata document)
         gain, offset = cls._get_gain_and_offset(in_dir=in_dir)
 
         # loop over bands and add them to the collection of bands
@@ -516,10 +516,11 @@ class Sentinel2(RasterCollection):
         :param apply_scaling:
             apply Sentinel-2 gain and offset factor to derive reflectance values scaled
             between 0 (negative values are possible from baseline N0400 onwards) and 1
-            (default behavior). Because of the reflectance offset of -1000 introduced with
-            PDGS baseline N0400 in January 2022 applying the automatized scaling is recommended
-            to always obtain physically correct reflectance factor values - at the cost of
-            higher storage requirements because scaling converts the data to float32.
+            (default behavior). Because of the reflectance offset of -1000 introduced
+            with PDGS baseline N0400 in January 2022 applying the automatized scaling
+            is recommended to always obtain physically correct reflectance factor values
+            - at the cost of higher storage requirements because scaling converts the
+            data to float32.
         :returns:
             ``GeoDataFrame`` containing the extracted raster values. The band values
             are appended as columns to the dataframe. Existing columns of the input
@@ -618,7 +619,8 @@ class Sentinel2(RasterCollection):
         # make a color map of fixed colors
         if colormap == "":
             # get only those colors required (classes in the layer)
-            # FIXME: plotting cannot really handle when values are missing in between, e.g., [0,2,3,4]
+            # FIXME: plotting cannot really handle when values are
+            # missing in between, e.g., [0,2,3,4]
             scl_colors = SCL_Classes.colors()
             scl_dict = SCL_Classes.values()
             scl_classes = list(np.unique(scl.values))
@@ -655,8 +657,8 @@ class Sentinel2(RasterCollection):
             a custom classifier.
 
         NOTE:
-            You might also use the mask function from `eodal.core.raster.RasterCollection`
-            directly.
+            You might also use the mask function from
+            `eodal.core.raster.RasterCollection` directly.
 
         :param bands_to_mask:
             list of bands on which to apply the SCL mask. If not specified all bands
@@ -700,7 +702,7 @@ class Sentinel2(RasterCollection):
             class occurences.
         """
         # check if SCL is available
-        if not "scl" in self.band_names and not "SCL" in self.band_names:
+        if "scl" not in self.band_names and "SCL" not in self.band_names:
             raise BandNotFoundError(
                 "Could not find scene classification layer. Is scene L2A?"
             )
@@ -801,37 +803,3 @@ class Sentinel2(RasterCollection):
         all_pixels = scl_stats_df["Class_Abs_Count"].sum()
         cloudy_pixel_percentage = num_cloudy_pixels / (all_pixels - nodata_pixels) * 100
         return cloudy_pixel_percentage
-
-
-if __name__ == "__main__":
-    in_dir = Path(
-        "/mnt/ides/Lukas/03_Debug/Sentinel2/S2A_MSIL2A_20171213T102431_N0206_R065_T32TMT_20171213T140708.SAFE"
-    )
-    vector_features = Path(
-        "/mnt/ides/Lukas/02_Research/PhenomEn/01_Data/01_ReferenceData/Strickhof/WW_2022/Bramenwies.shp"
-    )
-    full_bounding_box_only = True
-    s2 = Sentinel2.from_safe(
-        in_dir=in_dir,
-        vector_features=vector_features,
-        full_bounding_box_only=full_bounding_box_only,
-    )
-    resampled = s2.resample(target_resolution=10)
-    assert resampled.is_bandstack(), "raster extents still differ"
-    assert (
-        not s2.is_bandstack()
-    ), "original data must still differ in spatial resolution"
-
-    fpath_raster = in_dir.parent.joinpath("test_10m_full_bbox.jp2")
-    resampled.to_rasterio(fpath_raster, band_selection=["B03", "B12"])
-
-    full_bounding_box_only = False
-    s2 = Sentinel2.from_safe(
-        in_dir=in_dir,
-        vector_features=vector_features,
-        full_bounding_box_only=full_bounding_box_only,
-    )
-    resampled = s2.resample(target_resolution=10)
-    assert resampled.is_bandstack(), "raster extents still differ"
-    fpath_raster = in_dir.parent.joinpath("test_10m_mask.jp2")
-    resampled.to_rasterio(fpath_raster, band_selection=["B03", "B12"])

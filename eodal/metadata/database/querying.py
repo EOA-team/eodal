@@ -37,7 +37,9 @@ from eodal.utils.exceptions import DataNotFoundError, RegionNotFoundError
 Settings = get_settings()
 logger = Settings.logger
 
-DB_URL = f"postgresql://{Settings.DB_USER}:{Settings.DB_PW}@{Settings.DB_HOST}:{Settings.DB_PORT}/{Settings.DB_NAME}"
+DB_URL = f"postgresql://{Settings.DB_USER}:" + \
+    f"{Settings.DB_PW}@{Settings.DB_HOST}:" + \
+    f"{Settings.DB_PORT}/{Settings.DB_NAME}"
 engine = create_engine(DB_URL, echo=Settings.ECHO_DB)
 session = sessionmaker(bind=engine)()
 
@@ -103,9 +105,9 @@ def find_raw_data_by_bbox(
 
     # build the query using "db_model" as a placeholder for the actual db-model
     # of the platform
-    bounding_box_wkt = f"SRID=4326;{bounding_box.wkt}"
+    bounding_box_wkt = f"SRID=4326;{bounding_box.wkt}"  # noqa: E841
     query_statement_exc = (
-        f"""
+        """
         (session.query(db_model)
         .filter(ST_Intersects(db_model.geom, ST_GeomFromText(bounding_box_wkt)))
         .filter(

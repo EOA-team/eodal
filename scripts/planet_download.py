@@ -10,7 +10,7 @@ Under Linux you can set your API key by running:
 .. code-block:: shell
 
     export PLANET_API_KEY = "<your-planet-api-key>"
-    
+
 Copyright (C) 2022 Samuel Wildhaber with some modifications by Lukas Valentin Graf
 
 This program is free software: you can redistribute it and/or modify
@@ -33,9 +33,10 @@ from eodal.downloader.planet_scope import PlanetAPIClient
 from pathlib import Path
 
 ###################################
-# usage example 1 - query archive by date and AOI, place order and download it once it's ready
-start_date = date(2022,7,25)
-end_date = date(2022,7,29)
+# usage example 1 - query archive by date and AOI, place order and download
+# it once it's ready
+start_date = date(2022, 7, 25)
+end_date = date(2022, 7, 29)
 bounding_box = Path('../data/sample_polygons/ZH_Polygon_73129_ESCH_EPSG32632.shp')
 order_name = f'{date.today()}_ZH_Polygon_73129'
 cloud_cover = 50.
@@ -56,7 +57,7 @@ order_url = client.place_order(order_name=order_name)
 client.check_order_status(order_url, loop=True)
 
 # download order -> make sure the order is activated (see previous step)
-download_dir = Path('/home/graflu/public/Evaluation/Projects/KP0031_lgraf_PhenomEn/__work__')
+download_dir = Path('<enter_a_path')
 client.download_order(order_url, download_dir)
 
 ###################################

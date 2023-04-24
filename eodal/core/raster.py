@@ -1,15 +1,15 @@
 """
-This module defines the ``RasterCollection`` class which is the basic class for reading, plotting,
-transforming, manipulating and writing (geo-referenced) raster data in an intuitive, object-oriented
-way (in terms of software philosophy).
+This module defines the ``RasterCollection`` class which is the basic class for reading,
+plotting, transforming, manipulating and writing (geo-referenced) raster data in an
+intuitive, object-oriented way (in terms of software philosophy).
 
-A ``RasterCollection`` is collection of to zero to N `~eodal.core.band.Band` instances, where each
-band denotes a two-dimensional array at its core. The ``RasterCollection`` class allows thereby
-to handle ``Band`` instances with different spatial reference systems, spatial resolutions (i.e.,
-grid cell sizes) and spatial extents.
+A ``RasterCollection`` is collection of to zero to N `~eodal.core.band.Band` instances,
+in which each band denotes a two-dimensional array at its core. The ``RasterCollection``
+class allows thereby to handle ``Band`` instances with different spatial reference
+systems, spatial resolutions (i.e., grid cell sizes) and spatial extents.
 
-Besides that, ``RasterCollection`` is a super class from which sensor-specific classes for reading
-(satellite) raster image data inherit.
+Besides that, ``RasterCollection`` is a super class from which sensor-specific classes
+for reading (satellite) raster image data inherit.
 
 .. highlight:: python
 .. code-block:: python
@@ -22,7 +22,7 @@ Besides that, ``RasterCollection`` is a super class from which sensor-specific c
     # New collection from `numpy.ndarray`
     # Define GeoInfo and Array first and use them to initialize a new RasterCollection
     # instance:
-    
+
     # provide EPSG code
     epsg = 32633
     # provide upper left (ul) x and y coordinate (in units of the coordinate system
@@ -31,18 +31,18 @@ Besides that, ``RasterCollection`` is a super class from which sensor-specific c
     # provide pixel size (spatial resolution). Note that resolution in y direction is
     # negative because we start at the upper left corner
     pixres_x, pixres_y = 10, -10
-    
+
     # get a new GeoInfo object
     geo_info = GeoInfo(epsg=epsg,ulx=ulx,uly=uly,pixres_x=pixres_x,pixres_y=pixres_y)
-    
+
     # define a band name for the band data to add
     band_name = 'random'
     # optionally, you can also asign a `band_alias` (e.g., color name)
     band_alias = 'blue'
-    
+
     # let's define some random numbers in a 2-d array
     values = np.random.random(size=(100,120))
-    
+
     # get the RasterCollection object
     raster = RasterCollection(
              band_constructor=Band,
@@ -87,7 +87,6 @@ from matplotlib.axes import Axes
 from matplotlib.pyplot import Figure
 from numbers import Number
 from pathlib import Path
-from rasterio import band
 from rasterio.drivers import driver_from_extension
 from typing import Any
 from typing import Callable
@@ -270,9 +269,9 @@ class RasterOperator(Operator):
         :param a:
             `RasterCollection` object with values (non-empty)
         :param other:
-            `Band` object, scalar, 3-dimensional `numpy.array`, or RasterCollection to use
-            on the right-hand side of the operator. If a `numpy.array` is passed the array
-            must have either shape `(1,nrows,ncols)` or `(nband,nrows,ncols)`
+            `Band` object, scalar, 3-dimensional `numpy.array`, or RasterCollection to
+            use on the right-hand side of the operator. If a `numpy.array` is passed
+            the array must have either shape `(1,nrows,ncols)` or `(nband,nrows,ncols)`
             where `nrows` is the number of rows in `a`, ncols the number of columns
             in `a` and `nbands` the number of bands in a or the selection thereof.
             The latter method does *not* work if the bands in `a` selected differ
@@ -307,8 +306,8 @@ class RasterOperator(Operator):
             if len(other.shape) == 2:
                 if other.shape != a.get_values(band_selection).shape[1::]:
                     raise ValueError(
-                        f"Passed array has wrong number of rows and columns. "
-                        + f"Expected {a.values.shape[1::]} - Got {other.shape}"
+                        "Passed array has wrong number of rows and columns. "
+                        f"Expected {a.values.shape[1::]} - Got {other.shape}"
                     )
             # or 3-d
             elif len(other.shape) == 3:
@@ -582,9 +581,10 @@ class RasterCollection(MutableMapping):
             return "Empty EOdal RasterCollection"
         else:
             return (
-                f"EOdal RasterCollection\n----------------------\n"
-                + f'# Bands:    {len(self)}\nBand names:    {", ".join(self.band_names)}\n'
-                + f'Band aliases:    {", ".join(self.band_aliases)}'
+                "EOdal RasterCollection\n----------------------\n"
+                f'# Bands:    {len(self)}\nBand names:    '
+                f'{", ".join(self.band_names)}\n'
+                f'Band aliases:    {", ".join(self.band_aliases)}'
             )
 
     @property
@@ -872,8 +872,8 @@ class RasterCollection(MutableMapping):
             (default) all bands are loaded. If `band_idxs` and `band_names_src` are
             provided, the former is ignored.
         :param band_names_dst:
-            optional list of band names in the resulting collection.Must match the length
-            and order of `band_idxs` or `band_names_src`.
+            optional list of band names in the resulting collection.Must match the
+            length and order of `band_idxs` or `band_names_src`.
         :returns:
             ``GeoDataFrame`` with extracted pixel values. If the vector features
             defining the sampling points are not within the spatial extent of the
@@ -1293,8 +1293,8 @@ class RasterCollection(MutableMapping):
             `by` to get descriptive statistics by selected geometry features (e.g.,
             single polygons).
         :returns:
-            ``GeoDataFrame`` with descriptive statistics for all bands selected and geometry
-            features passed (optional)
+            ``GeoDataFrame`` with descriptive statistics for all bands selected and
+            geometry features passed (optional)
         """
         stats = []
         if band_selection is None:
@@ -1465,7 +1465,8 @@ class RasterCollection(MutableMapping):
             # translate mask band into boolean array
             if mask_values is None:
                 raise ValueError(
-                    "When using a band as mask, you have to provide a list of mask values"
+                    "When using a band as mask, you have to provide a "
+                    "list of mask values"
                 )
             # convert the mask to a temporary binary mask
             tmp = np.zeros_like(_mask)
@@ -1495,7 +1496,8 @@ class RasterCollection(MutableMapping):
         # check shapes of bands and mask before applying the mask
         if not self.is_bandstack(band_selection=bands_to_mask):
             raise ValueError(
-                "Can only mask bands that have the same spatial extent, pixel size and CRS"
+                "Can only mask bands that have the same spatial extent, "
+                "pixel size and CRS"
             )
 
         # initialize a new raster collection if inplace is False

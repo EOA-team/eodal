@@ -109,7 +109,8 @@ class MapperConfigs:
             raise ValueError("Collections must have at least 3 characters")
         if collection.count("-") > 2:
             raise ValueError(
-                f"Collections must obey the format <platform>-<sensor> where <sesor> is optional"
+                "Collections must obey the format <platform>-<sensor> where " +
+                "<sensor> is optional"
             )
         if not isinstance(feature, Feature):
             raise TypeError("Expected a Feature object")
@@ -128,8 +129,9 @@ class MapperConfigs:
     def __repr__(self) -> str:
         return (
             f"EOdal MapperConfig\n------------------\nCollection: {self.collection}"
-            + f"\nTime Range: {self.time_start} - {self.time_end}\nFeature:\n"
-            + f"{self.feature.__repr__()}\nMetadata Filters: {str(self.metadata_filters)}"
+            f"\nTime Range: {self.time_start} - {self.time_end}\nFeature:\n"
+            f"{self.feature.__repr__()}\nMetadata Filters: "
+            f"{str(self.metadata_filters)}"
         )
 
     @property
@@ -164,7 +166,7 @@ class MapperConfigs:
         return self._metadata_filters
 
     @classmethod
-    def from_yaml(cls, fpath: str | Path) -> cls:
+    def from_yaml(cls, fpath: str | Path):
         """
         Load mapping configurations from YAML file
 
@@ -253,7 +255,7 @@ class Mapper:
             `sensing_time` by default.
         """
         if not isinstance(mapper_configs, MapperConfigs):
-            raise TypeError(f"Expected a MapperConfigs instance")
+            raise TypeError("Expected a MapperConfigs instance")
         self._mapper_configs = mapper_configs
         self._time_column = time_column
         self._metadata = None
@@ -441,7 +443,8 @@ class Mapper:
             Callable used to read the scenes found into `RasterCollection` fulfilling
             the `is_scene` criterion (i.e., a time stamp is available). The callable is
             applied to all scenes found in the metadata query call.
-            By default the standard class-method call `~RasterCollection.from_multi_band_raster`
+            By default the standard class-method call
+            `~RasterCollection.from_multi_band_raster`
             is used. It can be replaced, however, with a custom-written callable that
             can be of any design except that it **MUST** accept a keyword argument
             `fpath_raster` used for reading the Scene data and `vector_features` for
@@ -524,7 +527,7 @@ class Mapper:
                         if first_val != this_val:
                             # only string values can be merged (connected by '&&')
                             if isinstance(first_val, str):
-                                new_val = first_val + "&&" + this_val
+                                new_val = first_val + "&&" + this_val  # noqa: E841
                                 exec(f"merged_scene_properties.{scene_prop} = new_val")
 
                 scene.scene_properties = merged_scene_properties
@@ -537,7 +540,7 @@ class Mapper:
                 except KeyError:
                     logger.warn(
                         f"Scene with ID {merged_scene_properties.product_uri} "
-                        + f"already added to SceneCollection - continue"
+                        "already added to SceneCollection - continue"
                     )
                     continue
                 update_scene_properties_list.append(merged_scene_properties)
@@ -548,9 +551,10 @@ class Mapper:
                 subset=[self.time_column], keep="first", inplace=True
             )
             for updated_scene_properties in update_scene_properties_list:
-                # use the time stamp for finding the correct metadata records. There might be
-                # some disagreement in the milliseconds because of different precision levels
-                # therefore, an offset of less than 1 second is tolerated
+                # use the time stamp for finding the correct metadata
+                # records. Theremight be some disagreement in the milliseconds
+                # because of different precision levels therefore, an offset
+                # of less than 1 second is tolerated
                 idx = self.metadata[
                     abs(
                         self.metadata[self.time_column]
@@ -583,7 +587,7 @@ class Mapper:
                 except KeyError:
                     logger.warn(
                         f"Scene with ID {merged_scene_properties.product_uri} "
-                        + f"already added to SceneCollection - continue"
+                        "already added to SceneCollection - continue"
                     )
                     continue
 
@@ -665,7 +669,8 @@ class Mapper:
         # check if scenes have been queried and found
         if self.metadata is None:
             warnings.warn(
-                "No scenes are available - have you already executed Mapper.query_scenes()?"
+                "No scenes are available - have you already executed "
+                "Mapper.query_scenes()?"
             )
             return
         if self.metadata.empty:
@@ -683,9 +688,9 @@ class Mapper:
         except KeyError as e:
             raise ValueError(f"Could not determine CRS of scenes: {e}")
 
-        # check if mosaicing scenes is required. This is done by checking the sensing_time
-        # time stamps. If there are multiple scenes with the same time stamp they must be
-        # mosaiced into a single scene
+        # check if mosaicing scenes is required. This is done by checking the
+        # sensing_time time stamps. If there are multiple scenes with the same
+        # time stamp they must be mosaiced into a single scene
         self.metadata["mosaicing"] = False
         duplicated_idx = self.metadata[
             self.metadata.duplicated([self.time_column])

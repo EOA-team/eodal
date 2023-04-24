@@ -169,7 +169,7 @@ def get_S2_bandfiles(
         if is_L2A:
             search_pattern = f"GRANULE/*/IM*/R{int(resolution)}m/*B*.jp2"
         else:
-            search_pattern = f"GRANULE/*/IM*/*B*.jp2"
+            search_pattern = "GRANULE/*/IM*/*B*.jp2"
     files = glob.glob(str(in_dir.joinpath(search_pattern)))
     return [Path(x) for x in files]
 
@@ -267,14 +267,16 @@ def get_S2_bandfiles_with_res(
         else:
             # search expression for the file depends on the processing level
             if is_l2a:
-                search_expr = f"GRANULE/*/IMG_DATA/R{int(band_res)}m/*_{band_name.upper()}_{int(band_res)}m.jp2"
+                search_expr = f"GRANULE/*/IMG_DATA/R{int(band_res)}m/*_" + \
+                                f"{band_name.upper()}_{int(band_res)}m.jp2"
             else:
                 search_expr = f"GRANULE/*/IMG_DATA/T*_{band_name.upper()}.jp2"
             try:
                 band_fpath = next(in_dir.glob(search_expr))
             except Exception as e:
                 raise BandNotFoundError(
-                    f"Could not determine file-path of {band_name} from {in_dir.name}: {e}"
+                    f"Could not determine file-path of {band_name} "
+                    f"from {in_dir.name}: {e}"
                 )
         band_props["band_name"] = band_name
         band_props["band_path"] = band_fpath

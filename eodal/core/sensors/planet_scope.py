@@ -141,9 +141,9 @@ class SuperDove(PlanetScope):
         apply_scaling: Optional[bool] = True,
     ) -> gpd.GeoDataFrame:
         """
-        Extracts PlanetScope Super Dove raster values at locations defined by one or many
-        vector geometry features read from a vector file (e.g., ESRI shapefile) or
-        ``GeoDataFrame``.
+        Extracts PlanetScope Super Dove raster values at locations defined by one
+        or many vector geometry features read from a vector file
+        (e.g., ESRI shapefile) or ``GeoDataFrame``.
 
         :param in_dir:
             Planet Scope SuperDove scene from which to extract
@@ -195,22 +195,3 @@ class SuperDove(PlanetScope):
                 fpath_raster=udm_file, vector_features=vector_features
             )
         return sr
-
-
-if __name__ == "__main__":
-    scene = Path(
-        "/home/graflu/public/Evaluation/Satellite_data/Planet/Eschikon/PSB_SD/analytic_8b_sr_udm2/2022/20220307_095705_17_2473"
-    )
-    band_selection = ["blue", "green", "red"]
-    parcel = Path(
-        "/home/graflu/public/Evaluation/Projects/KP0031_lgraf_PhenomEn/02_Field-Campaigns/Strickhof/WW_2022/Hohrueti.shp"
-    )
-    ds = SuperDove.from_analytic(
-        in_dir=scene, band_selection=band_selection, vector_features=parcel
-    )
-    ds.mask_non_clear_pixels()
-
-    fpath_pixels = Path(
-        "/home/graflu/public/Evaluation/Projects/KP0031_lgraf_PhenomEn/02_Field-Campaigns/Strickhof/Sampling_Points/Bramenwies.shp"
-    )
-    pixels = SuperDove.read_pixels(vector_features=fpath_pixels, in_dir=scene)

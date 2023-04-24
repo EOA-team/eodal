@@ -42,8 +42,8 @@ logger = Settings.logger
 
 def parse_s1_metadata(in_dir: Path) -> Dict:
     """
-    Parses the metadata found in the "manifest.safe" document of S1_IW_GRDH Level-1 products and
-    writes them into a Python dictionary
+    Parses the metadata found in the "manifest.safe" document of S1_IW_GRDH Level-1
+    products and writes them into a Python dictionary
 
     :param in_dir:
         file-path of the file you want to extract the metadata from
@@ -147,8 +147,8 @@ def extract_s1_footprint(in_dir: Path, use_gml: Optional[bool] = True) -> str:
     :param in_dir:
         Filepath to the S1 raw data .SAFE folder
     :param use_gml:
-        Should the GML coordinates (from the manifest.safe) be used, or the KML coordinates (from
-        the ./preview/map-overlay.kml)
+        Should the GML coordinates (from the manifest.safe) be used, or the KML
+        coordinates (from the ./preview/map-overlay.kml)
     :returns:
         Well-known-text (WKT) of the S1 mapper' footprint in geographic coordinates
         (WGS84, EPSG:4326).
@@ -188,7 +188,7 @@ def extract_s1_footprint(in_dir: Path, use_gml: Optional[bool] = True) -> str:
         kml_poly = Polygon(LinearRing(kml_coords))
         wkt = kml_poly.wkt
 
-    out_wkt = f"SRID=4326;"
+    out_wkt = "SRID=4326;"
     out_wkt += wkt
 
     return out_wkt
@@ -232,7 +232,8 @@ def loop_s1_archive(
     if get_newest_datasets:
         if last_execution_date is None:
             raise InputError(
-                "A timestamp must be provided when the only newest datasets shall be considered"
+                "A timestamp must be provided when the only newest datasets "
+                "shall be considered"
             )
 
     # search for .SAFE subdirectories identifying the single mapper
@@ -257,7 +258,8 @@ def loop_s1_archive(
         s1_scenes = filtered_scenes
         if len(s1_scenes) == 0:
             raise DataNotFoundError(
-                f'No mapper younger than {datetime.strftime(last_execution_date, "%Y-%m-%d")} found'
+                'No mapper younger than ' +
+                f'{datetime.strftime(last_execution_date, "%Y-%m-%d")} found'
             )
 
     # loop over the mapper
@@ -278,22 +280,3 @@ def loop_s1_archive(
 
     # convert to pandas dataframe and return
     return pd.DataFrame(metadata_scenes)
-
-
-# if __name__ == '__main__':
-#
-#     from eodal.metadata.sentinel1.parsing import parse_s1_metadata
-#     from eodal.metadata.sentinel1.database.ingestion import meta_df_to_database
-#     from pathlib import Path
-#
-#     years = [x for x in range(2019,2022)]
-#     instrument_mode = 'IW'
-#     for year in years:
-#         in_dir = Path(f'/home/graflu/public/Evaluation/Satellite_data/Sentinel-1/Rawdata/{instrument_mode}/CH/{year}')
-#         metadata = loop_s1_archive(in_dir)
-#
-#         metadata["storage_device_ip"] = "//hest.nas.ethz.ch/green_groups_kp_public"
-#         metadata["storage_device_ip_alias"] = "//nas12.ethz.ch/green_groups_kp_public"
-#         metadata["storage_share"] = f"Evaluation/Satellite_data/Sentinel-1/Rawdata/{instrument_mode}/CH/{year}"
-#
-#         meta_df_to_database(metadata)

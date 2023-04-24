@@ -101,7 +101,8 @@ def reconstruct_path(
 
             share = mount_point.joinpath(record.storage_share)
 
-        # Windows does not know about mount points, it should be able to work with network paths
+        # Windows does not know about mount points, it should be able to work
+        # with network paths
         elif os.name == "nt":
             share = Path(record.storage_device_ip).joinpath(record.storage_share)
             # if share is not available test alias if available

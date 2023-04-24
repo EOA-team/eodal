@@ -5,12 +5,11 @@ custom area of interest (AOI).
 The script shows how to use the EOdal Mapper class that takes over
 data handling such as
 
-	* querying of spatio-temporal metadata catalogs to identify
-	  available Sentinel-2 scenes
-	* merging data from different Sentinel-2 tiles if required
-	* re-projection of imagery from one UTM zone into another
-	  if required
-	* removal of black-filled (i.e., no-data) scenes
+* querying of spatio-temporal metadata catalogs to identify
+available Sentinel-2 scenes
+* merging data from different Sentinel-2 tiles if required
+* re-projection of imagery from one UTM zone into another if required
+* removal of black-filled (i.e., no-data) scenes
 
 This script works by retrieving Sentinel-2 scenes from
 Microsoft Planetary Computer (https://planetarycomputer.microsoft.com).
@@ -52,23 +51,24 @@ Settings = get_settings()
 # set to False to use a local data archove
 Settings.USE_STAC = True
 
+
 def preprocess_sentinel2_scenes(
 		ds: Sentinel2,
 		target_resolution: int,
-	) -> Sentinel2:
+) -> Sentinel2:
 	"""
 	Resample Sentinel-2 scenes and mask clouds, shadows, and snow
 	based on the Scene Classification Layer (SCL).
 
 	NOTE:
-		Depending on your needs, the pre-processing function can be
-		fully customized using the full power of EOdal and its
-		interfacing libraries!
+	Depending on your needs, the pre-processing function can be
+	fully customized using the full power of EOdal and its
+	interfacing libraries!
 
 	:param target_resolution:
-		spatial target resolution to resample all bands to.
+	spatial target resolution to resample all bands to.
 	:returns:
-		resampled, cloud-masked Sentinel-2 scene.
+	resampled, cloud-masked Sentinel-2 scene.
 	"""
 	# resample scene
 	ds.resample(inplace=True, target_resolution=target_resolution)
@@ -77,24 +77,24 @@ def preprocess_sentinel2_scenes(
 	return ds
 
 if __name__ == '__main__':
-	#%% user-inputs
+	# user-inputs
 	# -------------------------- Collection -------------------------------
 	collection: str = 'sentinel2-msi'
 	
 	# ------------------------- Time Range ---------------------------------
-	time_start: datetime = datetime(2022,3,1)  		# year, month, day (incl.)
-	time_end: datetime = datetime(2022,6,30)   		# year, month, day (incl.)
+	time_start: datetime = datetime(2022, 3, 1)  		# year, month, day (incl.)
+	time_end: datetime = datetime(2022, 6, 30)   		# year, month, day (incl.)
 	
 	# ---------------------- Spatial Feature  ------------------------------
 	geom: Path = Path('../data/sample_polygons/lake_lucerne.gpkg')
 	
 	# ------------------------- Metadata Filters ---------------------------
 	metadata_filters: List[Filter] = [
-		Filter('cloudy_pixel_percentage','<', 80),
+		Filter('cloudy_pixel_percentage', '<', 80),
 		Filter('processing_level', '==', 'Level-2A')
 	]
 	
-	#%% query the scenes available (no I/O of scenes, this only fetches metadata)
+	# query the scenes available (no I/O of scenes, this only fetches metadata)
 	feature = Feature.from_geoseries(gpd.read_file(geom).geometry)
 	mapper_configs = MapperConfigs(
 	    collection=collection,
@@ -113,7 +113,7 @@ if __name__ == '__main__':
 	# the metadata is loaded into a GeoPandas GeoDataFrame
 	mapper.metadata
 	
-	#%% load the scenes available from STAC
+	# load the scenes available from STAC
 	scene_kwargs = {
 	    'scene_constructor': Sentinel2.from_safe,
 	    'scene_constructor_kwargs': {'band_selection': ['B02', 'B03', 'B04']},

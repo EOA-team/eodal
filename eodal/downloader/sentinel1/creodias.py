@@ -116,7 +116,7 @@ def query_creodias(
 
     # make sure datasets is not empty otherwise return
     if datasets.empty:
-        raise Exception(f"CREODIAS query returned empty set")
+        raise Exception("CREODIAS query returned empty set")
 
     # get *.SAFE dataset names
     datasets["dataset_name"] = datasets.properties.apply(

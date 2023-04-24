@@ -38,7 +38,7 @@ def box_to_geojson(gdf: gpd.GeoDataFrame | Polygon) -> str:
     # GeoJSON should be in geographic coordinates
     if isinstance(gdf, gpd.GeoDataFrame):
         _gdf = deepcopy(gdf)
-        gdf_wgs84 = gdf.to_crs(epsg=4326)
+        gdf_wgs84 = _gdf.to_crs(epsg=4326)
         bbox = gdf_wgs84.total_bounds
         bbox_poly = box(*bbox)
     elif isinstance(gdf, Polygon) or isinstance(gdf, Point):

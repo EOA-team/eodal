@@ -3,8 +3,8 @@ Function to keep a local Sentinel (1/2) archive up-to-date by comparing data ava
 in your local archive for a given geographic region, time period, product type and
 sensor mode.
 
-The function not only checks if CREODIAS has new datasets available, it also automatically
-downloads them into a user-defined location.
+The function not only checks if CREODIAS has new datasets available, it also
+automatically downloads them into a user-defined location.
 
 IMPORTANT:
     In order to receive results the region (i.e., geographic extent) for which
@@ -12,9 +12,9 @@ IMPORTANT:
 
 IMPORTANT:
     CREODIAS does not allow more than 2000 records (each Sentinel scene is a record)
-    to be queried at once. If you might exceed this threshold (e.g., your region is large and/or
-    your time period is long) split your query into smaller chunks by using, e.g., shorter time
-    periods for querying.
+    to be queried at once. If you might exceed this threshold (e.g., your region is
+    large and/or your time period is long) split your query into smaller chunks by
+    using, e.g., shorter time periods for querying.
 
 Copyright (C) 2022/23 Gregor Perich & Lukas Valentin Graf
 
@@ -48,11 +48,15 @@ from eodal.downloader.sentinel2.creodias import query_creodias as s2_creodias_qu
 from eodal.downloader.utils.creodias import download_datasets
 from eodal.downloader.utils import unzip_datasets
 from eodal.metadata.database.querying import get_region
-from eodal.metadata.sentinel1.database.ingestion import meta_df_to_database as s1_meta_to_db
-from eodal.metadata.sentinel1.database.querying import find_raw_data_by_bbox as s1_db_query
+from eodal.metadata.sentinel1.database.ingestion import meta_df_to_database as \
+    s1_meta_to_db
+from eodal.metadata.sentinel1.database.querying import find_raw_data_by_bbox as \
+    s1_db_query
 from eodal.metadata.sentinel1.parsing import parse_s1_metadata
-from eodal.metadata.sentinel2.database.ingestion import meta_df_to_database as s2_meta_to_db
-from eodal.metadata.sentinel2.database.querying import find_raw_data_by_bbox as s2_db_query
+from eodal.metadata.sentinel2.database.ingestion import meta_df_to_database as \
+    s2_meta_to_db
+from eodal.metadata.sentinel2.database.querying import find_raw_data_by_bbox as \
+    s2_db_query
 from eodal.metadata.sentinel2.parsing import parse_s2_scene_metadata
 from eodal.utils.constants import ProcessingLevels
 from eodal.utils.exceptions import DataNotFoundError
@@ -65,6 +69,7 @@ required_subdirectories = {
     'sentinel1': ['measurement'],
     'sentinel2': ['GRANULE', 'AUX_DATA']
 }
+
 
 def pull_from_creodias(
     date_start: date,
@@ -111,7 +116,7 @@ def pull_from_creodias(
         to True can save time because datasets already downloaded are ignored. NOTE:
         The function does **not** check if a dataset was downloaded completely!
     :param kwargs:
-        optional key-word arguments to pass to 
+        optional key-word arguments to pass to
         `~eodal.downloader.sentinel1.creodias.query_creodias` such sensor_mode and
         product_type
     :return:
@@ -215,6 +220,7 @@ def pull_from_creodias(
 
     return datasets_filtered
 
+
 def sentinel_creodias_update(
     sentinel_raw_data_archive: Path,
     region: str,
@@ -287,16 +293,16 @@ def sentinel_creodias_update(
     # this example shows the workflow for Sentinel-2 (Sentinel-1 would also be possible
     # but requires slightly different inputs)
     sensor = 'sentinel2'
-    
+
     # define processing level (usually L2A but also L1C works)
     processing_level = ProcessingLevels.L2A
 
-    # specifiy region, we use Switzerland (the extent of Switzerland is defined in the database)
-    region = 'CH'
+    # specifiy region, we use Switzerland (the extent of Switzerland is defined in the
+    database) region = 'CH'
 
     # the archive should be always mounted in the same way for each user
     user_name = '<your_username>'
-    s2_raw_data_archive = Path(f'/home/{user_name}/public/Evaluation/Satellite_data/Sentinel-2/Rawdata')
+    s2_raw_data_archive = Path(f'<your-path>/Satellite_data/Sentinel-2/Rawdata')
 
     # file-system specific handling: this allows to store the paths in the database
     # in such way that the dataset paths can be found from Linux and Windows machines
@@ -338,8 +344,8 @@ def sentinel_creodias_update(
 
             # download data from CREODIAS
             downloaded_ds = pull_from_creodias(
-                date_start=date(year,1,1),
-                date_end=date(year,12,31),
+                date_start=date(year, 1, 1),
+                date_end=date(year, 12, 31),
                 path_out=path_out,
                 region=region,
                 overwrite_existing_zips=overwrite_existing_zips,
@@ -367,8 +373,11 @@ def sentinel_creodias_update(
 
                 # check if the SAFE folder is complete
                 for required_subdir in required_subdirectories[sensor]:
-                    if not parent_dir.joinpath(record.dataset_name).joinpath(required_subdir).exists():
-                        logger.error(f'{record.dataset_name} has no sub-directory {required_subdir}')
+                    if not parent_dir.joinpath(record.dataset_name).joinpath(
+                            required_subdir).exists():
+                        logger.error(
+                            f'{record.dataset_name} has no '
+                            f'sub-directory {required_subdir}')
                         shutil.rmtree(parent_dir.joinpath(record.dataset_name))
                         continue
 
@@ -381,7 +390,9 @@ def sentinel_creodias_update(
                     elif sensor == 'sentinel2':
                         scene_metadata, _ = parse_s2_scene_metadata(in_dir=in_dir)
                 except Exception as e:
-                    logger.error(f'Parsing of metadata of {record.dataset_name} failed: {e}')
+                    logger.error(
+                        f'Parsing of metadata of {record.dataset_name} '
+                        f'failed: {e}')
                     shutil.rmtree(in_dir)
                     continue
 
@@ -402,7 +413,9 @@ def sentinel_creodias_update(
                             "storage_share"
                         ].replace(mount_point, mount_point_replacement)
                     except Exception as e:
-                        logger.error(f'Handling path options for {record.dataset_name} failed: {e}')
+                        logger.error(
+                            f'Handling path options for {record.dataset_name} '
+                            f'failed: {e}')
                         shutil.rmtree(in_dir)
                         continue
 
@@ -418,7 +431,8 @@ def sentinel_creodias_update(
                         )
                     except Exception as e:
                         logger.error(
-                            f'Could not ingest scene metadata for {record.dataset_name} into DB: {e}'
+                            'Could not ingest scene metadata for '
+                            f'{record.dataset_name} into DB: {e}'
                         )
                         shutil.rmtree(in_dir)
                         continue

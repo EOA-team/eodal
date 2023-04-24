@@ -50,7 +50,7 @@ class STAC_Providers:
         URL: str = "https://planetarycomputer.microsoft.com/api/stac/v1"
         S2Level_1C: str = "sentinel-2-l1c"
         S2Level_2A: str = "sentinel-2-l2a"
-        S1RTC: str = "sentinel-1-rtc"  # radiometric and terrain corrected using PlanetDEM (IW mode)
+        S1RTC: str = "sentinel-1-rtc"  # radiometric and terrain corrected
         S1GRD: str = (
             "sentinel-1-grd"  # corrected to ground range using ellipsoid model WGS84
         )

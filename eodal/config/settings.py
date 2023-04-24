@@ -63,7 +63,8 @@ class Settings(BaseSettings):
     # define CREODIAS username and password
     CREODIAS_USER: str = ""
     CREODIAS_PASSWORD: str = ""
-    # maximum number of records per request: 2000 (CREODIAS currently does not allow more)
+    # maximum number of records per request: 2000 (CREODIAS currently does not allow
+    # more)
     CREODIAS_MAX_RECORDS: int = 2000
 
     # define Planet-API token
@@ -105,8 +106,8 @@ class Settings(BaseSettings):
     LOGGING_LEVEL: int = logging.INFO
 
     # processing checks
-    PROCESSING_CHECK_FILE_NO_BF: str = f"successful_scenes_noblackfill.txt"
-    PROCESSING_CHECK_FILE_BF: str = f"successful_scenes_blackfill.txt"
+    PROCESSING_CHECK_FILE_NO_BF: str = "successful_scenes_noblackfill.txt"
+    PROCESSING_CHECK_FILE_BF: str = "successful_scenes_blackfill.txt"
 
     # temporary working directory
     TEMP_WORKING_DIR: Path = Path(tempfile.gettempdir())

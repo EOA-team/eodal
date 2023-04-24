@@ -102,8 +102,9 @@ def merge_datasets(
     :param kwargs:
         kwargs to pass to ``rasterio.warp.reproject``
     :returns:
-        depending on the kwargs passed either `None` (if output is written to file directly)
-        or a `RasterCollection` instance if the operation takes place in memory
+        depending on the kwargs passed either `None` (if output is written to file
+        directly) or a `RasterCollection` instance if the operation takes place
+        in memory
     """
     # check the CRS and attributes of the datasets first
     crs_list = []

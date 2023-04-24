@@ -89,7 +89,7 @@ def check_processing_level(f):
         if kwargs != {}:
             processing_level = kwargs.get("processing_level", processing_level)
 
-        if not processing_level in Settings.PROCESSING_LEVELS:
+        if processing_level not in Settings.PROCESSING_LEVELS:
             raise UnknownProcessingLevel(
                 f"{processing_level} is not part of {Settings.PROCESSING_LEVELS}"
             )
@@ -158,7 +158,7 @@ def check_band_names(f):
         # if no band aliasing is enabled the passed name must be in band names
         else:
             if isinstance(band_names, str):
-                if not band_names in self.band_names:
+                if band_names not in self.band_names:
                     raise BandNotFoundError(f"{band_names} not found in collection")
             elif isinstance(band_names, list):
                 if not set(band_names).issubset(self.band_names):
