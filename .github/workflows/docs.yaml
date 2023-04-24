@@ -16,13 +16,13 @@ jobs:
   docs-html:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Check if README.md needs to be converted
       id: check_readme
       run: |
         if [ ! -f "README.rst" ] && [ -f "README.md" ]; then
-            echo '::set-output name=convert::true';
+            echo "convert=true" >> $GITHUB_OUTPUT
         fi
 
     - name: Convert README.md to README.rst
