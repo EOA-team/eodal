@@ -9,10 +9,12 @@ import requests
 from distutils import dir_util
 from pathlib import Path
 
+from eodal.config import get_settings
 from eodal.core.band import Band
 from eodal.core.raster import RasterCollection
 from eodal.core.scene import SceneCollection
 from eodal.downloader.utils import unzip_datasets
+
 
 @pytest.fixture
 def tmppath(tmpdir):
@@ -21,6 +23,7 @@ def tmppath(tmpdir):
     Posix or Windows path instead of 'localpath'
     '''
     return Path(tmpdir)
+
 
 @pytest.fixture
 def datadir(tmppath, request):
@@ -41,6 +44,7 @@ def datadir(tmppath, request):
 
     return tmppath
 
+
 @pytest.fixture()
 def get_project_root_path() -> Path:
     """
@@ -48,13 +52,16 @@ def get_project_root_path() -> Path:
     """
     return Path(os.path.dirname(os.path.abspath(__file__))).parent
 
+
 @pytest.fixture
 def get_test_band(get_bandstack, get_polygons):
     """Fixture returning Band object from rasterio"""
     def _get_test_band():
+        settings = get_settings()
+        settings.USE_STAC = False
         fpath_raster = get_bandstack()
         vector_features = get_polygons()
-    
+
         band = Band.from_rasterio(
             fpath_raster=fpath_raster,
             band_idx=1,
@@ -65,6 +72,7 @@ def get_test_band(get_bandstack, get_polygons):
         )
         return band
     return _get_test_band
+
 
 @pytest.fixture()
 def get_s2_safe_l2a(get_project_root_path):
@@ -79,12 +87,13 @@ def get_s2_safe_l2a(get_project_root_path):
         testdata_fname = testdata_dir.joinpath(
             'S2A_MSIL2A_20190524T101031_N0212_R022_T32UPU_20190524T130304.SAFE'
         )
-    
+
         # download URL
-        url = 'https://data.mendeley.com/public-files/datasets/ckcxh6jskz/files/e97b9543-b8d8-436e-b967-7e64fe7be62c/file_downloaded'
-    
+        url = \
+            'https://data.mendeley.com/public-files/datasets/ckcxh6jskz/files/e97b9543-b8d8-436e-b967-7e64fe7be62c/file_downloaded'  # noqa: E501
+
         if not testdata_fname.exists():
-        
+
             # download dataset
             r = requests.get(url, stream=True)
             r.raise_for_status()
@@ -92,13 +101,14 @@ def get_s2_safe_l2a(get_project_root_path):
             with open(testdata_fname_zip, 'wb') as fd:
                 for chunk in r.iter_content(chunk_size=5096):
                     fd.write(chunk)
-        
+
             # unzip dataset
             unzip_datasets(download_dir=testdata_dir, platform='S2')
-            
+    
         return testdata_fname
 
     return _get_s2_safe_l2a
+
 
 @pytest.fixture()
 def get_s2_safe_l1c(get_project_root_path):
@@ -113,26 +123,27 @@ def get_s2_safe_l1c(get_project_root_path):
         testdata_fname = testdata_dir.joinpath(
             'S2B_MSIL1C_20190725T100039_N0208_R122_T33UWP_20190725T123957.SAFE'
         )
-    
+
         # download URL
-        url = 'https://data.mendeley.com/public-files/datasets/ckcxh6jskz/files/52abe583-c322-4ef1-8825-883fbfefe495/file_downloaded'
-    
+        url = 'https://data.mendeley.com/public-files/datasets/ckcxh6jskz/files/52abe583-c322-4ef1-8825-883fbfefe495/file_downloaded'  # noqa: E501
+
         if not testdata_fname.exists():
-        
+
             # download dataset
             r = requests.get(url, stream=True)
             r.raise_for_status()
-            testdata_fname_zip = str(testdata_fname).replace('.SAFE','.zip')
+            testdata_fname_zip = str(testdata_fname).replace('.SAFE', '.zip')
             with open(testdata_fname_zip, 'wb') as fd:
                 for chunk in r.iter_content(chunk_size=5096):
                     fd.write(chunk)
-        
+
             # unzip dataset
             unzip_datasets(download_dir=testdata_dir, platform='S2')
-            
+
         return testdata_fname
 
     return _get_s2_safe_l1c
+
 
 @pytest.fixture()
 def get_bandstack(get_project_root_path):
@@ -149,14 +160,14 @@ def get_bandstack(get_project_root_path):
         return testdata_fname
     return _get_bandstack
 
+
 @pytest.fixture()
 def get_points(get_project_root_path):
     """
     Returns path to test points to be used for pixel extraction
     """
-    
     def _get_points():
-        
+
         testdata_dir = get_project_root_path.joinpath('data')
         testdata_points = testdata_dir.joinpath(
             Path('sample_points').joinpath('ZH_Points_2019_EPSG32632_random.shp')
@@ -164,14 +175,14 @@ def get_points(get_project_root_path):
         return testdata_points
     return _get_points
 
+
 @pytest.fixture()
 def get_points2(get_project_root_path):
     """
     Returns path to test points to be used for pixel extraction
     """
-    
     def _get_points():
-        
+
         testdata_dir = get_project_root_path.joinpath('data')
         testdata_points = testdata_dir.joinpath(
             Path('sample_points').joinpath('sampling_test_points.shp')
@@ -179,14 +190,15 @@ def get_points2(get_project_root_path):
         return testdata_points
     return _get_points
 
+
 @pytest.fixture()
 def get_points3(get_project_root_path):
     """
     Returns path to test points to be used for pixel extraction
     """
-    
+
     def _get_points():
-        
+
         testdata_dir = get_project_root_path.joinpath('data')
         testdata_points = testdata_dir.joinpath(
             Path('sample_points').joinpath('BY_Points_2019_EPSG32633.shp')
@@ -194,14 +206,15 @@ def get_points3(get_project_root_path):
         return testdata_points
     return _get_points
 
+
 @pytest.fixture()
 def get_polygons(get_project_root_path):
     """
     Returns path to agricultural field polygons to use for masking
     """
-    
+
     def _get_polygons():
-        
+
         testdata_dir = get_project_root_path.joinpath('data')
         testdata_polys = testdata_dir.joinpath(
             Path('sample_polygons').joinpath('ZH_Polygons_2020_ESCH_EPSG32632.shp')
@@ -209,14 +222,15 @@ def get_polygons(get_project_root_path):
         return testdata_polys
     return _get_polygons
 
+
 @pytest.fixture()
 def get_polygons_2(get_project_root_path):
     """
     Returns path to agricultural field polygons to use for masking
     """
-    
+
     def _get_polygons():
-        
+
         testdata_dir = get_project_root_path.joinpath('data')
         testdata_polys = testdata_dir.joinpath(
             Path('sample_polygons').joinpath('BY_AOI_2019_CLOUDS_EPSG32632.shp')
@@ -224,14 +238,14 @@ def get_polygons_2(get_project_root_path):
         return testdata_polys
     return _get_polygons
 
+
 @pytest.fixture()
 def get_polygons_3(get_project_root_path):
     """
     Returns path to agricultural field polygons to use for masking
     """
-    
     def _get_polygons():
-        
+
         testdata_dir = get_project_root_path.joinpath('data')
         testdata_polys = testdata_dir.joinpath(
             Path('sample_polygons').joinpath('lake_lucerne.gpkg')
@@ -239,10 +253,13 @@ def get_polygons_3(get_project_root_path):
         return testdata_polys
     return _get_polygons
 
+
 @pytest.fixture()
 def get_scene_collection(get_bandstack):
     """fixture returing a SceneCollection with three scenes"""
     def _get_scene_collection():
+        settings = get_settings()
+        settings.USE_STAC = False
         fpath_raster = get_bandstack()
         # open three scenes
         scene_list = []
@@ -250,6 +267,8 @@ def get_scene_collection(get_bandstack):
             ds = RasterCollection.from_multi_band_raster(fpath_raster=fpath_raster)
             ds.scene_properties.acquisition_time = 1000 * (i+1)
             scene_list.append(ds)
-        scoll = SceneCollection.from_raster_collections(scene_list, indexed_by_timestamps=False)
+        scoll = SceneCollection.from_raster_collections(
+            scene_list,
+            indexed_by_timestamps=False)
         return scoll
     return _get_scene_collection
