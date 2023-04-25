@@ -96,7 +96,7 @@ class Settings(BaseSettings):
 
     # path to custom CA_BUNDLE when calling the pystac_client behind a proxy server
     # when a path a custom certificate is required set this variable to a path
-    STAC_API_IO_CA_BUNDLE: bool | str = True
+    STAC_API_IO_CA_BUNDLE: bool = True
 
     # define logger
     CURRENT_TIME: str = datetime.now().strftime("%Y%m%d-%H%M%S")
