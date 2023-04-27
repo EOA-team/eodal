@@ -419,23 +419,23 @@ def sentinel_creodias_update(
                         shutil.rmtree(in_dir)
                         continue
 
-                    # database insert
-                    try:
-                        scene_metadata = pd.DataFrame([scene_metadata])
-                        if sensor == 'sentinel1':
-                            s1_meta_to_db(meta_df=scene_metadata)
-                        elif sensor == 'sentinel2':
-                            s2_meta_to_db(meta_df=scene_metadata)
-                        logger.info(
-                            f"Ingested scene metadata for {record.dataset_name} into DB"
-                        )
-                    except Exception as e:
-                        logger.error(
-                            'Could not ingest scene metadata for '
-                            f'{record.dataset_name} into DB: {e}'
-                        )
-                        shutil.rmtree(in_dir)
-                        continue
+                # database insert
+                try:
+                    scene_metadata = pd.DataFrame([scene_metadata])
+                    if sensor == 'sentinel1':
+                        s1_meta_to_db(meta_df=scene_metadata)
+                    elif sensor == 'sentinel2':
+                        s2_meta_to_db(meta_df=scene_metadata)
+                    logger.info(
+                        f"Ingested scene metadata for {record.dataset_name} into DB"
+                    )
+                except Exception as e:
+                    logger.error(
+                        'Could not ingest scene metadata for '
+                        f'{record.dataset_name} into DB: {e}'
+                    )
+                    shutil.rmtree(in_dir)
+                    continue
 
             # delete the temp_dl directory
             shutil.rmtree(path_out)
