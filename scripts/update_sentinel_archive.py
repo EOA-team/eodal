@@ -236,7 +236,7 @@ def pull_from_creodias(
 def sentinel_creodias_update(
     sentinel_raw_data_archive: Path,
     region: str,
-    path_options: Optional[Dict[str, str]] = None,
+    path_options: Optional[Dict[str, str]] = {},
     overwrite_existing_zips: Optional[bool] = False,
     **kwargs
 ) -> None:
