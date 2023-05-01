@@ -758,6 +758,7 @@ class Band(object):
                 in_dataset=vector_features,
                 fname_raster=_fpath_raster,
                 full_bounding_box_only=full_bounding_box_only,
+                raster_crs=epsg_code
             )
             # check for third dimension (has_z) and flatten it to 2d
             gdf_aoi.geometry = convert_3D_2D(gdf_aoi.geometry)
