@@ -133,6 +133,7 @@ def check_aoi_geoms(
     sat_crs = None
     if fname_raster is not None:
         sat_crs = rio.open(fname_raster).crs
+    # if the raster has no inherent CRS use the user-defined one
     if raster_crs is not None and sat_crs is None:
         sat_crs = raster_crs
 
