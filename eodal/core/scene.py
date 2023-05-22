@@ -85,8 +85,10 @@ class SceneCollection(MutableMapping):
             if self.indexed_by_timestamps:
                 if str(key) in self.timestamps:
                     # most likely time stamps are passed as strings
+                    # ^^ not true for scene collection loaded from pickle file
                     # we infer the format using dateutil
-                    key = dateutil.parser.parse(key)
+                    if isinstance(key, str):
+                        key = dateutil.parser.parse(key)
                     return self.collection[key]
             else:
                 if key in self.timestamps:
