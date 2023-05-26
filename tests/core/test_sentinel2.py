@@ -18,7 +18,9 @@ from eodal.utils.exceptions import BandNotFoundError, InputError
 settings = get_settings()
 settings.USE_STAC = False
 
-def test_read_pixels_from_safe(get_s2_safe_l1c, get_s2_safe_l2a, get_points2, get_points3):
+
+def test_read_pixels_from_safe(get_s2_safe_l1c, get_s2_safe_l2a, get_points2,
+                               get_points3):
     """
     Tests reading pixels from a .SAFE archive using class and instance methods
     """
@@ -112,6 +114,7 @@ def test_read_pixels_from_safe(get_s2_safe_l1c, get_s2_safe_l2a, get_points2, ge
     assert gdf_classmethod.empty, 'pixel values returned although all of the are outside of the scene extent'
     assert 'SCL' in gdf_classmethod.columns, 'SCL not attempted to extract'
 
+
 def test_read_from_safe_l1c(get_s2_safe_l1c):
     """handling of Sentinel-2 data in L1C processing level from .SAFE archives"""
     in_dir = get_s2_safe_l1c()
@@ -140,6 +143,7 @@ def test_read_from_safe_l1c(get_s2_safe_l1c):
     bands = reader.band_names
     assert len(bands) == len(band_selection), 'number of bands is wrong'
     assert 'SCL' not in bands, 'SCL band cannot be available for L1C data'
+
 
 def test_read_from_safe_with_mask_l2a(datadir, get_s2_safe_l2a, get_polygons, get_polygons_2):
     """handling Sentinel-2 data from .SAFE archives (masking)"""
@@ -214,6 +218,7 @@ def test_read_from_safe_with_mask_l2a(datadir, get_s2_safe_l2a, get_polygons, ge
     assert xds.attrs['descriptions'] == tuple(handler.band_aliases), \
         'band description not set properly'
 
+
 def test_ignore_scl(datadir, get_s2_safe_l2a, get_polygons_2):
     """ignore the SCL on reading"""
     in_dir = get_s2_safe_l2a()
@@ -242,6 +247,7 @@ def test_ignore_scl(datadir, get_s2_safe_l2a, get_polygons_2):
     with pytest.raises(KeyError):
         handler['SCL'].meta
 
+
 def test_band_selections(datadir, get_s2_safe_l2a, get_polygons, get_polygons_2,
                          get_bandstack):
     """testing invalid band selections"""
@@ -255,8 +261,9 @@ def test_band_selections(datadir, get_s2_safe_l2a, get_polygons, get_polygons_2,
         handler.from_safe(
             in_dir=in_dir,
             vector_features=in_file_aoi,
-            band_selection=['B02','B13']
+            band_selection=['B02', 'B13']
         )
+
 
 def test_read_from_safe_l2a(datadir, get_s2_safe_l2a):
     """handling Sentinel-2 data from .SAFE archives (no masking)"""
@@ -313,10 +320,10 @@ def test_read_from_safe_l2a(datadir, get_s2_safe_l2a):
 
     # get non-exisiting bands
     with pytest.raises(BandNotFoundError):
-        non_existing_band = reader.get_band('B01')
+        non_existing_band = reader.get_band('B01')  # noqa: F841
 
     # check the RGB
-    fig_rgb = reader.plot_multiple_bands(band_selection=['red','green','blue'])
+    fig_rgb = reader.plot_multiple_bands(band_selection=['red', 'green', 'blue'])
     assert type(fig_rgb) == Figure, 'plotting of RGB bands failed'
 
     # check the scene classification layer
@@ -333,10 +340,12 @@ def test_read_from_safe_l2a(datadir, get_s2_safe_l2a):
     )
 
     # SCL should not have changed
-    assert reader.get_values(['scl']).shape == (1, 5490,5490), 'SCL was resampled although excluded'
+    assert reader.get_values(['scl']).shape == (1, 5490, 5490), \
+        'SCL was resampled although excluded'
 
     # but B8A should have 10m resolution now
-    assert reader.get_values(['B8A']).shape == (1,10980,10980), 'B8A was not resampled although selected'
+    assert reader.get_values(['B8A']).shape == (1, 10980, 10980), \
+        'B8A was not resampled although selected'
     assert reader['B8A'].geo_info.pixres_x == 10, 'geo info was not updated'
 
     # add custom band
@@ -355,7 +364,8 @@ def test_read_from_safe_l2a(datadir, get_s2_safe_l2a):
     assert 0 <= cloudy_pixels <= 100, 'cloud pixel percentage must be between 0 and 100%'
 
     # check blackfill (there is some but not the entire scene is blackfilled)
-    assert not reader.is_blackfilled, 'blackfill detection did not work out - to many false positives'
+    assert not reader.is_blackfilled, \
+        'blackfill detection did not work out - to many false positives'
 
     # blackfill_mask = reader.get_blackfill('blue')
     # assert blackfill_mask.dtype == bool, 'A boolean mask is required for the blackfill'

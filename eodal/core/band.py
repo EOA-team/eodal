@@ -2,12 +2,12 @@
 A band is a two-dimensional array that can be located via a spatial coordinate system.
 Each band thus has a name and an array of values, which are usually numeric.
 
-It relies on ``rasterio`` for all in- and output operations to read data from files (or URIs)
-using ``GDAL`` drivers.
+It relies on ``rasterio`` for all in- and output operations to read data from files
+(or URIs) using ``GDAL`` drivers.
 
 eodal stores band data basically as ``numpy`` arrays. Masked arrays of the class
-`~numpy.ma.MaskedArray` are also supported. For very large data sets that exceed the RAM of the
-computer, ``zarr`` can be used.
+`~numpy.ma.MaskedArray` are also supported. For very large data sets that exceed the
+RAM of the computer, ``zarr`` can be used.
 
 Copyright (C) 2022 Lukas Valentin Graf
 
@@ -542,7 +542,8 @@ class Band(object):
         return BandOperator.calc(a=self, other=other, operator="<", right_sided=True)
 
     def __repr__(self) -> str:
-        return f"EOdal Band\n---------.\nName:    {self.band_name}\nGeoInfo:    {self.geo_info}"
+        return f"EOdal Band\n---------.\nName:    {self.band_name}\nGeoInfo:    " + \
+            f"{self.geo_info}"
 
     @property
     def alias(self) -> Union[str, None]:
@@ -634,7 +635,8 @@ class Band(object):
                 vector_features = gpd.read_file(vector_features)
             if vector_features.crs is None:
                 raise ValueError(
-                    f"Cannot handle vector features without spatial coordinate reference system"
+                    "Cannot handle vector features without spatial coordinate"
+                    "reference system"
                 )
 
     @staticmethod
@@ -955,14 +957,14 @@ class Band(object):
             in_gdf[band_name_src] = 1
         # otherwise check if the passed attribute exists
         else:
-            if not band_name_src in in_gdf.columns:
+            if band_name_src not in in_gdf.columns:
                 raise AttributeError(f"{band_name_src} not found")
 
         # infer the datatype (i.e., try if it is possible to cast the
         # attribute to float32, otherwise do not process the feature)
         try:
             in_gdf[band_name_src].astype(dtype_src)
-        except ValueError as e:
+        except ValueError:
             raise TypeError(f'Attribute "{band_name_src}" seems not to be numeric')
 
         # clip features to the spatial extent of a bounding box if available
@@ -1021,7 +1023,8 @@ class Band(object):
             pixres_y=geo_info.pixres_y,
         )
 
-        # rasterize the vector features. Point features work in another way than Polygons
+        # rasterize the vector features. Point features work in another way
+        # than Polygons
         if (in_gdf.geom_type.unique() == ["Point"]).all():
             try:
                 rasterized = array_from_points(
@@ -1199,15 +1202,15 @@ class Band(object):
 
         :param clipping_bounds:
             spatial bounds to clip the Band to. Can be either a vector file, a shapely
-            `Polygon` or `MultiPolygon`, a `GeoDataFrame`, `GeoSeries` or a coordinate tuple with
-            (xmin, ymin, xmax, ymax).
+            `Polygon` or `MultiPolygon`, a `GeoDataFrame`, `GeoSeries` or a coordinate
+            tuple with (xmin, ymin, xmax, ymax).
             Vector files and `GeoDataFrame` are reprojected into the bands' coordinate
             system if required, while the coordinate tuple and shapely geometry **MUST**
             be provided in the CRS of the band.
         :param full_bounding_box_only:
-            if False (default), clips to the bounding box of the geometry and masks values
-            outside the actual geometry boundaries. To obtain all values within the
-            bounding box set to True.
+            if False (default), clips to the bounding box of the geometry and masks
+            values outside the actual geometry boundaries. To obtain all values within
+            the bounding box set to True.
             .. versionadded:: 0.1.1
         :param inplace:
             if False (default) returns a copy of the ``Band`` instance
@@ -1263,7 +1266,7 @@ class Band(object):
             or self.bounds.overlaps(clip_shape)
             or clip_shape.covers(self.bounds)
         ):
-            raise ValueError(f"Clipping bounds do not overlap Band")
+            raise ValueError("Clipping bounds do not overlap Band")
         # then determine the extent in image coordinates by search for the closest image
         # pixels
         row_start, row_stop, col_start, col_stop = bounds_window(
@@ -1415,13 +1418,15 @@ class Band(object):
 
         # get column (x) indices
         gdf["col"] = gdf["x"].apply(
-            lambda x, coords=coords, find_nearest_array_index=_find_nearest_array_index: find_nearest_array_index(
+            lambda x, coords=coords, find_nearest_array_index=_find_nearest_array_index:
+            find_nearest_array_index(
                 coords["x"], x
             )
         )
         # get row (y) indices
         gdf["row"] = gdf["y"].apply(
-            lambda y, coords=coords, find_nearest_array_index=_find_nearest_array_index: find_nearest_array_index(
+            lambda y, coords=coords, find_nearest_array_index=_find_nearest_array_index:
+            find_nearest_array_index(
                 coords["y"], y
             )
         )
@@ -1431,7 +1436,8 @@ class Band(object):
 
         # loop over sample points and add them as new entries to the GeoDataFrame
         for _, record in gdf.iterrows():
-            # get array value for the current column and row, continue on out-of-bounds error
+            # get array value for the current column and row, continue on out-of-bounds
+            # error
             try:
                 array_value = self.values[record.row, record.col]
             except IndexError:
@@ -1695,7 +1701,7 @@ class Band(object):
         elif self.is_ndarray:
             masked_array = np.ma.MaskedArray(data=self.values, mask=mask)
         elif self.is_zarr:
-            raise NotImplemented()
+            raise NotImplementedError()
 
         if inplace:
             object.__setattr__(self, "values", masked_array)
@@ -1857,12 +1863,13 @@ class Band(object):
                 res_pixel_div = upsample_array(
                     in_array=band_data, scaling_factor=int(scaling_factor)
                 )
-            except Exception as e:
+            except Exception:
                 res_pixel_div = np.zeros(0)
 
             # replace NaNs with values from pixel division (if possible); thus we will
             # get all pixel values and the correct blackfill
-            # when working on spatial subsets this might fail because of shape mismatches;
+            # when working on spatial subsets this might fail because of shape
+            # mismatches;
             # in this case keep the cv2 output, which means loosing a few pixels
             if res.shape == res_pixel_div.shape:
                 res[np.isnan(res)] = res_pixel_div[np.isnan(res)]
@@ -2005,7 +2012,7 @@ class Band(object):
     def reduce(
         self,
         method: Optional[
-            List[str | Callable[np.ndarray | np.ma.MaskedArray, Number]]
+            List[str | Callable[..., Number]]
         ] = ["min", "mean", "std", "max", "count"],
         by: Optional[Path | gpd.GeoDataFrame | Polygon | str] = None,
         keep_nans: Optional[bool] = False,
@@ -2028,8 +2035,9 @@ class Band(object):
             about how to pass custom functions.
         :param by:
             define optional vector features by which to reduce the band. By passing
-            `'self'` the method uses the features with which the band was read, otherwise
-            specify a file-path to vector features or provide a GeoDataFrame.
+            `'self'` the method uses the features with which the band was read,
+            otherwise specify a file-path to vector features or provide a
+            GeoDataFrame.
         :param keep_nans:
             .. versionadded:: 0.2.0
             whether to keep or discard results that were `nan`. This could happen
@@ -2082,9 +2090,12 @@ class Band(object):
                 # the usage of nan-functions is discouraged
                 if operator.startswith("nan"):
                     raise ValueError(
-                        "The usage of numpy-nan functions is discouraged and therefore raises an error."
-                        + "\nThe handling of NaNs is done by `rasterstats` internally and therefore does not"
-                        + '\n need to be specified. Please pass operators by their standard numpy names (e.g., "mean")'
+                        "The usage of numpy-nan functions is discouraged and therefore "
+                        "raises an error."
+                        "\nThe handling of NaNs is done by `rasterstats` internally and"
+                        " therefore does not"
+                        "\n need to be specified. Please pass operators by their "
+                        "standard numpy names (e.g., 'mean')"
                     )
                 # check if the operator is a standard rasterstats operator
                 # raises a ValueError if the passed operator is not implemented
@@ -2096,8 +2107,9 @@ class Band(object):
             else:
                 raise ValueError(
                     f"Could not pass {operator} to rasterstats.\n"
-                    + "Please check the rasterstats docs how to pass user-defined statistics:\n"
-                    + "https://pythonhosted.org/rasterstats/manual.html#user-defined-statistics"
+                    "Please check the rasterstats docs how to "
+                    "pass user-defined statistics:\n"
+                    "https://pythonhosted.org/rasterstats/manual.html#user-defined-statistics"   # noqa: E501
                 )
 
             # get raster values from EOdal band
@@ -2124,7 +2136,8 @@ class Band(object):
             )
             stats_operator_list.append(res)
 
-        # combine the list of stats into a format consistent with the standard zonal_stats call
+        # combine the list of stats into a format consistent with the standard
+        # zonal_stats call
         _stats = []
         for idx in range(features.shape[0]):
             feature_stats = {}
@@ -2191,7 +2204,7 @@ class Band(object):
                     + offset
                 )
         elif self.is_zarr:
-            raise NotImplemented()
+            raise NotImplementedError()
 
         if inplace:
             object.__setattr__(self, "values", scaled_array)
@@ -2231,7 +2244,7 @@ class Band(object):
         elif self.is_ndarray:
             flattened = np.reshape(self.values, new_shape, order="F")
         elif self.is_zarr:
-            raise NotImplemented()
+            raise NotImplementedError()
 
         # convert the coordinates to shapely geometries
         coordinate_geoms = [

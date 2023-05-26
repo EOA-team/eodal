@@ -72,6 +72,7 @@ def test_mapper_configs(tmppath):
         assert _filter.entity == mapper_configs_rl.metadata_filters[idx].entity, \
             'wrong filtering entity'
 
+@pytest.mark.skip(reason="At the moment, we cannot test with a DB since we have no test DB")
 @pytest.mark.parametrize(
     'collection,time_start,time_end,geom,metadata_filters',
     [(
@@ -187,7 +188,7 @@ def test_mapper_get_scenes_stac(collection, time_start, time_end, geom, metadata
 def get_mapper():
     def _get_mapper():
 
-        Settings.USE_STAC = False
+        Settings.USE_STAC = True
 
         collection = 'sentinel2-msi'
         time_start = datetime(2022,7,1)

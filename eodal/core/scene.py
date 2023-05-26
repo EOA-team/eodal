@@ -59,14 +59,16 @@ class SceneCollection(MutableMapping):
             optional callable returning an `~eodal.core.raster.RasterCollection`
             instance.
         :param indexed_by_timestamps:
-            if True, all scene indices are interpreted as timestamps (`datetime.datetime`).
+            if True, all scene indices are interpreted as timestamps
+            (`datetime.datetime`).
             Set to False if scene indices should be treated as different data types
         :param args:
             arguments to pass to `scene_constructor` or one of RasterCollection's
             class methods (e.g., `RasterCollection.from_multi_band_raster`)
         :param kwargs:
-            key-word arguments to pass to `scene_constructor` or one of RasterCollection's
-            class methods (e.g., `RasterCollection.from_multi_band_raster`)
+            key-word arguments to pass to `scene_constructor` or one of
+            RasterCollection's class methods (e.g.,
+            `RasterCollection.from_multi_band_raster`)
         """
         # mapper are stored in a dictionary like collection
         self._frozen = False
@@ -123,7 +125,8 @@ class SceneCollection(MutableMapping):
                 if isinstance(slice_end, datetime.date):
                     if not self.indexed_by_timestamps:
                         raise ValueError(
-                            "Cannot slice on timestamps when `indexed_by_timestamps` is False"
+                            "Cannot slice on timestamps when "
+                            "`indexed_by_timestamps` is False"
                         )
                     slice_start = list(self.collection.keys())[0].date()
                 else:
@@ -137,7 +140,8 @@ class SceneCollection(MutableMapping):
                 if isinstance(slice_start, datetime.date):
                     if not self.indexed_by_timestamps:
                         raise ValueError(
-                            "Cannot slice on timestamps when `indexed_by_timestamps` is False"
+                            "Cannot slice on timestamps when "
+                            "`indexed_by_timestamps` is False"
                         )
                     slice_end = list(self.collection.keys())[-1].date()
                 else:
@@ -163,7 +167,8 @@ class SceneCollection(MutableMapping):
             ):
                 if not self.indexed_by_timestamps:
                     raise ValueError(
-                        "Cannot slice on timestamps when `indexed_by_timestamps` is False"
+                        "Cannot slice on timestamps when "
+                        "`indexed_by_timestamps` is False"
                     )
                 out_scoll = SceneCollection()
                 for timestamp, scene in self:
@@ -193,7 +198,8 @@ class SceneCollection(MutableMapping):
             raise TypeError("Only RasterCollection objects can be passed")
         if not item.is_scene:
             raise ValueError(
-                "Only RasterCollection with timestamps in their scene_properties can be passed"
+                "Only RasterCollection with timestamps in "
+                "their scene_properties can be passed"
             )
         # scenes are index by their acquisition time
         key = item.scene_properties.acquisition_time
@@ -239,7 +245,7 @@ class SceneCollection(MutableMapping):
             else:
                 timestamps = ", ".join([str(x) for x in self.timestamps])
             return (
-                f"EOdal SceneCollection\n----------------------\n"
+                "EOdal SceneCollection\n----------------------\n"
                 + f"# Scenes:    {len(self)}\nTimestamps:    {timestamps}\n"
                 + f'Scene Identifiers:    {", ".join(self.identifiers)}'
             )
@@ -259,7 +265,8 @@ class SceneCollection(MutableMapping):
         # check sort_direction passed
         if sort_direction not in ["asc", "desc"]:
             raise ValueError("Sort direction must be one of: `asc`, `desc`")
-        # get timestamps of the scenes and use np.argsort to bring them into the desired order
+        # get timestamps of the scenes and use np.argsort to bring them
+        # into the desired order
         timestamps = [x.scene_properties.acquisition_time for x in raster_collections]
         if sort_direction == "asc":
             sort_idx = np.argsort(timestamps)
@@ -350,13 +357,13 @@ class SceneCollection(MutableMapping):
         if not isinstance(raster_collections, list) and not isinstance(
             raster_collections, tuple
         ):
-            raise TypeError(f"Can only handle lists or tuples of RasterCollections")
+            raise TypeError("Can only handle lists or tuples of RasterCollections")
         if not np.array(
             [isinstance(x, RasterCollection) for x in raster_collections]
         ).all():
-            raise TypeError(f"All items passed must be RasterCollection instances")
+            raise TypeError("All items passed must be RasterCollection instances")
         if not np.array([x.is_scene for x in raster_collections]).all():
-            raise TypeError(f"All items passed must have an acquisition timestamp")
+            raise TypeError("All items passed must have an acquisition timestamp")
         # check if scenes shall be sorted
         if sort_scenes:
             sort_idx = cls._sort_keys(sort_direction, raster_collections)
@@ -479,7 +486,8 @@ class SceneCollection(MutableMapping):
             has a unique index. `False` by default.
         :param kwargs:
             key word arguments to pass to `~RasterCollection.get_pixels()` or
-            `~RasterCollection.band_summaries()` depending on the type of the input geometries.
+            `~RasterCollection.band_summaries()` depending on the type of the
+            input geometries.
         :returns:
             ``GeoDataFrame`` with extracted raster values per feature and time stamp
         """

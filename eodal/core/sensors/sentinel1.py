@@ -83,7 +83,8 @@ class Sentinel1(RasterCollection):
                     )
                 except Exception as e:
                     raise DataNotFoundError(
-                        f"Could not find data for polarization {polarization} in {in_dir}: {e}"
+                        "Could not find data for polarization "
+                        f"{polarization} in {in_dir}: {e}"
                     )
             item = {"polarization": polarization, "file_path": ref}
             band_items.append(item)
@@ -209,10 +210,3 @@ class Sentinel1(RasterCollection):
         # to avoid (large) redundancies
         gdf = gdf.loc[:, ~gdf.columns.duplicated()]
         return gdf
-
-
-if __name__ == "__main__":
-    in_dir = Path(
-        "/home/graflu/public/Evaluation/Satellite_data/Sentinel-1/Rawdata/IW/CH/2021/S1A_IW_GRDH_1SDV_20210106T053505_20210106T053530_036013_043833_C728.SAFE"
-    )
-    s1 = Sentinel1.from_safe(in_dir=in_dir, epsg_code=4326)

@@ -22,7 +22,7 @@ from eodal.utils.constants import ProcessingLevels
 
 
 # available processing levels
-class ProcessingLevels(Enum):
+class ProcessingLevels(Enum):  # noqa: F811
     L1C = "LEVEL1C"
     L2A = "LEVEL2A"
 

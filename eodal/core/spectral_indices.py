@@ -281,7 +281,7 @@ class SpectralIndices(object):
         vh = collection.get(cls.vh).values.astype("float")
         vv = collection.get(cls.vv).values.astype("float")
         return vh / vv
-        
+
     @classmethod
     def NHI(cls, collection):
         """

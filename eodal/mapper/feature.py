@@ -67,7 +67,7 @@ class Feature:
         """
         # check inputs
         if name == "":
-            raise ValueError(f"Empty feature names are not allowed")
+            raise ValueError("Empty feature names are not allowed")
         if type(geometry) not in allowed_geom_types:
             raise ValueError(f"geometry must of type {allowed_geom_types}")
         if type(epsg) != int or epsg <= 0:

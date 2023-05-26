@@ -6,7 +6,8 @@ The script should run as is on Microsoft Planetary Computer Hub
 (https://planetarycomputer.microsoft.com/compute).
 
 When using locally, make sure you have a valid MSPC subscription key
-(see also: https://planetarycomputer.microsoft.com/docs/concepts/sas/#when-an-account-is-needed)
+(see also:
+https://planetarycomputer.microsoft.com/docs/concepts/sas/#when-an-account-is-needed)
 
 The key must be made available to EOdal using the PC_SDK_SUBSCRIPTION_KEY
 
@@ -40,13 +41,14 @@ Settings.USE_STAC = True
 if __name__ == '__main__':
 
     collection = 'sentinel1-grd'
-    time_start = datetime(2020,7,1)
-    time_end = datetime(2020,7,15)
+    # define time period
+    time_start = datetime(2020, 7, 1)
+    time_end = datetime(2020, 7, 15)
 
-    # 
+    # define input geometry
     bbox = [9.0924, 47.5992, 9.2190, 47.7295]
     geom = box(*bbox)
-    metadata_filters = [Filter('product_type','==', 'RTC')]
+    metadata_filters = [Filter('product_type', '==', 'RTC')]
 
     feature = Feature(
         name='Test Area',
@@ -67,8 +69,8 @@ if __name__ == '__main__':
     mapper.metadata
 
     scene_kwargs = {
-	    'scene_constructor': Sentinel1.from_safe,
-	    'scene_constructor_kwargs': {}
-	}
+        'scene_constructor': Sentinel1.from_safe,
+        'scene_constructor_kwargs': {}
+    }
     mapper.load_scenes(scene_kwargs=scene_kwargs)
-    f = mapper.data.plot(band_selection=['VH'], figsize=(20,10))
+    f = mapper.data.plot(band_selection=['VH'], figsize=(20, 10))

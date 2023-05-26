@@ -44,7 +44,9 @@ from eodal.utils.exceptions import DataNotFoundError
 Settings = get_settings()
 logger = Settings.logger
 
-DB_URL = f"postgresql://{Settings.DB_USER}:{Settings.DB_PW}@{Settings.DB_HOST}:{Settings.DB_PORT}/{Settings.DB_NAME}"
+DB_URL = f"postgresql://{Settings.DB_USER}:" + \
+    f"{Settings.DB_PW}@{Settings.DB_HOST}:" + \
+    f"{Settings.DB_PORT}/{Settings.DB_NAME}"
 engine = create_engine(DB_URL, echo=Settings.ECHO_DB)
 session = sessionmaker(bind=engine)()
 

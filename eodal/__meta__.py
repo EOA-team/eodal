@@ -6,8 +6,10 @@ path = name.lower().replace("-", "_").replace(" ", "_")
 # https://semver.org
 # version = "0.1.dev0"
 author = (
-    "Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;\n"
-    "Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland"
+    "Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, "
+    "Zurich, Switzerland;\n"
+    "Earth Observation of Agroecosystems Team, Division Agroecology and Environment, "
+    "Agroscope, Zurich, Switzerland"
 )
 author_email = ""
 description = "Earth Observation Data Analysis Library"  # One-liner

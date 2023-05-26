@@ -112,12 +112,14 @@ def download_datasets(
             continue
 
         # download the data using the iter_content method (writes chunks to disk)
-        # check if the dataset exists already and overwrite it only if defined by the user
+        # check if the dataset exists already and overwrite it only if
+        # defined by the user
         fname = dataset.dataset_name.replace("SAFE", "zip")
         if Path(fname).exists():
             if not overwrite_existing_zips:
                 logger.info(
-                    f"{dataset.dataset_name} already downloaded - continue with next dataset"
+                    f"{dataset.dataset_name} already downloaded - " +
+                    "continue with next dataset"
                 )
                 continue
             else:

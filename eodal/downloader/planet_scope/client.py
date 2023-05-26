@@ -11,7 +11,7 @@ Under Linux you can set your API key by running:
 .. code-block:: shell
 
     export PLANET_API_KEY = "<your-planet-api-key>"
-    
+
 Copyright (C) 2022 Samuel Wildhaber with some modifications by Lukas Valentin Graf
 
 This program is free software: you can redistribute it and/or modify
@@ -161,7 +161,8 @@ class PlanetAPIClient(object):
         response = session.post(quick_url, json=request_data)
         if response.status_code != 200:
             raise APIError(
-                f"[HTTP:{response.status_code}] Could not query {quick_url}: {response.text}"
+                f"[HTTP:{response.status_code}] Could not" +
+                f"query {quick_url}: {response.text}"
             )
         return response
 
@@ -378,7 +379,8 @@ class PlanetAPIClient(object):
 
         if not response.ok:
             raise APIError(
-                f"[HTTP:{response.status_code}]: Placing order failed: {response.content}"
+                f"[HTTP:{response.status_code}]: Placing order failed:" +
+                f"{response.content}"
             )
 
         # get order ID and return its URL
@@ -440,7 +442,8 @@ class PlanetAPIClient(object):
         for f in results:
             # split paths
             a = f["name"].rsplit("/", 1)[1]
-            # take the id part split it again and put together so we can extract the item id
+            # take the id part split it again and put together
+            # so we can extract the item id
             results_folders.append("_".join(a.split("_", 4)[:4]))
 
         # To construct the whole path, the file name is required

@@ -107,7 +107,7 @@ def query_from_copernicus(
     # read file with footprint geometry and convert it to WKT
     try:
         gdf = gpd.read_file(footprint_file)
-    except Exception as e:
+    except Exception:
         logger.error(f"Could not read data from {footprint_file}")
         return pd.DataFrame()
 
