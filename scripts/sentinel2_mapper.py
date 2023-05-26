@@ -48,7 +48,7 @@ from typing import List
 
 
 Settings = get_settings()
-# set to False to use a local data archove
+# set to False to use a local data archive
 Settings.USE_STAC = True
 
 
@@ -82,61 +82,62 @@ if __name__ == '__main__':
     # user-inputs
     # -------------------------- Collection -------------------------------
     collection: str = 'sentinel2-msi'
-	
-	# ------------------------- Time Range ---------------------------------
+
+    # ------------------------- Time Range ---------------------------------
     time_start: datetime = datetime(2022, 6, 1)  		# year, month, day (incl.)
     time_end: datetime = datetime(2022, 6, 30)   		# year, month, day (incl.)
-	
-	# ---------------------- Spatial Feature  ------------------------------
-    geom: Path = Path('./data/sample_polygons/lake_lucerne.gpkg')
-	
-	# ------------------------- Metadata Filters ---------------------------
+
+    # ---------------------- Spatial Feature  ------------------------------
+    geom: Path = Path('data/sample_polygons/lake_lucerne.gpkg')
+
+    # ------------------------- Metadata Filters ---------------------------
     metadata_filters: List[Filter] = [
-		Filter('cloudy_pixel_percentage', '<', 25),
-		Filter('processing_level', '==', 'Level-2A')
-	]
-	
-	# query the scenes available (no I/O of scenes, this only fetches metadata)
+        Filter('cloudy_pixel_percentage', '<', 25),
+        Filter('processing_level', '==', 'Level-2A')
+    ]
+
+    # query the scenes available (no I/O of scenes, this only fetches metadata)
     feature = Feature.from_geoseries(gpd.read_file(geom).geometry)
     mapper_configs = MapperConfigs(
-		collection=collection,
-		time_start=time_start,
-		time_end=time_end,
-		feature=feature,
-		metadata_filters=metadata_filters
-		)
-	# to enhance reproducibility and provide proper documentation, the MapperConfigs
-	# can be saved as yaml (and also then be loaded again from yaml)
-    mapper_configs.to_yaml('../data/sample_mapper_call.yaml')
-	
-	# now, a new Mapper instance is created
+        collection=collection,
+        time_start=time_start,
+        time_end=time_end,
+        feature=feature,
+        metadata_filters=metadata_filters)
+
+    # to enhance reproducibility and provide proper documentation, the MapperConfigs
+    # can be saved as yaml (and also then be loaded again from yaml)
+    mapper_configs.to_yaml('data/sample_mapper_call.yaml')
+
+    # now, a new Mapper instance is created
     mapper = Mapper(mapper_configs)
     mapper.query_scenes()
-	# the metadata is loaded into a GeoPandas GeoDataFrame
+    # the metadata is loaded into a GeoPandas GeoDataFrame
     mapper.metadata
 
-	# get the least cloudy scene
+    # get the least cloudy scene
     mapper.metadata = mapper.metadata[
           mapper.metadata.cloudy_pixel_percentage ==
-              mapper.metadata.cloudy_pixel_percentage.min()].copy()
-	
-	# load the least cloudy scene available from STAC
+          mapper.metadata.cloudy_pixel_percentage.min()].copy()
+
+    # load the least cloudy scene available from STAC
     scene_kwargs = {
-	    'scene_constructor': Sentinel2.from_safe,
-	    'scene_constructor_kwargs': {'band_selection': ["B02", "B03", "B04", "B05", "B8A"]}
-	}
+        'scene_constructor': Sentinel2.from_safe,
+        'scene_constructor_kwargs': {'band_selection':
+                                     ["B02", "B03", "B04", "B05", "B8A"]}}
+
     mapper.load_scenes(scene_kwargs=scene_kwargs)
-	# the data loaded into `mapper.data` as a EOdal SceneCollection
+    # the data loaded into `mapper.data` as a EOdal SceneCollection
     mapper.data
 
-	# plot scenes in collection
+    # plot scenes in collection
     f_scenes = mapper.data.plot(band_selection=['blue', 'green', 'red'])
 
-	# EOdal SceneCollections can be made persistent by storing them as serialized pickled
-	# objects on disk (and can be loaded from there)
+    # EOdal SceneCollections can be made persistent by storing them as serialized
+    # pickled objects on disk (and can be loaded from there)
     fpath = Path('../data/sample_mapper_data.pkl')
     with open(fpath, 'wb+') as dst:
         dst.write(mapper.data.to_pickle())
 
-	# read data from pickled file object into SceneCollectio
+    # read data from pickled file object into SceneCollection
     scoll = SceneCollection.from_pickle(stream=fpath)

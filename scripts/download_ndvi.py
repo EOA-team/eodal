@@ -53,7 +53,7 @@ def get_ndvi(
     for scene_uri, scene in mapper.data:
         scene.calc_si('NDVI', inplace=True)
         # save NDVI as GeoTiff
-        fpath_ndvi = ouput_dir.joinpath(
+        fpath_ndvi = output_dir.joinpath(
             scene_uri.stem + '_ndvi.tif'
         )
         scene['ndvi'].to_rasterio(fpath_ndvi)
@@ -63,7 +63,7 @@ if __name__ == '__main__':
 
     # -------------------------- Paths -------------------------------------
     # define the output directory where to save the NDVI GeoTiff files
-    out_dir = Path('./data')
+    output_dir = Path('data')
 
     # user-inputs
     # -------------------------- Collection -------------------------------
@@ -77,9 +77,7 @@ if __name__ == '__main__':
     cloudy_pixel_percentage: int = 25  # percent (scene-wide)
 
     # ---------------------- Spatial Feature  ------------------------------
-    geom = \
-        'https://raw.githubusercontent.com/neffjulian/remote_sensing/main/images/coordinates/zhr_coordinates.geojson'  # noqa: E501
-    # spatial features can be single field or multiple field parcels as geojson, shapefile, etc.
+    geom = Path('data/sample_polygons/ZH_Polygon_73129_ESCH_EPSG32632.shp')
 
     # ------------------------- Metadata Filters ---------------------------
     metadata_filters: List[Filter] = [
@@ -87,7 +85,7 @@ if __name__ == '__main__':
         Filter('processing_level', '==', 'Level-2A')]
 
     # query the scenes available (no I/O of scenes, this only fetches metadata)
-    feature = Feature.from_geoseries(gpd.read_file(geom).geometry.dissolve())
+    feature = Feature.from_geoseries(gpd.read_file(geom).geometry)
     mapper_configs = MapperConfigs(
         collection=collection,
         time_start=time_start,
