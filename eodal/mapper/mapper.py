@@ -72,6 +72,9 @@ class MapperConfigs:
         list of custom metadata filters to shrink collection to.
         Examples include cloud cover filters in the case of optical data
         or filter by incidence angle in the case of SAR observations.
+    :attrib data_source:
+        denotes from which resource (local archive, STAC archive) the
+        data was read from including the STAC API end point URL.
     """
 
     def __init__(
@@ -97,6 +100,7 @@ class MapperConfigs:
         :param time_end:
             time stamp till which to extract data from collection
         :param  metadata_filters:
+            .. versionadd:: 0.2.1
             list of custom metadata filters to shrink collection to.
             Examples include cloud cover filters in the case of optical data
             or filter by incidence angle in the case of SAR observations.
@@ -126,12 +130,17 @@ class MapperConfigs:
         self._time_end = time_end
         self._metadata_filters = metadata_filters
 
+        # set data source (..versionadd::0.2.1)
+        self._data_source = f'STAC ({settings.STAC_BACKEND.URL})' if \
+            settings.USE_STAC else 'local'
+
     def __repr__(self) -> str:
         return (
             f"EOdal MapperConfig\n------------------\nCollection: {self.collection}"
             f"\nTime Range: {self.time_start} - {self.time_end}\nFeature:\n"
             f"{self.feature.__repr__()}\nMetadata Filters: "
-            f"{str(self.metadata_filters)}"
+            f"{str(self.metadata_filters)}\n"
+            f"Data Source: {self.data_source}"
         )
 
     @property
@@ -165,6 +174,16 @@ class MapperConfigs:
     def metadata_filters(self) -> List[Filter] | None:
         return self._metadata_filters
 
+    @property
+    def data_source(self) -> str:
+        return self._data_source
+
+    @data_source.setter
+    def data_source(self, value: str):
+        if not isinstance(value, str):
+            raise TypeError('Expected a string')
+        self._data_source = value
+
     @classmethod
     def from_yaml(cls, fpath: str | Path):
         """
@@ -192,13 +211,16 @@ class MapperConfigs:
                 filter_list.append(Filter(*filter_yaml.split()))
         try:
             feature = Feature.from_dict(feature_yaml)
-            return cls(
+            configs = cls(
                 collection=yaml_content["collection"],
                 feature=feature,
                 time_start=yaml_content["time_start"],
                 time_end=yaml_content["time_end"],
                 metadata_filters=filter_list,
             )
+            # overwrite data_source attribute with content from
+            # file in case it is available
+            configs.data_source = yaml_content.get('data_source', 'UNKNOWN')
         except KeyError as e:
             raise ValueError(f"Missing keys in yaml file: {e}")
 
@@ -214,6 +236,7 @@ class MapperConfigs:
         mapper_configs_dict["feature"] = self.feature.to_dict()
         mapper_configs_dict["time_start"] = self.time_start
         mapper_configs_dict["time_end"] = self.time_end
+        mapper_configs_dict["data_source"] = self.data_source
         mapper_configs_dict["metadata_filters"] = [
             x.__repr__() for x in self.metadata_filters
         ]
