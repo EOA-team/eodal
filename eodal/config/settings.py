@@ -105,7 +105,8 @@ class Settings(BaseSettings):
     CURRENT_TIME: str = datetime.now().strftime("%Y%m%d-%H%M%S")
     LOGGER_NAME: str = "eodal"
     LOG_FORMAT: str = "%(asctime)s %(name)-12s %(levelname)-8s %(message)s"
-    LOG_FILE: str = join(Path.home(), f"{CURRENT_TIME}_{LOGGER_NAME}.log")
+    LOG_DIR: str = Path.home()  # ..versionadd:: 0.2.1
+    LOG_FILE: str = join(LOG_DIR, f"{CURRENT_TIME}_{LOGGER_NAME}.log")
     LOGGING_LEVEL: int = logging.INFO
 
     # processing checks
