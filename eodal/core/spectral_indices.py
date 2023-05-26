@@ -285,8 +285,55 @@ class SpectralIndices(object):
     @classmethod
     def NHI(cls, collection):
         """
-        Calculates the Normalized Humidity Index
+        Calculates the Normalized Humidity Index. First described for detecting ponds with vegetation in and on top.
+        :param collection:
+            reflectance in the 'green' and 'swir_1' channel
+        :returns:
+            NHI values
         """
         swir_1 = collection.get(cls.swir_1).values.astype("float")
         green = collection.get(cls.green).values.astype("float")
         return (swir_1 - green)/(swir_1 + green)
+        
+        
+    @classmethod
+    def NDTI(cls, collection):
+        """
+        Calculates the Normalized Tillage Index. Useful for tillage and crop residues.
+        :param collection:
+            reflectance in the 'swir_1' and 'swir_2' channel
+        :returns:
+            NDTI values
+        """
+        swir_1 = collection.get(cls.swir_1).values.astype("float")
+        swir_2 = collection.get(cls.swir_2).values.astype("float")
+        return (swir_1 - swir_2)/(swir_1 + swir_2)
+        
+        
+    @classmethod
+    def NDRI(cls, collection):
+        """
+        Calculates the Normalized Difference Residue Index. Useful for detecting crop residues.
+        :param collection:
+            reflectance in the 'red' and 'swir_2' channel
+        :returns:
+            NDRI values
+        """
+        red = collection.get(cls.red).values.astype("float")
+        swir_2 = collection.get(cls.swir_2).values.astype("float")
+        return (red - swir_2)/(red + swir_2)
+        
+        
+         
+    @classmethod
+    def GNDVI(cls, collection):
+        """
+        Calculates the Green Normalized Difference Vegetation Index 
+        :param collection:
+            reflectance in the 'nir_1' and 'green' channel
+        :returns:
+            GNDVI values
+        """
+        nir = collection.get(cls.nir_1).values.astype("float")
+        green = collection.get(cls.green).values.astype("float")
+        return (nir - green)/(nir + green)
