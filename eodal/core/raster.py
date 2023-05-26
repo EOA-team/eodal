@@ -76,6 +76,7 @@ import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
 import rasterio as rio
+import warnings
 import xarray as xr
 import zarr
 
@@ -83,6 +84,7 @@ from collections.abc import MutableMapping
 from copy import deepcopy
 from functools import reduce
 from itertools import chain
+from matplotlib import colors
 from matplotlib.axes import Axes
 from matplotlib.pyplot import Figure
 from numbers import Number
@@ -1073,6 +1075,7 @@ class RasterCollection(MutableMapping):
         self,
         band_selection: Optional[List[str]] = None,
         ax: Optional[Axes] = None,
+        nodata_color: Optional[str] = 'white',
         **kwargs,
     ):
         """
@@ -1087,6 +1090,11 @@ class RasterCollection(MutableMapping):
             first three bands (or less) to plot
         :param ax:
             optional `matplotlib.axes` object to plot onto
+        :param nodata_color:
+            ..versionadd:: 0.2.1
+            Color no-data (masked) pixels should take in the RGB plot.
+            Default is 'white'. All color names supported by
+            `~matplotlib.colors` can be passed.  
         :returns:
             `~matplotlib.pyplot.Figure` with band plotted as map in
             8bit color depth
@@ -1159,6 +1167,23 @@ class RasterCollection(MutableMapping):
             ax = fig.add_subplot(111)
         else:
             fig = ax.get_figure()
+
+        # ..versionadd:: 0.2.1
+        # set color of nodata values [0,0,0] to custom RGB value
+        try:
+            nodata_color_rgb = list(colors.to_rgb(nodata_color))
+            nodata_color_rgb = [int(x * 255) for x in nodata_color_rgb]
+            
+        except ValueError:
+            warnings.warn(
+                f'{nodata_color} is not a recognized color name.' +
+                ' Using default "white" instead.')
+            nodata_color_rgb = [255, 255, 255]
+        # get nodata values ([0,0,0]) and replace them with the custom
+        # RGB value
+        mask = (stack[..., 0] == 0) & (stack[..., 1] == 0) & (stack[..., 2] == 0)
+        stack[mask] = nodata_color_rgb
+
         ax.imshow(stack, vmin=vmin, vmax=vmax, extent=[xmin, xmax, ymin, ymax])
         # set axis labels
         epsg = self[band_selection[0]].geo_info.epsg
@@ -1173,6 +1198,7 @@ class RasterCollection(MutableMapping):
         ax.yaxis.set_ticks(np.arange(ymin, ymax, y_interval))
         ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
         ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.0f"))
+
         # add title str
         title_str = ", ".join(band_selection)
         ax.set_title(title_str, fontdict={"fontsize": fontsize})
