@@ -98,6 +98,9 @@ class Settings(BaseSettings):
     # when a path a custom certificate is required set this variable to a path
     STAC_API_IO_CA_BUNDLE: bool = True
 
+    # maximum number of HTTPS retries
+    NUMBER_HTTPS_RETRIES: int = 5
+
     # define logger
     CURRENT_TIME: str = datetime.now().strftime("%Y%m%d-%H%M%S")
     LOGGER_NAME: str = "eodal"
