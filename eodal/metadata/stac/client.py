@@ -11,6 +11,7 @@ import warnings
 from datetime import datetime
 from pystac_client import Client
 from pystac_client.stac_api_io import StacApiIO
+from requests.adapters import HTTPAdapter, Retry
 from shapely.geometry import box, Polygon
 from typing import Any, Dict, List
 
@@ -49,8 +50,23 @@ def query_stac(
     """
     # open connection to STAC server (specify custom CA_BUNDLE if required)
     stac_api_io = StacApiIO()
+
+    # ..versionadd:: 0.2.1
+    # add retries in case of HTTP 502, 503 and 504 errors
+    # TODO this should be changed once
+    # https://github.com/stac-utils/pystac-client/issues/520 is solved
+    retries = Retry(
+        total=Settings.NUMBER_HTTPS_RETRIES,
+        backoff_factor=1,
+        status_forcelist=[502, 503, 504])
+    stac_api_io.session.mount("http://", HTTPAdapter(max_retries=retries))
+
+    # handle certificate bundle
     stac_api_io.session.verify = Settings.STAC_API_IO_CA_BUNDLE
+
+    # setup the client
     cat = Client.from_file(Settings.STAC_BACKEND.URL, stac_io=stac_api_io)
+
     # transform dates into the required format (%Y-%m-%d)
     datestr = f'{time_start.strftime("%Y-%m-%d")}/{time_end.strftime("%Y-%m-%d")}'
     # search datasets on catalog
