@@ -6,13 +6,9 @@ Script to get NDVI from Sentinel-2 for a specific area of interest
 """
 
 import geopandas as gpd
-import planetary_computer
-import urllib
 
 from datetime import datetime
 from eodal.config import get_settings
-from eodal.core.raster import RasterCollection
-from eodal.core.scene import SceneCollection
 from eodal.core.sensors.sentinel2 import Sentinel2
 from eodal.mapper.feature import Feature
 from eodal.mapper.filter import Filter
@@ -23,7 +19,7 @@ from typing import List
 
 
 Settings = get_settings()
-# set to False to use a local data archove
+# set to False to use a local data archive
 Settings.USE_STAC = True
 
 
