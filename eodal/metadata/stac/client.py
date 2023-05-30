@@ -18,7 +18,9 @@ from typing import Any, Dict, List
 from eodal.config import get_settings, STAC_Providers
 from eodal.mapper.filter import Filter
 from eodal.utils.decorators import prepare_bbox
+from eodal.utils.geometry import box_from_transform, prepare_gdf
 from eodal.utils.reprojection import infer_utm_zone
+from eodal.utils.timestamps import datetime_to_date
 
 Settings = get_settings()
 
@@ -99,22 +101,35 @@ def _filter_criteria_fulfilled(
         `True` if all criteria passed, `False` if a single
         criterion was not met.
     """
-    criteria_fulfilled = True
-    for filter in metadata_filters:
-        if filter.entity in ["processing_level", "product_type"]:
+    criteria_fulfilled = []
+    for _filter in metadata_filters:
+        if _filter.entity in ["processing_level", "product_type"]:
             continue
-        if filter.entity not in metadata_dict.keys():
+        if _filter.entity not in metadata_dict.keys():
             warnings.warn(
-                f"{filter.entity} could not be retrieved from STAC -> skipping filter"
+                f"{_filter.entity} could not be retrieved from STAC -> skipping filter"
             )
         # check if the filter condition is met
-        condition_met = eval(
-            f'metadata_dict["{filter.entity}"] {filter.operator} {filter.value}'
-        )
-        if not condition_met:
-            criteria_fulfilled = False
-            break
-    return criteria_fulfilled
+        # check if the metadata item to filter is a list or single value
+        if not isinstance(metadata_dict[_filter.entity], list):
+            condition_met = eval(
+                f'metadata_dict["{_filter.entity}"] {_filter.operator} {_filter.value}'
+            )
+        else:
+            # TODO: this is not really elegant and might not deliver always the
+            # results we are looking for ...
+            # convert _filter.value to list if it is not yet
+            value = _filter.value
+            if not isinstance(value, list):
+                value = [value]
+            # redefine the operators to work with sets
+            if _filter.operator == '==':
+                condition_met = set(value).issubset(metadata_dict[_filter.entity])
+            elif _filter.operator == '!=':
+                condition_met = not set(value).issubset(metadata_dict[_filter.entity])
+        criteria_fulfilled.append(condition_met)
+
+    return all(criteria_fulfilled)
 
 
 @prepare_bbox
@@ -178,9 +193,7 @@ def sentinel2(metadata_filters: List[Filter], **kwargs) -> gpd.GeoDataFrame:
             "scene_id": scene_id,
             "spacecraft_name": props[s2.platform],
             "tile_id": tile_id,
-            "sensing_date": datetime.strptime(
-                props[s2.sensing_time].split("T")[0], "%Y-%m-%d"
-            ).date(),
+            "sensing_date": datetime_to_date(props[s2.sensing_time]),
             "cloudy_pixel_percentage": props[s2.cloud_cover],
             "epsg": props[s2.epsg],
             "sensing_time": datetime.strptime(
@@ -199,9 +212,7 @@ def sentinel2(metadata_filters: List[Filter], **kwargs) -> gpd.GeoDataFrame:
             metadata_list.append(meta_dict)
 
     # create geppandas GeoDataFrame out of scene metadata records
-    df = pd.DataFrame(metadata_list)
-    df.sort_values(by="sensing_time", inplace=True)
-    return gpd.GeoDataFrame(df, geometry="geom", crs=4326)
+    return prepare_gdf(metadata_list)
 
 
 @prepare_bbox
@@ -245,9 +256,7 @@ def sentinel1(metadata_filters: List[Filter], **kwargs) -> gpd.GeoDataFrame:
         metadata_dict = scene["properties"]
         metadata_dict["assets"] = scene["assets"]
         metadata_dict["sensing_time"] = metadata_dict["datetime"]
-        metadata_dict["sensing_date"] = datetime.strptime(
-            metadata_dict["sensing_time"].split("T")[0], "%Y-%m-%d"
-        ).date()
+        metadata_dict["sensing_date"] = datetime_to_date(metadata_dict['sensing_time'])
         del metadata_dict["datetime"]
         # infer EPSG code of the scene in UTM coordinates from its bounding box
         bbox = box(*scene["bbox"])
@@ -259,6 +268,54 @@ def sentinel1(metadata_filters: List[Filter], **kwargs) -> gpd.GeoDataFrame:
             metadata_list.append(metadata_dict)
 
     # create geppandas GeoDataFrame out of scene metadata records
-    df = pd.DataFrame(metadata_list)
-    df.sort_values(by="sensing_time", inplace=True)
-    return gpd.GeoDataFrame(df, geometry="geom", crs=4326)
+    return prepare_gdf(metadata_list)
+
+
+@prepare_bbox
+def landsat(metadata_filters: List[Filter], **kwargs) -> gpd.GeoDataFrame:
+    """
+    Landsat specific STAC query function to retrieve mapper from MSPC.
+
+    :param metadata_filters:
+        custom filters for filtering scenes in catalog by some metadata attributes
+    :param kwargs:
+        :param kwargs:
+        keyword arguments to pass to `query_stac` function
+    :returns:
+        dataframe with references to found Landsat scenes
+    """
+
+    if Settings.STAC_BACKEND != STAC_Providers.MSPC:
+        raise ValueError("This method currently requires Microsoft Planetary Computer")
+
+    # query the catalog
+    stac_kwargs = kwargs.copy()
+    scenes = query_stac(**stac_kwargs)
+
+    metadata_list = []
+    for scene in scenes:
+        metadata_dict = scene['properties']
+        metadata_dict['assets'] = scene['assets']
+        metadata_dict["sensing_time"] = metadata_dict["datetime"]
+        metadata_dict["sensing_date"] = datetime_to_date(metadata_dict['sensing_time'])
+        del metadata_dict["datetime"]
+        # apply filters
+        append_scene = _filter_criteria_fulfilled(metadata_dict, metadata_filters)
+        if append_scene:
+            metadata_list.append(metadata_dict)
+        # reconstruct the scene footprint
+        transform = metadata_dict['proj:transform']
+        shape = metadata_dict['proj:shape']
+        metadata_dict['geom'] = box_from_transform(transform, shape)
+        metadata_dict['epsg'] = metadata_dict['proj:epsg']
+
+        # extract angles
+        metadata_dict['sun_azimuth_angle'] = metadata_dict['view:sun_azimuth']
+        del metadata_dict['view:sun_azimuth']
+        metadata_dict['sun_zenith_angle'] = 90. - metadata_dict['view:sun_elevation']
+        del metadata_dict['view:sun_elevation']
+        metadata_dict['sensor_zenith_angle'] = metadata_dict['view:off_nadir']
+        del metadata_dict['view:off_nadir']
+
+    return prepare_gdf(metadata_list)
+    
