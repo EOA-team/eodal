@@ -35,7 +35,6 @@ from matplotlib.pyplot import Figure
 from matplotlib import colors
 from numbers import Number
 from pathlib import Path
-from rasterio.mask import raster_geometry_mask
 from shapely.geometry import box
 from typing import Any, Dict, Optional, List, Tuple, Union
 
@@ -51,6 +50,7 @@ from eodal.utils.constants.sentinel2 import (
     SCL_Classes,
 )
 from eodal.utils.decorators import prepare_point_features
+from eodal.utils.geometry import adopt_vector_features_to_mask
 from eodal.utils.exceptions import BandNotFoundError
 from eodal.utils.sentinel2 import (
     get_S2_bandfiles_with_res,
@@ -59,7 +59,6 @@ from eodal.utils.sentinel2 import (
     get_S2_acquistion_time_from_safe,
     get_S2_processing_baseline_from_safe,
 )
-from eodal.core.utils.geometry import convert_3D_2D
 from eodal.config import get_settings
 from eodal.utils.sentinel2 import _url_to_safe_name
 
@@ -294,73 +293,14 @@ class Sentinel2(RasterCollection):
         masking_after_read_required = False
 
         if kwargs.get("vector_features") is not None:
-            lowest_resolution = band_df_safe["band_resolution"].max()
-            if band_df_safe["band_resolution"].unique().shape[0] > 1:
-                if kwargs.get("vector_features") is not None:
-                    low_res_band = band_df_safe[
-                        band_df_safe["band_resolution"] == lowest_resolution
-                    ].iloc[0]
-                    # get vector feature(s) for spatial subsetting
-                    vector_features = kwargs.get("vector_features")
-                    if isinstance(vector_features, Path):
-                        vector_features_df = gpd.read_file(vector_features)
-                    elif isinstance(vector_features, gpd.GeoDataFrame):
-                        vector_features_df = vector_features.copy()
-                    elif isinstance(vector_features, gpd.GeoSeries):
-                        vector_features_df = gpd.GeoDataFrame(
-                            geometry=vector_features.copy()
-                        )
-                    else:
-                        raise TypeError(
-                            "Geometry must be vector file, GeoSeries or GeoDataFrame"
-                        )
-
-                    # drop Nones in geometry column
-                    none_idx = vector_features_df[
-                        vector_features_df.geometry == None  # noqa: E711
-                    ].index
-                    vector_features_df.drop(index=none_idx, inplace=True)
-
-                    with rio.open(low_res_band.band_path, "r") as src:
-                        # convert to raster CRS
-                        raster_crs = src.crs
-                        vector_features_df.to_crs(crs=raster_crs, inplace=True)
-                        # check if the geometry contains the z (3rd) dimension. If yes
-                        # convert it to 2d to avoid an error poping up from rasterio
-                        vector_features_geom = convert_3D_2D(
-                            vector_features_df.geometry
-                        )
-                        shape_mask, transform, window = raster_geometry_mask(
-                            dataset=src,
-                            shapes=vector_features_geom,
-                            all_touched=True,
-                            crop=True,
-                        )
-                    # get upper left coordinates rasterio takes for the band
-                    # with the coarsest spatial resolution
-                    ulx_low_res, uly_low_res = transform.c, transform.f
-                    # reconstruct the lower right corner
-                    llx_low_res = ulx_low_res + window.width * transform.a
-                    lly_low_res = uly_low_res + window.height * transform.e
-
-                    # overwrite original vector features' bounds in the S2 scene
-                    # geometry of the lowest spatial resolution
-                    low_res_feature_bounds_s2_grid = box(
-                        minx=ulx_low_res,
-                        miny=lly_low_res,
-                        maxx=llx_low_res,
-                        maxy=uly_low_res,
-                    )
-                    # update bounds and pass them on to the kwargs
-                    bounds_df = gpd.GeoDataFrame(
-                        geometry=[low_res_feature_bounds_s2_grid],
-                    )
-                    bounds_df.set_crs(crs=raster_crs, inplace=True)
-                    # remember to mask the feature after clipping the data
-                    if not kwargs.get("full_bounding_box_only", False):
-                        masking_after_read_required = True
-                    # update the vector_features entry
-                    kwargs.update({"vector_features": bounds_df})
+            bounds_df = adopt_vector_features_to_mask(
+                band_df=band_df_safe,
+                vector_features=kwargs.get("vector_features")
+            )
+            if not kwargs.get("full_bounding_box_only", False):
+                masking_after_read_required = True
+            # update the vector_features entry
+            kwargs.update({"vector_features": bounds_df})
 
         # determine platform (S2A or S2B)
         try:
