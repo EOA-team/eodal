@@ -293,7 +293,7 @@ class Sentinel2(RasterCollection):
         masking_after_read_required = False
 
         if kwargs.get("vector_features") is not None:
-            bounds_df = adopt_vector_features_to_mask(
+            bounds_df, shape_mask, lowest_resolution = adopt_vector_features_to_mask(
                 band_df=band_df_safe,
                 vector_features=kwargs.get("vector_features")
             )
@@ -349,8 +349,7 @@ class Sentinel2(RasterCollection):
 
             # get color name and set it as alias
             color_name = s2_band_mapping[band_name]
-            kwargs.update({"scale": 1})
-            kwargs.update({"offset": 0})
+            kwargs.update({"scale": 1, offset: 0})
 
             # store wavelength information per spectral band
             if band_name != "SCL":
@@ -365,8 +364,7 @@ class Sentinel2(RasterCollection):
                 kwargs.update({"wavelength_info": wvl_info})
                 # do not apply the gain and offset factors from the spectral bands
                 # to the SCL file
-                kwargs.update({"scale": gain})
-                kwargs.update({"offset": offset})
+                kwargs.update({"scale": gain, "offset": offset})
 
             # read band
             try:
