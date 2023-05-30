@@ -351,7 +351,7 @@ class Landsat(RasterCollection):
 
         # set proper scaling factors to allow for conversion to
         # reflectance [0, 1]
-        gain, offset = 0.0001, 0.0
+        gain, offset = 0.00001, 0.0
 
         # loop over bands and add them to the collection of bands
         landsat = cls(scene_properties=scene_properties)
@@ -366,9 +366,9 @@ class Landsat(RasterCollection):
                 band_alias = [
                     k for k, v in landsat_band_mapping[sensor].items()
                     if v == band_name][0]
-            elif band_name in landsat_band_mapping['quality_flags'].keys():
+            elif band_name in landsat_band_mapping['quality_flags'].values():
                 band_alias = band_name.lower()
-            elif band_name in landsat_band_mapping['atmospheric_correction'].keys():
+            elif band_name in landsat_band_mapping['atmospheric_correction'].values():
                 band_alias = band_name.lower()
 
             # read band
