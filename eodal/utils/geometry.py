@@ -104,7 +104,7 @@ def prepare_gdf(
 def adopt_vector_features_to_mask(
         band_df: pd.DataFrame,
         vector_features: gpd.GeoDataFrame | gpd.GeoSeries | Path
-) -> gpd.GeoDataFrame:
+) -> tuple[gpd.GeoDataFrame, tuple[int, int], int | float]:
     """
     Adopt the vector features used for clipping and/or masking data
     to the spatial resolution of the band with the coarsest spatial
@@ -119,7 +119,9 @@ def adopt_vector_features_to_mask(
     :param vector_features:
         vector features to be used for masking.
     :returns:
-        Updated vector features.
+        Updated vector features, shape of the resulting mask and
+        spatial resolution of the band with the coarsest spatial
+        resolution.
     """
     # get lowest spatial resolution
     lowest_resolution = band_df["band_resolution"].max()
@@ -175,4 +177,4 @@ def adopt_vector_features_to_mask(
         geometry=[low_res_feature_bounds_s2_grid],
     )
     bounds_df.set_crs(crs=raster_crs, inplace=True)
-    return bounds_df
+    return bounds_df, shape_mask, lowest_resolution
