@@ -241,3 +241,4 @@ eodal.code-workspace
 .vscode/extensions.json
 
 *.xml
+.vscode/launch.json
