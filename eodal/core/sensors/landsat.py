@@ -7,7 +7,7 @@ science products in L2 processing level.
 
 The class handles data in L1C and L2A processing level.
 
-Copyright (C) 2022 Lukas Valentin Graf
+Copyright (C) 2023 Lukas Valentin Graf
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -253,9 +253,9 @@ class Landsat(RasterCollection):
             band_res = None
             if band_name in sensor_bands.values():
                 band_res = band_resolution[sensor][band_name]
-            elif band_name in qa_bands:
+            elif read_qa and band_name in qa_bands:
                 band_res = band_resolution['quality_flags'][band_name]
-            elif band_name in atcor_bands:
+            elif read_atcor and band_name in atcor_bands:
                 band_res = band_resolution['atmospheric_correction'][band_name]
 
             item = {
@@ -266,6 +266,8 @@ class Landsat(RasterCollection):
 
         # construct pandas DataFrame with all band entries and return
         band_df = pd.DataFrame(band_list)
+        band_df.dropna(inplace=True)
+
         return band_df
 
     @classmethod
@@ -385,7 +387,8 @@ class Landsat(RasterCollection):
                 )
             except Exception as e:
                 raise Exception(
-                    f"Could not add band {band_name} from {in_dir.name}: {e}"
+                    f"Could not add band {band_name} " +
+                    f"from {scene_properties.product_uri}: {e}"
                 )
             # apply actual vector features if masking is required
             if masking_after_read_required:
