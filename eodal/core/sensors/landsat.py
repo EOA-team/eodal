@@ -221,16 +221,16 @@ class Landsat(RasterCollection):
             band_selection = available_bands
 
         # check if the user wants to read the atmospheric correction bands
+        atcor_bands = landsat_band_mapping['atmospheric_correction']
         if read_atcor:
-            atcor_bands = landsat_band_mapping['atmospheric_correction']
             # add those bands to the band selection that are available
             for atcor_band in atcor_bands:
                 if atcor_band in available_bands and atcor_band not in band_selection:
                     band_selection.append(atcor_band)
 
         # check if the user wants to read the QA bands
+        qa_bands = landsat_band_mapping['quality_flags']
         if read_qa:
-            qa_bands = landsat_band_mapping['quality_flags']
             # add those bands to the band selection that are available
             for qa_band in qa_bands:
                 if qa_band in available_bands and qa_band not in band_selection:
@@ -253,9 +253,9 @@ class Landsat(RasterCollection):
             band_res = None
             if band_name in sensor_bands.values():
                 band_res = band_resolution[sensor][band_name]
-            elif read_qa and band_name in qa_bands:
+            elif read_qa or band_name in qa_bands:
                 band_res = band_resolution['quality_flags'][band_name]
-            elif read_atcor and band_name in atcor_bands:
+            elif read_atcor or band_name in atcor_bands:
                 band_res = band_resolution['atmospheric_correction'][band_name]
 
             item = {
