@@ -1,6 +1,8 @@
 if __name__ == "__main__":
 
     # some testing -> to be moved to tests later
+    import geopandas as gpd
+
     from datetime import datetime
     from eodal.core.sensors import Landsat
     from eodal.mapper.feature import Feature
@@ -31,9 +33,17 @@ if __name__ == "__main__":
         time_start=time_start,
         time_end=time_end)
 
-
-    # get a test scene
+    # read only a part of the test scene
     landsat_scene_item = landsat_items.iloc[0]
+    gdf = gpd.GeoSeries([bbox], crs=4326)
+    landsat = Landsat.from_usgs(
+        in_dir=landsat_scene_item['assets'],
+        vector_features=gdf,
+        read_qa=False,
+        read_atcor=False
+    )
+
+    # get a complete test scene
     landsat = Landsat.from_usgs(
         in_dir=landsat_scene_item['assets'],
         band_selection=['blue', 'green', 'red']
