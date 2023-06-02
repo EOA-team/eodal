@@ -349,7 +349,7 @@ class Sentinel2(RasterCollection):
 
             # get color name and set it as alias
             color_name = s2_band_mapping[band_name]
-            kwargs.update({"scale": 1, offset: 0})
+            kwargs.update({"scale": 1, "offset": 0})
 
             # store wavelength information per spectral band
             if band_name != "SCL":
@@ -378,7 +378,7 @@ class Sentinel2(RasterCollection):
                 )
             except Exception as e:
                 raise Exception(
-                    f"Could not add band {band_name} from {in_dir.name}: {e}"
+                    f"Could not add band {band_name} from {in_dir}: {e}"
                 )
             # apply actual vector features if masking is required
             if masking_after_read_required:
