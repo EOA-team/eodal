@@ -112,9 +112,15 @@ def _filter_criteria_fulfilled(
         # check if the filter condition is met
         # check if the metadata item to filter is a list or single value
         if not isinstance(metadata_dict[_filter.entity], list):
-            condition_met = eval(
-                f'metadata_dict["{_filter.entity}"] {_filter.operator} {_filter.value}'
-            )
+            if isinstance(metadata_dict[_filter.entity], str):
+                eval_str = \
+                    f'metadata_dict["{_filter.entity}"] ' + \
+                    f'{_filter.operator} "{_filter.value}"'
+            else:
+                eval_str = \
+                    f'metadata_dict["{_filter.entity}"] ' + \
+                    f'{_filter.operator} {_filter.value}'
+            condition_met = eval(eval_str)
         else:
             # TODO: this is not really elegant and might not deliver always the
             # results we are looking for ...
@@ -157,8 +163,8 @@ def sentinel2(metadata_filters: List[Filter], **kwargs) -> gpd.GeoDataFrame:
 
     # query STAC catalog
     stac_kwargs = kwargs.copy()
-    del stac_kwargs["platform"]
     scenes = query_stac(**stac_kwargs)
+
     # get STAC provider specific naming conventions
     s2 = Settings.STAC_BACKEND.Sentinel2
     # loop over scenes found and apply the Filters provided
@@ -248,7 +254,6 @@ def sentinel1(metadata_filters: List[Filter], **kwargs) -> gpd.GeoDataFrame:
 
     # query the catalog
     stac_kwargs = kwargs.copy()
-    del stac_kwargs["platform"]
     stac_kwargs.update({"collection": eval(f"Settings.STAC_BACKEND.{collection}")})
     scenes = query_stac(**stac_kwargs)
     metadata_list = []
