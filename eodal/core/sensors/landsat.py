@@ -368,9 +368,12 @@ class Landsat(RasterCollection):
                 band_alias = [
                     k for k, v in landsat_band_mapping[sensor].items()
                     if v == band_name][0]
-            elif band_name in landsat_band_mapping['quality_flags'].values():
+            elif band_name in landsat_band_mapping['quality_flags'].keys() \
+                    or band_name in landsat_band_mapping['quality_flags'].values():
                 band_alias = band_name.lower()
-            elif band_name in landsat_band_mapping['atmospheric_correction'].values():
+            elif band_name in landsat_band_mapping['atmospheric_correction'].keys() \
+                    or band_name in landsat_band_mapping['atmospheric_correction'
+                                                         ].values():
                 band_alias = band_name.lower()
 
             # read band
