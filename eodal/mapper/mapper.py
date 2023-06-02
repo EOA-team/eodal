@@ -436,6 +436,10 @@ class Mapper:
             scene = scene_modifier.__call__(scene, **scene_modifier_kwargs)
 
         # reproject scene if necessary
+        # TODO: there is a problem that the resulting grid might be a bit
+        # of from the satellite grid in the target projection. This does
+        # not matter as along as you want to stack the data ...
+        # the question is: do we solve it here or elsewhere ...
         scene.reproject(
             target_crs=item.target_epsg,
             interpolation_method=reprojection_method,
