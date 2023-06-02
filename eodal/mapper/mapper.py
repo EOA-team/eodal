@@ -438,7 +438,7 @@ class Mapper:
         scene.reproject(
             target_crs=item.target_epsg,
             interpolation_method=reprojection_method,
-            inplace=True,
+            inplace=True
         )
 
         return scene
@@ -616,7 +616,30 @@ class Mapper:
 
         # sort scenes by their timestamps and save as data attribute
         # to mapper instance
-        self.data = scoll.sort()
+        scoll = scoll.sort()
+
+        # ..versionadd::0.2.1
+        # we have to make sure that the scenes in self.data all share the same
+        # extent and are aligned onto the same grid. This step is only required
+        # if reprojection was necessary
+        # determine the reference grid. This is the scene with the largest
+        # extent. In case there are multiple, take the first.
+        bounds_list = []
+        for _, scene in scoll:
+            bounds = scene[scene.band_names[0]].bounds
+            crs = scene[scene.band_names[0]].crs
+            bounds_list.append(gpd.GeoDataFrame(
+                geometry=[bounds],
+                crs=crs
+            ))
+        bounds_gdf = pd.concat(bounds_list)
+        total_bounds = bounds_gdf.total_bounds
+
+        # loop over scenes and project them onto the total bounds
+        # TODO: implement this
+        
+        self.data = scoll
+
         logger.info(f"Finished extraction of {self.sensor} scenes")
 
     def _load_pixels(
