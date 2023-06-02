@@ -354,12 +354,13 @@ class Mapper:
         feature_wgs84 = self.mapper_configs.feature.to_epsg(4326)
         bbox = box(*feature_wgs84.geometry.bounds)
 
-        # determine platform
+        # determine platform and collection
         platform = self.mapper_configs.platform
+        collection = self.mapper_configs.collection
 
         # put kwargs together
         kwargs = {
-            "platform": platform,
+            "collection": collection,
             "time_start": self.mapper_configs.time_start,
             "time_end": self.mapper_configs.time_end,
             "bounding_box": bbox,
