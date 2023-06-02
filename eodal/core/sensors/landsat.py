@@ -178,7 +178,7 @@ class Landsat(RasterCollection):
             The bands loaded depend on the sensor, e.g., TM, ETM, OLI, TIRS.
             The sensor will be auto-detected. To make sure, the band selection
             works for multiple sensors, use the aliases defined in
-            `~eodal.utils.constants.landsat.landsat_band_mapping`.
+            `~eodal.utils.constants.landsat_mapper.landsat_band_mapping`.
             For instance, to load the VIS bands pass `["blue", "green", "red"]`.
         :param read_qa:
             If True, the QA bands will be loaded as well. Default is True.
