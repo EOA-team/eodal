@@ -79,6 +79,10 @@ def preprocess_sentinel2_scenes(
 
 if __name__ == '__main__':
 
+    import os
+    cwd = Path(__file__).absolute().parent.parent
+    os.chdir(cwd)
+
     # user-inputs
     # -------------------------- Collection -------------------------------
     collection: str = 'sentinel2-msi'
@@ -115,16 +119,19 @@ if __name__ == '__main__':
     # the metadata is loaded into a GeoPandas GeoDataFrame
     mapper.metadata
 
-    # get the least cloudy scene
-    mapper.metadata = mapper.metadata[
-          mapper.metadata.cloudy_pixel_percentage ==
-          mapper.metadata.cloudy_pixel_percentage.min()].copy()
+    # optional: get the least cloudy scene
+    # to apply it uncomment the statement below. This
+    # will return just a single scene no matter how long the time period chosen.
+    # mapper.metadata = mapper.metadata[
+    #       mapper.metadata.cloudy_pixel_percentage ==
+    #       mapper.metadata.cloudy_pixel_percentage.min()].copy()
 
     # load the least cloudy scene available from STAC
     scene_kwargs = {
         'scene_constructor': Sentinel2.from_safe,
         'scene_constructor_kwargs': {'band_selection':
-                                     ["B02", "B03", "B04", "B05", "B8A"]}}
+                                     ['B02', 'B03', 'B04', 'B08'],
+                                     'read_scl': False}}
 
     mapper.load_scenes(scene_kwargs=scene_kwargs)
     # the data loaded into `mapper.data` as a EOdal SceneCollection
