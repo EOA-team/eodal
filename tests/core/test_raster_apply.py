@@ -1,7 +1,5 @@
 '''
-Created on Nov 20, 2022
-
-@author: graflu
+Tests for RasterCollection.apply() method.
 '''
 
 import numpy as np
