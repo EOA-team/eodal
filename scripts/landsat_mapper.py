@@ -34,6 +34,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from datetime import datetime
+from pathlib import Path
 from shapely.geometry import box
 
 from eodal.config import get_settings
@@ -100,5 +101,11 @@ if __name__ == "__main__":
 
     # the scenes can be plotted
     f_scenes = mapper.data.plot(['red', 'green', 'blue'], figsize=(15,5))
+
+    # make the SceneCollection obtained persistent so that we do not have to re-run
+    # the STAC query all the time we use the data.
+    fpath = Path('../data/sample_mapper_data.pkl')
+    with open(fpath, 'wb+') as dst:
+        dst.write(mapper.data.to_pickle())
 
     # use mapper.data to work with EOdal SceneCollections ...
