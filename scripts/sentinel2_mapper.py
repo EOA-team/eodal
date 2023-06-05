@@ -36,15 +36,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import geopandas as gpd
 
 from datetime import datetime
+from pathlib import Path
+from shapely.geometry import box
+from typing import List
+
 from eodal.config import get_settings
 from eodal.core.scene import SceneCollection
 from eodal.core.sensors.sentinel2 import Sentinel2
 from eodal.mapper.feature import Feature
 from eodal.mapper.filter import Filter
 from eodal.mapper.mapper import Mapper, MapperConfigs
-
-from pathlib import Path
-from typing import List
 
 
 Settings = get_settings()
@@ -79,16 +80,26 @@ def preprocess_sentinel2_scenes(
 
 if __name__ == '__main__':
 
+    import os
+    cwd = Path(__file__).absolute().parent.parent
+    os.chdir(cwd)
+
     # user-inputs
     # -------------------------- Collection -------------------------------
     collection: str = 'sentinel2-msi'
 
     # ------------------------- Time Range ---------------------------------
-    time_start: datetime = datetime(2022, 6, 1)  		# year, month, day (incl.)
-    time_end: datetime = datetime(2022, 6, 30)   		# year, month, day (incl.)
+    time_start: datetime = datetime(2022, 6, 10)  		# year, month, day (incl.)
+    time_end: datetime = datetime(2022, 6, 15)   		# year, month, day (incl.)
 
     # ---------------------- Spatial Feature  ------------------------------
-    geom: Path = Path('data/sample_polygons/lake_lucerne.gpkg')
+    bbox = box(*[6.5738, 46.4565, 7.2628, 47.2190])
+    feature = Feature(
+        name='lake_neuchatel',
+        geometry=bbox,
+        epsg=4326,
+        attributes={}
+    )
 
     # ------------------------- Metadata Filters ---------------------------
     metadata_filters: List[Filter] = [
@@ -97,7 +108,6 @@ if __name__ == '__main__':
     ]
 
     # query the scenes available (no I/O of scenes, this only fetches metadata)
-    feature = Feature.from_geoseries(gpd.read_file(geom).geometry)
     mapper_configs = MapperConfigs(
         collection=collection,
         time_start=time_start,
@@ -115,16 +125,11 @@ if __name__ == '__main__':
     # the metadata is loaded into a GeoPandas GeoDataFrame
     mapper.metadata
 
-    # get the least cloudy scene
-    mapper.metadata = mapper.metadata[
-          mapper.metadata.cloudy_pixel_percentage ==
-          mapper.metadata.cloudy_pixel_percentage.min()].copy()
-
     # load the least cloudy scene available from STAC
     scene_kwargs = {
         'scene_constructor': Sentinel2.from_safe,
-        'scene_constructor_kwargs': {'band_selection':
-                                     ["B02", "B03", "B04", "B05", "B8A"]}}
+        'scene_constructor_kwargs': {'band_selection': [
+            "B02", "B03", "B04"], 'read_scl': False}}
 
     mapper.load_scenes(scene_kwargs=scene_kwargs)
     # the data loaded into `mapper.data` as a EOdal SceneCollection

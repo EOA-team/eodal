@@ -239,5 +239,6 @@ Temporary Items
 
 eodal.code-workspace
 .vscode/extensions.json
+.vscode/
 
 *.xml

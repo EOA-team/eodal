@@ -10,6 +10,19 @@ The format is based on `Keep a Changelog`_, and this project adheres to `Semanti
 
 Categories for changes are: Added, Changed, Deprecated, Removed, Fixed, Security.
 
+Version `0.2.1 < https://github.com/EOA-team/eodal/releases/tag/v0.2.1>`__
+--------------------------------------------------------------------------------
+
+Release date: 2023-06-05
+
+- Fixed: Small bugs when loading the EOdal SceneCollection from a pickled binary object (thanks to @atoparseks) (#55).
+- Fixed: The color of no-data values of RasterCollection objects is now set to black (instead of white) when plotting the data (#56).
+- Added: The user can now specify a custom color map when plotting RasterCollection objects (#56).
+- Changed: The user can now specify a custom directory for writing log files to (#52).
+- Added: The MapperConfigs record the data source from which satellite data was read (#62).
+- Fixed: A work-around using HTTP retries has been implemented to surpass HTTP 500 errors when connecting to MS Planetary Computer (#58).
+- Fixed: All scenes in a SceneCollection returned from the mapper now share the same spatial extent and are aligned on a common reference grid (important for re-projections) (#64).
+
 Version `0.2.0 < https://github.com/EOA-team/eodal/releases/tag/v0.2.0>`__
 --------------------------------------------------------------------------------
 

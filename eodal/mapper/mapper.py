@@ -36,6 +36,7 @@ from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from sqlalchemy.exc import DatabaseError
+from rasterio import Affine
 from shapely.geometry import box
 from typing import Any, Callable, Dict, List, Optional
 
@@ -221,6 +222,7 @@ class MapperConfigs:
             # overwrite data_source attribute with content from
             # file in case it is available
             configs.data_source = yaml_content.get('data_source', 'UNKNOWN')
+            return configs
         except KeyError as e:
             raise ValueError(f"Missing keys in yaml file: {e}")
 
@@ -438,7 +440,7 @@ class Mapper:
         scene.reproject(
             target_crs=item.target_epsg,
             interpolation_method=reprojection_method,
-            inplace=True,
+            inplace=True
         )
 
         return scene
@@ -461,6 +463,24 @@ class Mapper:
 
         Mosaicing operations are handled on the fly so calling programs will
         always receive analysis-ready data.
+
+        IMPORTANT:
+
+            When mosaicing is necessary, it **must** be ensured that all bands
+            have the spatial resolution. Thus, either read only bands with the
+            same spatial resolution or use the `scene_modifier` function to
+            resample the bands into a common spatial resolution. If this
+            requirement is not fulfilled the mosaicing will fail!
+
+        ..versionadd:: 0.2.1
+
+            To make sure all scenes in the collection share the same extent and
+            grid, a post-processing step is carried out re-projecting all scenes
+            into a common reference grid using nearest neighbor interpolation.
+            This ensures not only all scenes having the same spatial extent which
+            is convenient for stacking scenes in time, but also makes sure there
+            are no pixel shifts due to re-projections from different spatial
+            reference systems such as different UTM zones.
 
         :param scene_constructor:
             Callable used to read the scenes found into `RasterCollection` fulfilling
@@ -616,7 +636,59 @@ class Mapper:
 
         # sort scenes by their timestamps and save as data attribute
         # to mapper instance
-        self.data = scoll.sort()
+        scoll = scoll.sort()
+
+        # ..versionadd:: 0.2.1
+        # we have to make sure that the scenes in self.data all share the same
+        # extent and are aligned onto the same grid.
+        # We use the boundary of all scenes to update the upper left corner
+        bounds_list = []
+        ncols = []
+        nrows = []
+        for _, scene in scoll:
+            bounds = scene[scene.band_names[0]].bounds
+            ncols.append(scene[scene.band_names[0]].ncols)
+            nrows.append(scene[scene.band_names[0]].nrows)
+            crs = scene[scene.band_names[0]].crs
+            bounds_list.append(gpd.GeoDataFrame(
+                geometry=[bounds],
+                crs=crs
+            ))
+        bounds_gdf = pd.concat(bounds_list)
+        total_bounds = bounds_gdf.total_bounds
+        
+        # loop over scenes and project them onto the total bounds
+        for _, scene in scoll:
+            if scene.is_bandstack():
+                # get a band of the SceneCollection
+                reference_band = scene[scene.band_names[0]]
+                geo_info = reference_band.geo_info
+                # get the transform of the destination extent
+                minx, maxy = total_bounds[0], total_bounds[-1]
+                dst_transform = Affine(
+                    a=geo_info.pixres_x,
+                    b=0,
+                    c=minx,
+                    d=0,
+                    e=geo_info.pixres_y,
+                    f=maxy)
+
+                # loop over the bands and reproject them
+                # onto the target grid
+                for _, band in scene:
+                    dst_shape = (max(nrows), max(ncols))
+                    destination = np.zeros(
+                        dst_shape,
+                        dtype=band.values.dtype
+                    )
+                    band.reproject(
+                        inplace=True,
+                        target_crs=reference_band.crs,
+                        dst_transform=dst_transform,
+                        destination=destination)
+        
+        self.data = scoll
+
         logger.info(f"Finished extraction of {self.sensor} scenes")
 
     def _load_pixels(
