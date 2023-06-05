@@ -140,7 +140,7 @@ setup(
     name='eodal',
     # setup_requires=['setuptools_scm'],
     # use_scm_version={'version_scheme': 'python-simplified-semver'},
-    version='0.2.0',
+    version='0.2.1',
     description='The Earth Observation Data Analysis Library EOdal',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -158,9 +158,12 @@ setup(
      "Natural Language :: English",
      "Programming Language :: Python :: 3",
      "Operating System :: OS Independent",
+     "Programming Language :: Python :: 3.6",
+     "Programming Language :: Python :: 3.7",
      "Programming Language :: Python :: 3.8",
      "Programming Language :: Python :: 3.9",
-     "Programming Language :: Python :: 3.10"
+     "Programming Language :: Python :: 3.10",
+     "Programming Language :: Python :: 3.11",
     ],
     # Could also include keywords, download_url, project_urls, etc.
     # Custom commands
