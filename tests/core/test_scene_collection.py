@@ -1,7 +1,5 @@
 '''
-Created on Nov 24, 2022
-
-@author: graflu
+Tests for the SceneCollection class.
 '''
 
 import pytest
@@ -48,7 +46,7 @@ def generate_random_points():
     return _generate_random
 
 
-def test_raster_is_scene(apply_settings, get_bandstack):
+def test_raster_is_scene(get_bandstack):
     """test the is_scene attribute of RasterCollections"""
 
     fpath_raster = get_bandstack()
