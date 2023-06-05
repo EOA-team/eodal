@@ -140,7 +140,7 @@ setup(
     name='eodal',
     # setup_requires=['setuptools_scm'],
     # use_scm_version={'version_scheme': 'python-simplified-semver'},
-    version='0.2.0',
+    version='0.2.1',
     description='The Earth Observation Data Analysis Library EOdal',
     long_description=long_description,
     long_description_content_type='text/markdown',
