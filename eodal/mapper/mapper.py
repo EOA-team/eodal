@@ -222,6 +222,7 @@ class MapperConfigs:
             # overwrite data_source attribute with content from
             # file in case it is available
             configs.data_source = yaml_content.get('data_source', 'UNKNOWN')
+            return configs
         except KeyError as e:
             raise ValueError(f"Missing keys in yaml file: {e}")
 
