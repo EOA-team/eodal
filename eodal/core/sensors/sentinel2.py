@@ -622,7 +622,7 @@ class Sentinel2(RasterCollection):
                 mask=mask_band,
                 mask_values=cloud_classes,
                 bands_to_mask=bands_to_mask,
-                **kwargs,
+                **kwargs
             )
         except Exception as e:
             raise Exception(f"Could not mask clouds and shadows: {e}")
