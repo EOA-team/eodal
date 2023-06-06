@@ -1538,7 +1538,7 @@ class RasterCollection(MutableMapping):
             if inplace:
                 self[band_name].mask(mask=_mask, inplace=inplace)
             else:
-                band = self.get_band(band_name)
+                band = deepcopy(self.get_band(band_name))
                 collection.add_band(
                     band_constructor=band.mask, mask=_mask, inplace=inplace
                 )
