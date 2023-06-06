@@ -583,7 +583,7 @@ class Sentinel2(RasterCollection):
         cloud_classes: Optional[List[int]] = [1, 2, 3, 7, 8, 9, 10, 11],
         mask_band: Optional[str] = "SCL",
         **kwargs,
-    ) -> Sentinel2:
+    ) -> None | Sentinel2:
         """
         A Wrapper around the inherited ``mask`` method to mask clouds,
         shadows, water and snow based on (by default) the SCL band.
@@ -616,7 +616,7 @@ class Sentinel2(RasterCollection):
         # the mask band should never be masked as otherwise the SCL functions
         # might not work as expected
         if mask_band in bands_to_mask:
-            bands_to_mask.remove("SCL")
+            bands_to_mask.remove(mask_band)
         try:
             return self.mask(
                 mask=mask_band,
@@ -625,7 +625,7 @@ class Sentinel2(RasterCollection):
                 **kwargs,
             )
         except Exception as e:
-            raise Exception(f"Could not apply cloud mask: {e}")
+            raise Exception(f"Could not mask clouds and shadows: {e}")
 
     def get_scl_stats(self) -> pd.DataFrame:
         """
