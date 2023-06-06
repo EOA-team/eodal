@@ -96,7 +96,7 @@ if __name__ == "__main__":
     # set up the Mapper configuration
     mapper_configs = MapperConfigs(
         metadata_filters=metadata_filters,
-        collection='landsat-c2-l2',
+        collection=collection,
         feature=feature,
         time_start=time_start,
         time_end=time_end)
