@@ -27,10 +27,21 @@ class ProcessingLevels(Enum):  # noqa: F811
 
 
 # Landsat processing levels as defined in the metadatabase
-ProcessingLevelsDB = {"L2": "Level-2"}
+ProcessingLevelsDB = {"L1": "Level-1", "L2": "Level-2"}
 
 # band mapping organized by sensor type
 landsat_band_mapping = {
+    "Multispectral_Scanner_System_L1-3": {
+        "B4": "green",
+        "B5": "red",
+        "B6": "nir08",
+        "B7": "nir09"},
+    "Multispectral_Scanner_System_L4-5": {
+        "B1": "green",
+        "B2": "red",
+        "B3": "nir08",
+        "B4": "nir09"
+    },
     "Thematic_Mapper": {
         "B1": "blue",
         "B2": "green",
@@ -73,10 +84,11 @@ landsat_band_mapping = {
         "atmos_opacity": "OPACITY"}
 }
 
+# TODO: L4 and L5 actually have two instruments (TM and MSS)
 platform_sensor_mapping = {
-    "LANDSAT_1": "Thematic_Mapper",
-    "LANDSAT_2": "Thematic_Mapper",
-    "LANDSAT_3": "Thematic_Mapper",
+    "LANDSAT_1": "Multispectral_Scanner_System_L1-3",
+    "LANDSAT_2": "Multispectral_Scanner_System_L1-3",
+    "LANDSAT_3": "Multispectral_Scanner_System_L1-3",
     "LANDSAT_4": "Thematic_Mapper",
     "LANDSAT_5": "Thematic_Mapper",
     "LANDSAT_7": "Enhanced_Thematic_Mapper_Plus",
@@ -86,6 +98,16 @@ platform_sensor_mapping = {
 # spatial resolutions of the Landsat bands organized by sensor and product
 # in meters
 band_resolution = {
+    "Multispectral_Scanner_System_L1-3": {
+        "green": 80,
+        "red": 80,
+        "nir08": 80,
+        "nir09": 80},
+    "Multispectral_Scanner_System_L4-5": {
+        "green": 80,
+        "red": 80,
+        "nir08": 80,
+        "nir09": 80},
     "Thematic_Mapper": {
         "blue": 30,
         "green": 30,
