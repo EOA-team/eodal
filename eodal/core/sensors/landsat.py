@@ -30,6 +30,7 @@ import numpy as np
 import pandas as pd
 import planetary_computer
 
+from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -444,13 +445,13 @@ class Landsat(RasterCollection):
             A 2-dimensional numpy array containing the obtained mask.
         """
         # get the band
-        band = self[band_name].values
+        band = deepcopy(self[band_name].values)
         band_mask = None
         if isinstance(band, np.ndarray):
-            band_data = band.copy()
+            band_data = band
         elif isinstance(band, np.ma.MaskedArray):
-            band_data = band.data.copy()
-            band_mask = band.mask.copy()
+            band_data = band.data
+            band_mask = band.mask
         # compute the bits to extract
         pattern = 0
         for i in range(bit_range[0], bit_range[1] + 1):
@@ -471,7 +472,7 @@ class Landsat(RasterCollection):
     def mask_clouds_and_shadows(
             self,
             bands_to_mask: Optional[list[str]] = None,
-            cloud_classes: Optional[list[int]] = [2, 3, 5],
+            cloud_classes: Optional[list[int]] = [1, 2, 3, 5],
             mask_band: Optional[str] = 'qa_pixel',
             **kwargs
     ) -> None | Landsat:
@@ -497,7 +498,7 @@ class Landsat(RasterCollection):
             A list of bands to mask. Default is all bands.
         :param cloud_classes:
             A list of integers indicating the cloud classes to mask.
-            Default is [2, 3, 5].
+            Default is [1, 2, 3, 5].
         :param mask_band:
             The name of the band to use for masking. Default is 'qa_pixel'.
         :param kwargs:
@@ -529,7 +530,52 @@ class Landsat(RasterCollection):
             return self.mask(
                 mask=cloud_mask,
                 bands_to_mask=bands_to_mask,
-                **kwargs,
+                **kwargs
             )
         except Exception as e:
             raise Exception(f"Could not mask clouds and shadows: {e}")
+
+    def get_water_mask(
+            self,
+            mask_band: Optional[str] = 'qa_pixel',
+            inplace: Optional[bool] = False,
+            name_water_mask: Optional[str] = 'water_mask'
+    ) -> Band | None:
+        """
+        Get a water mask from the pixel quality band (bit 7).
+
+        NOTE:
+            Since the `mask_band` can be set to *any* `Band` it is also
+            possible to use a different water mask, e.g., from
+            a custom classifier as long as the bit map used for the classes
+            is the same.
+            See also
+            https://www.usgs.gov/media/images/landsat-collection-2-pixel-quality-assessment-bit-index
+            for more details.
+
+        :param mask_band:
+            The name of the band to use for masking. Default is 'qa_pixel'.
+        :param inplace:
+            Whether to return a new `Band` instance or add a `Band` to the
+            current `Landsat` instance. Default is False.
+        :param name_water_mask:
+            The name of the water mask band. Default is 'water_mask'.
+        :return:
+            A `Band` instance containing the water mask or `None` if
+            `inplace` is True.
+        """
+        water_mask = self.mask_from_qa_bits(
+            bit_range=(7, 7),
+            band_name=mask_band
+        )
+        water_mask_band = Band(
+                band_name=name_water_mask,
+                values=water_mask,
+                geo_info=self[mask_band].geo_info,
+                nodata=0,
+            )
+        if inplace:
+            self.add_band(water_mask_band)
+            return None
+        else:
+            return water_mask_band
