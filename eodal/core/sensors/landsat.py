@@ -90,10 +90,10 @@ class Landsat(RasterCollection):
         Check which Landsat platform (spacecraft) produced the data.
         """
         if isinstance(in_dir, dict):
-            # the blue band is always available
-            test_band = in_dir['blue']['href'].split('/')[-1]
+            # the green band should be always available
+            test_band = in_dir['green']['href'].split('/')[-1]
         elif isinstance(in_dir, Path):
-            test_band = in_dir.glob("*_B2.TIF")[0]
+            test_band = in_dir.glob("*_B*.TIF")[0]
         # get the platform from the band name
         platform = test_band.split('_')[0]
         return platform
@@ -113,8 +113,8 @@ class Landsat(RasterCollection):
             Product URI.
         """
         if isinstance(in_dir, dict):
-            # the blue band is always available
-            test_band = in_dir['blue']['href'].split('/')[-1]
+            # the green band should be always available
+            test_band = in_dir['green']['href'].split('/')[-1]
         elif isinstance(in_dir, Path):
             test_band = in_dir.glob("*.TIF")[0]
         # get the product URI from the band name
@@ -136,8 +136,8 @@ class Landsat(RasterCollection):
             Sensing time.
         """
         if isinstance(in_dir, dict):
-            # the blue band is always available
-            test_band = in_dir['blue']['href'].split('/')[-1]
+            # the green band should be always available
+            test_band = in_dir['red']['href'].split('/')[-1]
         elif isinstance(in_dir, Path):
             test_band = in_dir.glob("*.TIF")[0]
         # get the sensing time from the band name
@@ -343,6 +343,13 @@ class Landsat(RasterCollection):
         sensing_time = cls._sensing_time_from_filename(in_dir=in_dir)
         # get the product uri
         product_uri = cls._product_uri_from_filename(in_dir=in_dir)
+        # determine processing level
+        if sensor in \
+            ['Multispectral_Scanner_System_L1-3',
+             'Multispectral_Scanner_System_L4-5']:
+            processing_level = ProcessingLevels.L1C
+        else:
+            processing_level = ProcessingLevels.L2A
 
         # construct the SceneProperties object
         scene_properties = SceneProperties(
@@ -350,12 +357,14 @@ class Landsat(RasterCollection):
             sensor=sensor,
             acquisition_time=sensing_time,
             product_uri=product_uri,
-            processing_level=ProcessingLevels.L2A  # currently we only support L2A
+            processing_level=processing_level
         )
 
         # set proper scaling factors to allow for conversion to
         # reflectance [0, 1]
-        gain, offset = 0.00001, 0.0
+        gain, offset = 0, 1
+        if processing_level == ProcessingLevels.L2A:
+            gain, offset = 0.00001, 0.0
 
         # loop over bands and add them to the collection of bands
         landsat = cls(scene_properties=scene_properties)
