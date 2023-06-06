@@ -26,6 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from __future__ import annotations
 
 import cv2
+import numpy as np
 import pandas as pd
 import planetary_computer
 
@@ -421,3 +422,114 @@ class Landsat(RasterCollection):
                 pixel_values_to_ignore=[landsat[landsat.band_names[0]].nodata],
             )
         return landsat
+
+    def mask_from_qa_bits(
+            self,
+            bit_range: tuple,
+            band_name: Optional[str] = 'qa_pixel'
+    ) -> np.ndarray | np.ma.MaskedArray:
+        """
+        Extract Quality Accurance (QA) bits from the QA band of
+        Landsat to obtain a binary mask.
+
+        This function can be used to obtain a binary cloud or
+        cloud shadow mask, for example.
+
+        :param bit_range:
+            A tuple of two integers indicating the start and end bit
+            of the bit range to extract.
+        :param band_name:
+            The name of the QA band. Default is 'qa_pixel'.
+        :return:
+            A 2-dimensional numpy array containing the obtained mask.
+        """
+        # get the band
+        band = self[band_name].values
+        band_mask = None
+        if isinstance(band, np.ndarray):
+            band_data = band.copy()
+        elif isinstance(band, np.ma.MaskedArray):
+            band_data = band.data.copy()
+            band_mask = band.mask.copy()
+        # compute the bits to extract
+        pattern = 0
+        for i in range(bit_range[0], bit_range[1] + 1):
+            pattern += 2 ** i
+        # assign the extracted bits to the band
+        band_data = np.bitwise_and(band_data, pattern)
+        band_data = np.right_shift(band_data, bit_range[0])
+
+        # create a masked array if the input was also masked
+        if band_mask is not None:
+            band_data = np.ma.MaskedArray(
+                data=band_data,
+                mask=band_mask
+            )
+
+        return band_data
+
+    def mask_clouds_and_shadows(
+            self,
+            bands_to_mask: Optional[list[str]] = None,
+            cloud_classes: Optional[list[int]] = [2, 3, 5],
+            mask_band: Optional[str] = 'qa_pixel',
+            **kwargs
+    ) -> None | Landsat:
+        """
+        A wrapper around the inherited ``mask`` method to mask cirrus,
+        cloud and cloud shadow pixels in Landsat scenes based on the
+        pixel quality band.
+
+        NOTE:
+            Since the `mask_band` can be set to *any* `Band` it is also
+            possible to use a different cloud/shadow etc. mask, e.g., from
+            a custom classifier as long as the bit map used for the classes
+            is the same.
+            See also
+            https://www.usgs.gov/media/images/landsat-collection-2-pixel-quality-assessment-bit-index
+            for more details.
+
+        NOTE:
+            You might also use the mask function from
+            `eodal.core.raster.RasterCollection` directly.
+
+        :param bands_to_mask:
+            A list of bands to mask. Default is all bands.
+        :param cloud_classes:
+            A list of integers indicating the cloud classes to mask.
+            Default is [2, 3, 5].
+        :param mask_band:
+            The name of the band to use for masking. Default is 'qa_pixel'.
+        :param kwargs:
+            optional kwargs to pass to `~eodal.core.raster.RasterCollection.mask`
+        :returns:
+            depending on `inplace` (passed in the kwargs) a new `Sentinel2` instance
+            or None
+        """
+        if bands_to_mask is None:
+            bands_to_mask = self.band_names
+        # the mask band should never be masked
+        if mask_band in bands_to_mask:
+            bands_to_mask.remove(mask_band)
+        try:
+            mask_list = []
+            for cloud_class in cloud_classes:
+                # construct the bit range
+                bit_range = (cloud_class, cloud_class)
+                # get the binary mask as boolean array
+                mask = self.mask_from_qa_bits(
+                    bit_range=bit_range,
+                    band_name=mask_band).astype('bool')
+                # add the mask to the list
+                mask_list.append(mask)
+
+            # combine the masks
+            cloud_mask = np.any(mask_list, axis=0)
+            # mask the bands
+            return self.mask(
+                mask=cloud_mask,
+                bands_to_mask=bands_to_mask,
+                **kwargs,
+            )
+        except Exception as e:
+            raise Exception(f"Could not mask clouds and shadows: {e}")
