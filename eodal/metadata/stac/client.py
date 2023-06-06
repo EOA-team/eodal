@@ -297,6 +297,9 @@ def landsat(metadata_filters: List[Filter], **kwargs) -> gpd.GeoDataFrame:
     stac_kwargs = kwargs.copy()
     scenes = query_stac(**stac_kwargs)
 
+    if len(scenes) == 0:
+        raise ValueError(f'STAC query returned no results! {stac_kwargs}')
+
     metadata_list = []
     for scene in scenes:
         metadata_dict = scene['properties']
@@ -322,5 +325,8 @@ def landsat(metadata_filters: List[Filter], **kwargs) -> gpd.GeoDataFrame:
         metadata_dict['sensor_zenith_angle'] = metadata_dict['view:off_nadir']
         del metadata_dict['view:off_nadir']
 
+    if len(metadata_list) == 0:
+        raise ValueError(
+            f'No scenes fulfilling filter criteria: {metadata_filters}')
     return prepare_gdf(metadata_list)
     
