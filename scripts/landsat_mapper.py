@@ -48,6 +48,27 @@ Settings = get_settings()
 Settings.USE_STAC = True
 
 
+def prepocess_landsat_scene(
+        ds: Landsat
+) -> Landsat:
+    """
+    Mask clouds and cloud shadows in a Landsat scene based
+    on the 'qa_pixel' band.
+
+    NOTE:
+        Depending on your needs, the pre-processing function can be
+        fully customized using the full power of EOdal and its
+        interfacing libraries!
+
+    :param ds:
+        Landsat scene before cloud mask applied.
+    :return:
+        Landsat scene with clouds and cloud shadows masked.
+    """
+    ds.mask_clouds_and_shadows(inplace=True)
+    return ds
+
+
 if __name__ == "__main__":
 
     # user-inputs
@@ -89,15 +110,24 @@ if __name__ == "__main__":
 
     # we tell EOdal how to load the Landsat scenes using `Landsat.from_usgs`
     # and pass on some kwargs, e.g., the selection of bands we want to read.
+    # in addition, we tell EOdal to mask out clouds and shadows and the fly
+    # while reading the data using the qa_pixel band (therefore, we set the
+    # `read_qa` flag to True.
     scene_kwargs = {
         'scene_constructor': Landsat.from_usgs,
-        'scene_constructor_kwargs': {'band_selection':
-                                     ["blue", "green", "red", "nir08"]}}
+        'scene_constructor_kwargs': {
+            'band_selection': ["blue", "green", "red", "nir08"],
+            'read_qa': True},
+        'scene_modifier': prepocess_landsat_scene,
+        'scene_modifier_kwargs': {}}
 
     # now we load the scenes
     mapper.load_scenes(scene_kwargs=scene_kwargs)
     # the scenes are loaded into a EOdal SceneCollection object
     mapper.data
+
+    # test scene for cloud masking
+    scene = mapper.data[mapper.data.timestamps[-1]]
 
     # the scenes can be plotted
     f_scenes = mapper.data.plot(['red', 'green', 'blue'], figsize=(15,5))
@@ -107,5 +137,3 @@ if __name__ == "__main__":
     fpath = Path('../data/sample_mapper_data.pkl')
     with open(fpath, 'wb+') as dst:
         dst.write(mapper.data.to_pickle())
-
-    # use mapper.data to work with EOdal SceneCollections ...
