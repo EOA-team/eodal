@@ -110,7 +110,7 @@ mapper.query_scenes()
 #%% load the scenes available from STAC (reading bands B02 "blue", B03 "green", B04 "red")
 scene_kwargs = {
 	'scene_constructor': Sentinel2.from_safe,
-	'scene_constructor_kwargs': {'band_selection': ['B02', 'B03', 'B04']}
+	'scene_constructor_kwargs': {'band_selection': ['B02', 'B03', 'B04'], 'read_scl': False}
 }
 
 mapper.load_scenes(scene_kwargs=scene_kwargs)
