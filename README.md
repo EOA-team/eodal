@@ -1,4 +1,9 @@
 # E:earth_africa:dal Earth Observation Data Analysis Library
+
+```shell
+pip install eodal
+```
+
 **A truely open-source package for unified analysis of Earth Observation (EO) data**
 
 :heavy_check_mark: Cloud-native by design thanks to [STAC](https://stacspec.org/en)
