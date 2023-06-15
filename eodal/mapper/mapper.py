@@ -634,7 +634,7 @@ class Mapper:
                     scoll.add_scene(scene)
                 except KeyError:
                     logger.warn(
-                        f"Scene with ID {merged_scene_properties.product_uri} "
+                        f"Scene with ID {scene.scene_properties.product_uri} "
                         "already added to SceneCollection - continue"
                     )
                     continue
