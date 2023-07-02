@@ -5,8 +5,8 @@ Global pytest fixtures
 import os
 import pytest
 import requests
+import shutil
 
-from distutils import dir_util
 from pathlib import Path
 
 from eodal.config import get_settings
@@ -40,7 +40,7 @@ def datadir(tmppath, request):
     test_dir, _ = os.path.splitext(filename)
 
     if os.path.isdir(test_dir):
-        dir_util.copy_tree(test_dir, str(tmppath))
+        shutil.copytree(test_dir, str(tmppath))
 
     return tmppath
 
