@@ -72,8 +72,8 @@ class Landsat(RasterCollection):
             available_bands = list(in_dir.keys())
             # remove non-band files
             available_bands = [
-                x for x in available_bands if Path(x).stem
-                not in ['txt', 'xml', 'json']
+                x for x in available_bands if Path(x).suffix
+                not in ['.txt', '.xml', '.json']
                 and x != 'tilejson'
                 and x != 'rendered_preview']
         elif isinstance(in_dir, Path):
@@ -224,19 +224,34 @@ class Landsat(RasterCollection):
 
         # check if the user wants to read the atmospheric correction bands
         atcor_bands = landsat_band_mapping['atmospheric_correction']
-        if read_atcor:
-            # add those bands to the band selection that are available
-            for atcor_band in atcor_bands:
-                if atcor_band in available_bands and atcor_band not in band_selection:
-                    band_selection.append(atcor_band)
+        for atcor_band in atcor_bands:
+            if atcor_band in available_bands:
+                # read_atcor is True:
+                # add those bands to the band selection that are available
+                if read_atcor:
+                    if not atcor_band in band_selection:
+                        band_selection.append(atcor_band)
+                # read_atcor is False:
+                # remove atmospheric correction bands
+                else:
+                    if atcor_band in band_selection:
+                        band_selection.remove(atcor_band)
+
 
         # check if the user wants to read the QA bands
         qa_bands = landsat_band_mapping['quality_flags']
-        if read_qa:
-            # add those bands to the band selection that are available
-            for qa_band in qa_bands:
-                if qa_band in available_bands and qa_band not in band_selection:
-                    band_selection.append(qa_band)
+        for qa_band in qa_bands:
+            if qa_band in available_bands:
+                # read_qa is True:
+                # add those bands to the band selection that are available
+                if read_qa:
+                    if not qa_band in band_selection:
+                        band_selection.append(qa_band)
+                # read_atcor is False:
+                # remove atmospheric correction bands
+                else:
+                    if qa_band in band_selection:
+                        band_selection.remove(qa_band)
 
         # next, we need the paths to the bands
         band_list = []
