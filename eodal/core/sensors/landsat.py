@@ -38,6 +38,7 @@ from typing import Dict, List, Optional
 from eodal.config import get_settings, STAC_Providers
 from eodal.core.band import Band
 from eodal.core.raster import RasterCollection, SceneProperties
+from eodal.core.spectral_indices import SpectralIndices
 from eodal.utils.geometry import adopt_vector_features_to_mask
 from eodal.utils.constants import ProcessingLevels
 from eodal.utils.constants.landsat import (
@@ -446,7 +447,47 @@ class Landsat(RasterCollection):
                 band_selection=sel_bands,
                 pixel_values_to_ignore=[landsat[landsat.band_names[0]].nodata],
             )
+
         return landsat
+
+    def calc_si(
+        self,
+        si_name: str,
+        inplace: Optional[bool] = False,
+        band_mapping: Optional[Dict[str, str]] = {}
+    ) -> None | np.ndarray | np.ma.MaskedArray:
+        """
+        Calculates a spectral index based on color-names (set as band aliases)
+
+        :param si_name:
+            name of the spectral index to calculate (e.g., 'NDVI').
+        :param inplace:
+            if False, returns the calculated SI as numpy array (default), else
+            adds the calculated SI as a new band to the RasterCollection
+            object.
+        :param band_mapping:
+            ..versionadd 0.2.2::
+            optional band mapping to use different color names instead
+            of the default ones (e.g., nir_2 instead of nir_1 as default
+            near-infrared band, which might be helpful for some sensor
+            with more than one NIR band such as Sentinel-2 MSI).
+            See ~`eodal.core.spectral_indices.SpectralIndices` how
+            `band_mapping` must look like.
+        """
+
+        # set color names properly before calling SI class
+        # (background: EOdal internally uses slightly different color names
+        # compared to Landsat collection 2 products. The differences
+        # only affect the NIR and SWIR bands)
+        if len(band_mapping) == 0:
+            band_mapping = {
+                'nir_1': 'nir08',
+                'swir_1': 'swir16',
+                'swir_2': 'swir22'
+            }
+        return RasterCollection.calc_si(
+            self, si_name=si_name, inplace=inplace,
+            band_mapping=band_mapping)
 
     def get_water_mask(
             self,
