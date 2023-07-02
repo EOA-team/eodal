@@ -18,11 +18,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from enum import Enum
-from eodal.utils.constants import ProcessingLevels
-
 
 # available processing levels
 class ProcessingLevels(Enum):  # noqa: F811
+    L1 = "LEVEL1"
     L2 = "LEVEL2"
 
 
@@ -71,7 +70,8 @@ landsat_band_mapping = {
         "qa_pixel": "PIXEL",
         "qa_aerosol": "AEROSOL",
         "qa_radsat": "RADSAT",
-        "qa": "QA"},
+        "qa": "QA",
+        "cloud_qa": "cloud_qa"},
     "atmospheric_correction": {
         "cdist": "CDIST",
         "drad": "DRAD",
@@ -81,7 +81,8 @@ landsat_band_mapping = {
         "trad": "TRAD",
         "urad": "URAD",
         "atran": "ATRAN",
-        "atmos_opacity": "OPACITY"}
+        "atmos_opacity": "OPACITY",
+        "ang": "ANG"}
 }
 
 # TODO: L4 and L5 actually have two instruments (TM and MSS)
@@ -137,7 +138,8 @@ band_resolution = {
         "qa_pixel": 30,
         "qa_aerosol": 30,
         "qa_radsat": 30,
-        "qa": 30},
+        "qa": 30,
+        "cloud_qa": 30},
     "atmospheric_correction": {
         "cdist": 30,
         "drad": 30,
@@ -147,5 +149,6 @@ band_resolution = {
         "trad": 30,
         "urad": 30,
         "atran": 30,
-        "atmos_opacity": 30}
+        "atmos_opacity": 30,
+        "ang": 30}
 }
