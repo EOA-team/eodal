@@ -448,6 +448,51 @@ class Landsat(RasterCollection):
             )
         return landsat
 
+    def get_water_mask(
+            self,
+            mask_band: Optional[str] = 'qa_pixel',
+            inplace: Optional[bool] = False,
+            name_water_mask: Optional[str] = 'water_mask'
+    ) -> Band | None:
+        """
+        Get a water mask from the pixel quality band (bit 7).
+
+        NOTE:
+            Since the `mask_band` can be set to *any* `Band` it is also
+            possible to use a different water mask, e.g., from
+            a custom classifier as long as the bit map used for the classes
+            is the same.
+            See also
+            https://www.usgs.gov/media/images/landsat-collection-2-pixel-quality-assessment-bit-index
+            for more details.
+
+        :param mask_band:
+            The name of the band to use for masking. Default is 'qa_pixel'.
+        :param inplace:
+            Whether to return a new `Band` instance or add a `Band` to the
+            current `Landsat` instance. Default is False.
+        :param name_water_mask:
+            The name of the water mask band. Default is 'water_mask'.
+        :return:
+            A `Band` instance containing the water mask or `None` if
+            `inplace` is True.
+        """
+        water_mask = self.mask_from_qa_bits(
+            bit_range=(7, 7),
+            band_name=mask_band
+        )
+        water_mask_band = Band(
+                band_name=name_water_mask,
+                values=water_mask,
+                geo_info=self[mask_band].geo_info,
+                nodata=0,
+            )
+        if inplace:
+            self.add_band(water_mask_band)
+            return None
+        else:
+            return water_mask_band
+
     def mask_from_qa_bits(
             self,
             bit_range: tuple,
@@ -558,48 +603,3 @@ class Landsat(RasterCollection):
             )
         except Exception as e:
             raise Exception(f"Could not mask clouds and shadows: {e}")
-
-    def get_water_mask(
-            self,
-            mask_band: Optional[str] = 'qa_pixel',
-            inplace: Optional[bool] = False,
-            name_water_mask: Optional[str] = 'water_mask'
-    ) -> Band | None:
-        """
-        Get a water mask from the pixel quality band (bit 7).
-
-        NOTE:
-            Since the `mask_band` can be set to *any* `Band` it is also
-            possible to use a different water mask, e.g., from
-            a custom classifier as long as the bit map used for the classes
-            is the same.
-            See also
-            https://www.usgs.gov/media/images/landsat-collection-2-pixel-quality-assessment-bit-index
-            for more details.
-
-        :param mask_band:
-            The name of the band to use for masking. Default is 'qa_pixel'.
-        :param inplace:
-            Whether to return a new `Band` instance or add a `Band` to the
-            current `Landsat` instance. Default is False.
-        :param name_water_mask:
-            The name of the water mask band. Default is 'water_mask'.
-        :return:
-            A `Band` instance containing the water mask or `None` if
-            `inplace` is True.
-        """
-        water_mask = self.mask_from_qa_bits(
-            bit_range=(7, 7),
-            band_name=mask_band
-        )
-        water_mask_band = Band(
-                band_name=name_water_mask,
-                values=water_mask,
-                geo_info=self[mask_band].geo_info,
-                nodata=0,
-            )
-        if inplace:
-            self.add_band(water_mask_band)
-            return None
-        else:
-            return water_mask_band
