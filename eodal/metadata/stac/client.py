@@ -81,7 +81,7 @@ def query_stac(
     )
     # fetch items and convert them to GeoDataFrame, drop all records with
     # too many clouds
-    items = search.get_all_items()
+    items = search.item_collection()
     item_json = items.to_dict()
     scenes = item_json["features"]
     return scenes
