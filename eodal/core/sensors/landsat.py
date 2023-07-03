@@ -29,6 +29,7 @@ import cv2
 import numpy as np
 import pandas as pd
 import planetary_computer
+import warnings
 
 from copy import deepcopy
 from datetime import datetime
@@ -38,7 +39,6 @@ from typing import Dict, List, Optional
 from eodal.config import get_settings, STAC_Providers
 from eodal.core.band import Band
 from eodal.core.raster import RasterCollection, SceneProperties
-from eodal.core.spectral_indices import SpectralIndices
 from eodal.utils.geometry import adopt_vector_features_to_mask
 from eodal.utils.constants import ProcessingLevels
 from eodal.utils.constants.landsat import (
@@ -218,8 +218,10 @@ class Landsat(RasterCollection):
                         band_selection[band_selection.index(band_name)] = \
                             sensor_bands[band_name]
                     else:
-                        raise ValueError(
-                            f"Band {band_name} not found in the available bands.")
+                        warnings.warn(
+                            f'Band {band_name} not found - ' +
+                            'remove it from selection')
+                        band_selection.remove(band_name)
         else:
             band_selection = available_bands
 
@@ -237,7 +239,9 @@ class Landsat(RasterCollection):
                 else:
                     if atcor_band in band_selection:
                         band_selection.remove(atcor_band)
-
+            else:
+                # band_selection.remove(atcor_band)
+                pass
 
         # check if the user wants to read the QA bands
         qa_bands = landsat_band_mapping['quality_flags']
@@ -253,7 +257,10 @@ class Landsat(RasterCollection):
                 else:
                     if qa_band in band_selection:
                         band_selection.remove(qa_band)
-
+            else:
+                # band_selection.remove(qa_band)
+                pass
+ 
         # next, we need the paths to the bands
         band_list = []
         for band_name in band_selection:
