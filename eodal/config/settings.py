@@ -32,7 +32,7 @@ from datetime import datetime
 from functools import lru_cache
 from os.path import join
 from pathlib import Path
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 from typing import Any
 
 from .stac_providers import STAC_Providers
@@ -44,17 +44,6 @@ class Settings(BaseSettings):
     settings and behavior of the package using a .env file
     or environmental variables
     """
-
-    # sat archive definitions
-    SUBDIR_PIXEL_CSVS: str = "tables_w_pixelvalues"
-    SUBDIR_RGB_PREVIEWS: str = "rgb_previews"
-    SUBDIR_SCL_FILES: str = "scene_classification"
-
-    RESAMPLED_METADATA_FILE: str = "metadata.csv"
-
-    # define date format
-    DATE_FMT_INPUT: str = "%Y-%m-%d"
-    DATE_FMT_FILES: str = "%Y%m%d"
 
     # define DHUS username and password
     DHUS_USER: str = ""
@@ -108,10 +97,6 @@ class Settings(BaseSettings):
     LOG_DIR: str = str(Path.home())  # ..versionadd:: 0.2.1
     LOG_FILE: str = join(LOG_DIR, f"{CURRENT_TIME}_{LOGGER_NAME}.log")
     LOGGING_LEVEL: int = logging.INFO
-
-    # processing checks
-    PROCESSING_CHECK_FILE_NO_BF: str = "successful_scenes_noblackfill.txt"
-    PROCESSING_CHECK_FILE_BF: str = "successful_scenes_blackfill.txt"
 
     # temporary working directory
     TEMP_WORKING_DIR: Path = Path(tempfile.gettempdir())
