@@ -32,7 +32,7 @@ from datetime import datetime
 from functools import lru_cache
 from os.path import join
 from pathlib import Path
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 from typing import Any
 
 from .stac_providers import STAC_Providers
