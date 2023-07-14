@@ -26,15 +26,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from __future__ import annotations
 
 import cv2
+import io
+import json
 import numpy as np
 import pandas as pd
 import planetary_computer
+import requests
 import warnings
 
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
+from xml.etree import ElementTree
 
 from eodal.config import get_settings, STAC_Providers
 from eodal.core.band import Band
@@ -45,6 +49,7 @@ from eodal.utils.constants.landsat import (
     band_resolution,
     landsat_band_mapping,
     platform_sensor_mapping)
+from eodal.utils.types import xml_to_dict_recursive
 
 Settings = get_settings()
 
@@ -100,6 +105,38 @@ class Landsat(RasterCollection):
         return platform
 
     @staticmethod
+    def _get_metadata_json(
+            in_dir: Path | Dict[str, str]
+    ) -> dict:
+        """
+        Get the Landsat metadata JSON file from the input directory.
+        """
+        if isinstance(in_dir, dict):
+            metadata_url = planetary_computer.sign_url(in_dir['mtl.json']['href'])
+            response_code = requests.get(metadata_url).status_code
+            # check for JSON or XML
+            if response_code == 200:
+                metadata = json.loads(requests.get(metadata_url).content)
+            elif response_code == 404:
+                metadata_url = planetary_computer.sign_url(in_dir['mtl.xml']['href'])
+                metadata_xml_tree = ElementTree.parse(
+                    io.BytesIO(requests.get(metadata_url).content))
+                metadata_xml_root = metadata_xml_tree.getroot()
+                # convert to dictionary
+                metadata = xml_to_dict_recursive(metadata_xml_root)
+        elif isinstance(in_dir, Path):
+            fpath_json = in_dir.joinpath('MTL.json')
+            if fpath_json.exists():
+                metadata = json.loads(metadata_json.read_text())
+            else:
+                fpath_xml = in_dir.joinpath('MTL.xml')
+                metadata_xml_tree = ElementTree.parse(fpath_xml)
+                metadata_xml_root = metadata_xml_tree.getroot()
+                # convert to dictionary
+                metadata = xml_to_dict_recursive(metadata_xml_root)
+        return metadata
+
+    @staticmethod
     def _product_uri_from_filename(
             in_dir: Path | Dict[str, str]
     ) -> str:
@@ -141,9 +178,23 @@ class Landsat(RasterCollection):
             test_band = in_dir['red']['href'].split('/')[-1]
         elif isinstance(in_dir, Path):
             test_band = in_dir.glob("*.TIF")[0]
-        # get the sensing time from the band name
-        sensing_time = test_band.split('_')[3]
-        return datetime.strptime(sensing_time, '%Y%m%d')
+        # get the sensing time from the metadata file
+        metadata = Landsat._get_metadata_json(in_dir)['LANDSAT_METADATA_FILE']
+
+        # unpack dictionaries from lists
+        if isinstance(metadata, list):
+            metadata_as_dict = {}
+            for entry in metadata:
+                for k, v in entry.items():
+                    metadata_as_dict.update({k: {}})
+                    for inner_item in v:
+                        metadata_as_dict[k].update(inner_item)
+            metadata = metadata_as_dict
+
+        date = metadata['IMAGE_ATTRIBUTES']['DATE_ACQUIRED']
+        scene_center_time = metadata['IMAGE_ATTRIBUTES']['SCENE_CENTER_TIME']
+        combined = date + ' ' + scene_center_time.split('.')[0]
+        return datetime.strptime(combined, '%Y-%m-%d %H:%M:%S')
 
     @staticmethod
     def _sensor_from_platform(
