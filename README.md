@@ -1,4 +1,9 @@
 # E:earth_africa:dal Earth Observation Data Analysis Library
+
+```shell
+pip install eodal
+```
+
 **A truely open-source package for unified analysis of Earth Observation (EO) data**
 
 :heavy_check_mark: Cloud-native by design thanks to [STAC](https://stacspec.org/en)
@@ -105,7 +110,7 @@ mapper.query_scenes()
 #%% load the scenes available from STAC (reading bands B02 "blue", B03 "green", B04 "red")
 scene_kwargs = {
 	'scene_constructor': Sentinel2.from_safe,
-	'scene_constructor_kwargs': {'band_selection': ['B02', 'B03', 'B04']}
+	'scene_constructor_kwargs': {'band_selection': ['B02', 'B03', 'B04'], 'read_scl': False}
 }
 
 mapper.load_scenes(scene_kwargs=scene_kwargs)

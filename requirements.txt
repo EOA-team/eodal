@@ -3,7 +3,7 @@ geopandas
 sqlalchemy
 geoalchemy2
 numpy
-pydantic
+pydantic-settings
 pyproj
 rasterio
 matplotlib
