@@ -385,7 +385,7 @@ class Landsat(RasterCollection):
 
         # set proper scaling factors to allow for conversion to
         # reflectance [0, 1]
-        gain, offset = 0, 1
+        gain, offset = 1, 0
         if processing_level == ProcessingLevels.L2A:
             gain, offset = 0.00001, 0.0
 
