@@ -48,27 +48,6 @@ Settings = get_settings()
 Settings.USE_STAC = True
 
 
-def prepocess_landsat_scene(
-        ds: Landsat
-) -> Landsat:
-    """
-    Mask clouds and cloud shadows in a Landsat scene based
-    on the 'qa_pixel' band.
-
-    NOTE:
-        Depending on your needs, the pre-processing function can be
-        fully customized using the full power of EOdal and its
-        interfacing libraries!
-
-    :param ds:
-        Landsat scene before cloud mask applied.
-    :return:
-        Landsat scene with clouds and cloud shadows masked.
-    """
-    ds.mask_clouds_and_shadows(inplace=True)
-    return ds
-
-
 if __name__ == "__main__":
 
     # user-inputs
@@ -76,21 +55,20 @@ if __name__ == "__main__":
     collection = 'landsat-c2-l1'
 
     # ---------------------- Spatial Feature  ------------------------------
-    bbox = box(*[6, 45, 11, 48.7])  # can be also shp, gpkg, etc.
+    bbox = box(*[8.4183, 47.2544, 8.7639, 47.5176])  # can be also shp, gpkg, etc.
     feature = Feature(
-        name='landsat-test',
+        name='zurich area',
         geometry=bbox,
         epsg=4326,
         attributes={})
 
     # ------------------------- Time Range ---------------------------------
-    time_start = datetime(1972, 9, 20)
-    time_end = datetime(1973, 9, 20)
+    time_start = datetime(1972, 9, 1)
+    time_end = datetime(1972, 10, 31)
 
     # ------------------------- Metadata Filters ---------------------------
     metadata_filters = [
-        Filter('eo:cloud_cover', '<', 70),
-        Filter('landsat:wrs_row', '==', '027')
+        Filter('eo:cloud_cover', '<', 70)
     ]
 
     # set up the Mapper configuration
@@ -117,20 +95,16 @@ if __name__ == "__main__":
         'scene_constructor': Landsat.from_usgs,
         'scene_constructor_kwargs': {
             'band_selection': ["green", "red", "nir08"],
-            'read_qa': True},
-        'scene_modifier': prepocess_landsat_scene,
-        'scene_modifier_kwargs': {}}
+            'read_qa': True, 'apply_scaling': False}
+    }
 
     # now we load the scenes
     mapper.load_scenes(scene_kwargs=scene_kwargs)
     # the scenes are loaded into a EOdal SceneCollection object
     mapper.data
 
-    # test scene for cloud masking
-    scene = mapper.data[mapper.data.timestamps[-1]]
-
     # the scenes can be plotted
-    f_scenes = mapper.data.plot(['red', 'green', 'blue'], figsize=(15,10))
+    f_scenes = mapper.data.plot(['nir08', 'red', 'green'], figsize=(15,15))
 
     # make the SceneCollection obtained persistent so that we do not have to re-run
     # the STAC query all the time we use the data.

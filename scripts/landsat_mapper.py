@@ -85,7 +85,7 @@ if __name__ == "__main__":
 
     # ------------------------- Time Range ---------------------------------
     time_start = datetime(2023, 5, 1)
-    time_end = datetime(2023, 5, 30)
+    time_end = datetime(2023, 5, 31)
 
     # ------------------------- Metadata Filters ---------------------------
     metadata_filters = [
