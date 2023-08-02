@@ -25,3 +25,4 @@ alive_progress
 rasterstats
 pyyaml
 myst_parser
+sphinx_search
