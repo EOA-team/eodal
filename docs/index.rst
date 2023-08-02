@@ -1,7 +1,8 @@
 Welcome to the documentation of the Earth Observation Data Analysis Library (EOdal)
 ===================================================================================
 
-.. image:: https://github.com/EOA-team/eodal/blob/master/img/eodal_s2_image_fcir.png
+.. image:: ../img/eodal_s2_image_fcir.png
+   :width: 600
    :alt: Sentinel-2 false color image of Lake Lucerne, Switzerland.
    :align: center
 
