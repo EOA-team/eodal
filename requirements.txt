@@ -18,7 +18,7 @@ zarr
 numba
 pystac-client
 sentinelsat
-pydantic[dotenv]
+python-dotenv
 requests
 planetary_computer
 alive_progress
