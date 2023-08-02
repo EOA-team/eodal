@@ -1,3 +1,5 @@
+[![Documentation Status](https://readthedocs.org/projects/eodal/badge/?version=latest)](https://eodal.readthedocs.io/en/latest/?badge=latest)
+
 # E:earth_africa:dal Earth Observation Data Analysis Library
 
 ```shell
