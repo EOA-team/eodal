@@ -1,6 +1,10 @@
 Welcome to the documentation of the Earth Observation Data Analysis Library (EOdal)
 ===================================================================================
 
+.. image:: https://github.com/EOA-team/eodal/blob/master/img/eodal_s2_image_fcir.png
+   :alt: Sentinel-2 false color image of Lake Lucerne, Switzerland.
+   :align: center
+
 A truely open-source package for unified analysis of Earth Observation (EO) data.
 
 * cloud-native by design thanks to `STAC <https://stacspec.org/en/>`_
