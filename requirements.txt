@@ -24,3 +24,4 @@ planetary_computer
 alive_progress
 rasterstats
 pyyaml
+myst_parser
