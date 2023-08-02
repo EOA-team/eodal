@@ -105,9 +105,10 @@ if __name__ == "__main__":
 
     # the scenes can be plotted
     f_scenes = mapper.data.plot(['nir08', 'red', 'green'], figsize=(15,15))
+    f_scenes.savefig('img/landsat1_Zurich.png', dpi=300)
 
     # make the SceneCollection obtained persistent so that we do not have to re-run
     # the STAC query all the time we use the data.
-    fpath = Path('sample_mapper_data.pkl')
+    fpath = Path('landsat1_mapper_data.pkl')
     with open(fpath, 'wb+') as dst:
         dst.write(mapper.data.to_pickle())
