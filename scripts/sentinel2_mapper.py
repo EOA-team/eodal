@@ -33,8 +33,6 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import geopandas as gpd
-
 from datetime import datetime
 from pathlib import Path
 from shapely.geometry import box
@@ -62,9 +60,9 @@ def preprocess_sentinel2_scenes(
     based on the Scene Classification Layer (SCL).
 
     NOTE:
-    Depending on your needs, the pre-processing function can be
-    fully customized using the full power of EOdal and its
-    interfacing libraries!
+        Depending on your needs, the pre-processing function can be
+        fully customized using the full power of EOdal and its
+        interfacing libraries!
 
     :param target_resolution:
         spatial target resolution to resample all bands to.
@@ -79,10 +77,6 @@ def preprocess_sentinel2_scenes(
 
 
 if __name__ == '__main__':
-
-    import os
-    cwd = Path(__file__).absolute().parent.parent
-    os.chdir(cwd)
 
     # user-inputs
     # -------------------------- Collection -------------------------------
@@ -125,12 +119,28 @@ if __name__ == '__main__':
     # the metadata is loaded into a GeoPandas GeoDataFrame
     mapper.metadata
 
-    # load the least cloudy scene available from STAC
+    # optional: get the least cloudy scene
+    # to apply it uncomment the statement below. This
+    # will return just a single scene no matter how long the time period chosen.
+    # mapper.metadata = mapper.metadata[
+    #       mapper.metadata.cloudy_pixel_percentage ==
+    #       mapper.metadata.cloudy_pixel_percentage.min()].copy()
+
+    # we tell EOdal how to load the Sentinel-2 scenes using `Sentinel2.from_safe`
+    # and pass on some kwargs, e.g., the selection of bands we want to read.
+    # Moreover, we tell EOdal to mask out clouds and shadows using the
+    # Scene Classification Layer (SCL) which is part of the L2A product.
+    # Therefore, we set the `read_scl` flag to True.
     scene_kwargs = {
         'scene_constructor': Sentinel2.from_safe,
-        'scene_constructor_kwargs': {'band_selection': [
-            "B02", "B03", "B04"], 'read_scl': False}}
+        'scene_constructor_kwargs': {'band_selection':
+                                     ['B02', 'B03', 'B04', 'B08'],
+                                     'read_scl': True},
+        'scene_modifier': preprocess_sentinel2_scenes,
+        'scene_modifier_kwargs': {'target_resolution': 10}
+    }
 
+    # load the scenes available from STAC
     mapper.load_scenes(scene_kwargs=scene_kwargs)
     # the data loaded into `mapper.data` as a EOdal SceneCollection
     mapper.data

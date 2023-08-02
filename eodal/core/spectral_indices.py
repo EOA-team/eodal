@@ -24,31 +24,56 @@ from __future__ import annotations
 import numpy as np
 
 from numpy import inf
-from typing import List, Union
+from typing import Dict, List, Optional, Union
 
 
 class SpectralIndices(object):
     """generic spectral indices"""
 
     # define color names (for optical sensors)
-    blue = "blue"
-    green = "green"
-    red = "red"
-    red_edge_1 = "red_edge_1"
-    red_edge_2 = "red_edge_2"
-    red_edge_3 = "red_edge_3"
-    nir_1 = "nir_1"
-    nir_2 = "nir_2"
-    swir_1 = "swir_1"
-    swir_2 = "swir_2"
+    def __init__(self, band_mapping: Optional[Dict[str, str]] = {}):
+        """
+        Class constructor. To override the default
+        bands pass custom band mappings as a dictionary:
+        
+        Example
+        -------
+        To use Sentinel-2 band nir_2 (Band 8A) instead of
+        Sentinel-2 band nir_1 (Band 8) for, e.g., NDVI
+        calculation pass
 
-    # polarizations (for SAR)
-    vv = "VV"
-    vh = "VH"
-    hh = "HH"
+        .. highlight:: python
+        .. code-block:: python
 
-    @classmethod
-    def get_si_list(cls) -> List[str]:
+            # use nir_2 instead of nir_1
+            # the other bands remain unaffected
+            band_mapping = {'nir_1': 'nir_2'}
+            spectral_indices = SpectralIndices(band_mapping)
+
+        :param band_mapping:
+            optional band mapping to override default band
+            setting for SI calculation (see example above)
+        """
+
+        # common optical bands
+        self.blue = band_mapping.get("blue", "blue")
+        self.green = band_mapping.get("green", "green")
+        self.red = band_mapping.get("red", "red")
+        self.red_edge_1 = band_mapping.get("red_edge_1", "red_edge_1")
+        self.red_edge_2 = band_mapping.get("red_edge_2", "red_edge_2")
+        self.red_edge_3 = band_mapping.get("red_edge_3", "red_edge_3")
+        self.nir_1 = band_mapping.get("nir_1", "nir_1")
+        self.nir_2 = band_mapping.get("nir_2", "nir_2")
+        self.swir_1 = band_mapping.get("swir_1", "swir_1")
+        self.swir_2 = band_mapping.get("swir_2", "swir_2")
+    
+        # polarizations (for SAR)
+        self.vv = band_mapping.get("VV", "VV")
+        self.vh = band_mapping.get("VH", "VH")
+        self.hh = band_mapping.get("HH", "HH")
+
+    
+    def get_si_list(self) -> List[str]:
         """
         Returns a list of implemented Spectral Indices (SIs)
 
@@ -57,12 +82,11 @@ class SpectralIndices(object):
         """
         return [
             x
-            for x in dir(cls)
+            for x in dir(self)
             if not x.startswith("__") and not x.endswith("__") and not x.islower()
         ]
 
-    @classmethod
-    def calc_si(cls, si: str, collection: dict) -> Union[np.ndarray, np.ma.MaskedArray]:
+    def calc_si(self, si: str, collection) -> Union[np.ndarray, np.ma.MaskedArray]:
         """
         Calculates the selected spectral index (SI) for
         spectral band data derived from `~eodal.core.RasterCollection`.
@@ -71,24 +95,33 @@ class SpectralIndices(object):
         :param si:
             name of the selected vegetation index (e.g., NDVI). Raises
             an error if the vegetation index is not implemented/ found.
+        :param collection:
+            ~`eodal.core.raster.RasterCollection` with spectral bands.
         :returns:
             2d ``numpy.ndarray`` or ``np.ma.MaskedArray`` with VI values
             (depends on array-type of the input)
         """
+        # SI calculation
+        if not hasattr(self, si.upper()):
+            raise NotImplementedError(
+                f'SI {si} not found.\nSee `SpectralIndices()' +
+                '.get_si_list()` for a list of currently implemented SIs.')
+
+        si_fun = getattr(self, si.upper())
+        si_data = si_fun.__call__(collection)
+
+        # post-processing
         try:
-            si_fun = eval(f"cls.{si.upper()}")
-            si_data = si_fun.__call__(collection)
-            # replace infinity values with nan
+            # replace infinity values with NaN
             si_data[si_data == inf] = np.nan
-            # replace masked values with nodata (might look weird otherwise)
+            # replace masked values with no-data (might look weird otherwise)
             if isinstance(si_data, np.ma.MaskedArray):
                 si_data.data[si_data.mask] = np.nan
         except Exception as e:
-            raise NotImplementedError(e)
+            raise ValueError from e
         return si_data
 
-    @classmethod
-    def NDVI(cls, collection) -> np.array:
+    def NDVI(self, collection) -> np.array:
         """
         Calculates the Normalized Difference Vegetation Index
         (NDVI) using the red and the near-infrared (NIR) channel.
@@ -99,13 +132,12 @@ class SpectralIndices(object):
             NDVI values
         """
 
-        nir = collection.get(cls.nir_1).values.astype("float")
-        red = collection.get(cls.red).values.astype("float")
+        nir = collection.get(self.nir_1).values.astype("float")
+        red = collection.get(self.red).values.astype("float")
         ndvi = (nir - red) / (nir + red)
         return ndvi
 
-    @classmethod
-    def EVI(cls, collection):
+    def EVI(self, collection):
         """
         Calculates the Enhanced Vegetation Index (EVI) following the formula
         provided by Huete et al. (2002)
@@ -115,9 +147,9 @@ class SpectralIndices(object):
         :returns:
             EVI values
         """
-        blue = collection.get(cls.blue).values.astype("float")
-        nir = collection.get(cls.nir_1).values.astype("float")
-        red = collection.get(cls.red).values.astype("float")
+        blue = collection.get(self.blue).values.astype("float")
+        nir = collection.get(self.nir_1).values.astype("float")
+        red = collection.get(self.red).values.astype("float")
         numerator = nir - red
         denominator = nir + 6 * red - 7.5 * blue + 1
         # values larger 1 and smaller -1 might occur (e.g., on artificial
@@ -127,8 +159,7 @@ class SpectralIndices(object):
         evi[evi < -1.0] = -1.0
         return evi
 
-    @classmethod
-    def MSAVI(cls, collection) -> np.array:
+    def MSAVI(self, collection) -> np.array:
         """
         Calculates the Modified Soil-Adjusted Vegetation Index
         (MSAVI). MSAVI is sensitive to the green leaf area index
@@ -139,12 +170,11 @@ class SpectralIndices(object):
         :returns:
             MSAVI values
         """
-        nir = collection.get(cls.nir_1).values.astype("float")
-        red = collection.get(cls.red).values.astype("float")
+        nir = collection.get(self.nir_1).values.astype("float")
+        red = collection.get(self.red).values.astype("float")
         return 0.5 * (2 * nir + 1 - np.sqrt((2 * nir + 1) ** 2 - 8 * (nir - red)))
 
-    @classmethod
-    def CI_GREEN(cls, collection) -> np.array:
+    def CI_GREEN(self, collection) -> np.array:
         """
         Calculates the green chlorophyll index (CI_green).
         It is sensitive to canopy chlorophyll concentration (CCC).
@@ -155,12 +185,11 @@ class SpectralIndices(object):
             CI-green values
         """
 
-        nir = collection.get(cls.nir_1).values.astype("float")
-        green = collection.get(cls.green).values.astype("float")
+        nir = collection.get(self.nir_1).values.astype("float")
+        green = collection.get(self.green).values.astype("float")
         return (nir / green) - 1
 
-    @classmethod
-    def MTCARI_OSAVI(cls, collection) -> np.array:
+    def MTCARI_OSAVI(self, collection) -> np.array:
         """
         Calculates the ratio of the Transformed Chlorophyll Index (TCARI)
         and the Optimized Soil-Adjusted Vegetation Index (OSAVI). It is sensitive
@@ -171,10 +200,10 @@ class SpectralIndices(object):
         :returns:
             TCARI/OSAVI values
         """
-        green = collection.get(cls.green).values.astype("float")
-        red = collection.get(cls.red).values.astype("float")
-        red_edge_1 = collection.get(cls.red_edge_1).values.astype("float")
-        red_edge_3 = collection.get(cls.red_edge_3).values.astype("float")
+        green = collection.get(self.green).values.astype("float")
+        red = collection.get(self.red).values.astype("float")
+        red_edge_1 = collection.get(self.red_edge_1).values.astype("float")
+        red_edge_3 = collection.get(self.red_edge_3).values.astype("float")
 
         TCARI = 3 * (
             (red_edge_1 - red) - 0.2 * (red_edge_1 - green) * (red_edge_1 / red)
@@ -183,8 +212,7 @@ class SpectralIndices(object):
         tcari_osavi = TCARI / OSAVI
         return tcari_osavi
 
-    @classmethod
-    def NDRE(cls, collection) -> np.array:
+    def NDRE(self, collection) -> np.array:
         """
         Calculates the Normalized Difference Red Edge (NDRE). It extends
         the capabilities of the NDVI for middle and late season crops.
@@ -194,12 +222,11 @@ class SpectralIndices(object):
         :returns:
             NDRE values
         """
-        red_edge_1 = collection.get(cls.red_edge_1).values.astype("float")
-        red_edge_3 = collection.get(cls.red_edge_3).values.astype("float")
+        red_edge_1 = collection.get(self.red_edge_1).values.astype("float")
+        red_edge_3 = collection.get(self.red_edge_3).values.astype("float")
         return (red_edge_3 - red_edge_1) / (red_edge_3 + red_edge_1)
 
-    @classmethod
-    def MCARI(cls, collection):
+    def MCARI(self, collection):
         """
         Calculates the Modified Chlorophyll Absorption Ratio Index (MCARI).
         It is sensitive to leaf chlorophyll concentration (LCC).
@@ -209,13 +236,12 @@ class SpectralIndices(object):
         :returns:
             MCARI values
         """
-        green = collection.get(cls.green).values.astype("float")
-        red = collection.get(cls.red).values.astype("float")
-        red_edge_1 = collection.get(cls.red_edge_1).values.astype("float")
+        green = collection.get(self.green).values.astype("float")
+        red = collection.get(self.red).values.astype("float")
+        red_edge_1 = collection.get(self.red_edge_1).values.astype("float")
         return ((red_edge_1 - red) - 0.2 * (red_edge_1 - green)) * (red_edge_1 / red)
 
-    @classmethod
-    def BSI(cls, collection):
+    def BSI(self, collection):
         """
         Calculates the Bare Soil Index (BSI).
 
@@ -224,14 +250,13 @@ class SpectralIndices(object):
         :returns:
             BSI values
         """
-        blue = collection.get(cls.blue).values.astype("float")
-        red = collection.get(cls.red).values.astype("float")
-        nir = collection.get(cls.nir_1).values.astype("float")
-        swir_1 = collection.get(cls.swir_1).values.astype("float")
+        blue = collection.get(self.blue).values.astype("float")
+        red = collection.get(self.red).values.astype("float")
+        nir = collection.get(self.nir_1).values.astype("float")
+        swir_1 = collection.get(self.swir_1).values.astype("float")
         return ((swir_1 + red) - (nir + blue)) / ((swir_1 + red) + (nir + blue))
 
-    @classmethod
-    def VARI(cls, collection):
+    def VARI(self, collection):
         """
         Calculates the Visible Atmospherically Resistant Index (VARI)
 
@@ -240,13 +265,12 @@ class SpectralIndices(object):
         :returns:
             BSI values
         """
-        blue = collection.get(cls.blue).values.astype("float")
-        green = collection.get(cls.green).values.astype("float")
-        red = collection.get(cls.red).values.astype("float")
+        blue = collection.get(self.blue).values.astype("float")
+        green = collection.get(self.green).values.astype("float")
+        red = collection.get(self.red).values.astype("float")
         return (green - red) / (green + red - blue)
 
-    @classmethod
-    def NDYI(cls, collection):
+    def NDYI(self, collection):
         """
         Calculates the Normalized Difference Yellowness Index
 
@@ -255,12 +279,11 @@ class SpectralIndices(object):
         :returns:
             NDYI values
         """
-        blue = collection.get(cls.blue).values.astype("float")
-        green = collection.get(cls.green).values.astype("float")
+        blue = collection.get(self.blue).values.astype("float")
+        green = collection.get(self.green).values.astype("float")
         return (green - blue) / (green + blue)
 
-    @classmethod
-    def NDWI(cls, collection):
+    def NDWI(self, collection):
         """
         Calculates the Normalized Difference Yellowness Index
 
@@ -269,35 +292,32 @@ class SpectralIndices(object):
         :returns:
             NDYI values
         """
-        green = collection.get(cls.green).values.astype("float")
-        nir = collection.get(cls.nir_1).values.astype("float")
+        green = collection.get(self.green).values.astype("float")
+        nir = collection.get(self.nir_1).values.astype("float")
         return (green - nir) / (green + nir)
 
-    @classmethod
-    def CR(cls, collection):
+    def CR(self, collection):
         """
         Calculates the Cross Ratio  VH/VV
         """
-        vh = collection.get(cls.vh).values.astype("float")
-        vv = collection.get(cls.vv).values.astype("float")
+        vh = collection.get(self.vh).values.astype("float")
+        vv = collection.get(self.vv).values.astype("float")
         return vh / vv
 
-    @classmethod
-    def NHI(cls, collection):
+    def NHI(self, collection):
         """
-        Calculates the Normalized Humidity Index. First described for detecting ponds with vegetation in and on top.
+        Calculates the Normalized Humidity Index. First described for detecting
+        ponds with vegetation in and on top.
         :param collection:
             reflectance in the 'green' and 'swir_1' channel
         :returns:
             NHI values
         """
-        swir_1 = collection.get(cls.swir_1).values.astype("float")
-        green = collection.get(cls.green).values.astype("float")
+        swir_1 = collection.get(self.swir_1).values.astype("float")
+        green = collection.get(self.green).values.astype("float")
         return (swir_1 - green)/(swir_1 + green)
-        
-        
-    @classmethod
-    def NDTI(cls, collection):
+
+    def NDTI(self, collection):
         """
         Calculates the Normalized Tillage Index. Useful for tillage and crop residues.
         :param collection:
@@ -305,28 +325,25 @@ class SpectralIndices(object):
         :returns:
             NDTI values
         """
-        swir_1 = collection.get(cls.swir_1).values.astype("float")
-        swir_2 = collection.get(cls.swir_2).values.astype("float")
+        swir_1 = collection.get(self.swir_1).values.astype("float")
+        swir_2 = collection.get(self.swir_2).values.astype("float")
         return (swir_1 - swir_2)/(swir_1 + swir_2)
-        
-        
-    @classmethod
-    def NDRI(cls, collection):
+
+    def NDRI(self, collection):
         """
-        Calculates the Normalized Difference Residue Index. Useful for detecting crop residues.
+        Calculates the Normalized Difference Residue Index. Useful for detecting
+        crop residues.
+
         :param collection:
             reflectance in the 'red' and 'swir_2' channel
         :returns:
             NDRI values
         """
-        red = collection.get(cls.red).values.astype("float")
-        swir_2 = collection.get(cls.swir_2).values.astype("float")
+        red = collection.get(self.red).values.astype("float")
+        swir_2 = collection.get(self.swir_2).values.astype("float")
         return (red - swir_2)/(red + swir_2)
-        
-        
-         
-    @classmethod
-    def GNDVI(cls, collection):
+
+    def GNDVI(self, collection):
         """
         Calculates the Green Normalized Difference Vegetation Index 
         :param collection:
@@ -334,6 +351,6 @@ class SpectralIndices(object):
         :returns:
             GNDVI values
         """
-        nir = collection.get(cls.nir_1).values.astype("float")
-        green = collection.get(cls.green).values.astype("float")
+        nir = collection.get(self.nir_1).values.astype("float")
+        green = collection.get(self.green).values.astype("float")
         return (nir - green)/(nir + green)

@@ -680,7 +680,7 @@ class Band(object):
 
         # convert to centroids if the geometries are not of type Point
         gdf.geometry = gdf.geometry.apply(
-            lambda x: x.centroid if x.type in ["Polygon", "MultiPolygon"] else x
+            lambda x: x.centroid if x.geom_type in ["Polygon", "MultiPolygon"] else x
         )
 
         return gdf

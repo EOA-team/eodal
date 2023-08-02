@@ -31,6 +31,7 @@ class ProcessingLevels(Enum):  # noqa: F811
 ProcessingLevelsDB = {"L1C": "Level-1C", "L2A": "Level-2A"}
 
 # native spatial resolution of the S2 bands per processing level
+# (in meters)
 band_resolution = {
     ProcessingLevels.L1C: {
         "B01": 60,

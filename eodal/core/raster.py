@@ -1538,7 +1538,7 @@ class RasterCollection(MutableMapping):
             if inplace:
                 self[band_name].mask(mask=_mask, inplace=inplace)
             else:
-                band = self.get_band(band_name)
+                band = deepcopy(self.get_band(band_name))
                 collection.add_band(
                     band_constructor=band.mask, mask=_mask, inplace=inplace
                 )
@@ -1581,7 +1581,6 @@ class RasterCollection(MutableMapping):
             if inplace:
                 self.collection[band_name].scale_data(inplace=inplace, **kwargs)
             else:
-                # TODO: there seems to be a bug here
                 band = self.get_band(band_name)
                 collection.add_band(
                     band_constructor=band.scale_data,
@@ -1599,18 +1598,32 @@ class RasterCollection(MutableMapping):
         pass
 
     def calc_si(
-        self, si_name: str, inplace: Optional[bool] = False
+        self, si_name: str, inplace: Optional[bool] = False,
+        band_mapping: Optional[Dict[str, str]] = {}
     ) -> Union[None, np.ndarray, np.ma.MaskedArray]:
         """
         Calculates a spectral index based on color-names (set as band aliases)
 
         :param si_name:
-            name of the spectral index to calculate (e.g., 'NDVI')
+            name of the spectral index to calculate (e.g., 'NDVI').
+        :param inplace:
+            if False, returns the calculated SI as numpy array (default), else
+            adds the calculated SI as a new band to the RasterCollection
+            object.
+        :param band_mapping:
+            ..versionadd 0.2.2::
+            optional band mapping to use different color names instead
+            of the default ones (e.g., nir_2 instead of nir_1 as default
+            near-infrared band, which might be helpful for some sensor
+            with more than one NIR band such as Sentinel-2 MSI).
+            See ~`eodal.core.spectral_indices.SpectralIndices` how
+            `band_mapping` must look like.
         :returns:
             ``np.ndarray`` or ``np.ma.MaskedArray`` if inplace is False, None
             otherwise (is added as band to the collection)
         """
-        si_values = SpectralIndices.calc_si(si_name, self)
+        spectral_indices = SpectralIndices(band_mapping)
+        si_values = spectral_indices.calc_si(si_name, self)
         # since SIs are floats by nature set the nodata value to np.nan
         nodata = np.nan
         if inplace:

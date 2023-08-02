@@ -17,10 +17,21 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from pandas import DataFrame
-from typing import Any
-from typing import Dict
-from typing import NewType
+from xml.etree.ElementTree import Element
 
 
-S2Scenes = NewType("S2Scenes", Dict[Any, DataFrame])
+def xml_to_dict_recursive(root: Element) -> dict:
+    """
+    Convert a XML Element to a dictionary recursively.
+
+    Taken from:
+    https://stackoverflow.com/questions/2148119/how-to-convert-an-xml-string-to-a-dictionary
+
+    :param root: XML Element to convert to dictionary.
+    :return: resulting dictionary
+    """
+
+    if len(list(root)) == 0:
+        return {root.tag:root.text}
+    else:
+        return {root.tag:list(map(xml_to_dict_recursive, list(root)))}
