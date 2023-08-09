@@ -686,7 +686,8 @@ class Mapper:
                         inplace=True,
                         target_crs=reference_band.crs,
                         dst_transform=dst_transform,
-                        destination=destination)
+                        destination=destination,
+                        dst_nodata=band.nodata)
         
         self.data = scoll
 
