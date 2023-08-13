@@ -76,7 +76,7 @@ if __name__ == "__main__":
     collection = 'landsat-c2-l2'
 
     # ---------------------- Spatial Feature  ------------------------------
-    bbox = box(*[7.0, 47.0, 8.0, 48.0])  # can be also shp, gpkg, etc.
+    bbox = box(*[7.5, 47.5, 8.0, 48.0])  # can be also shp, gpkg, etc.
     feature = Feature(
         name='landsat-test',
         geometry=bbox,
