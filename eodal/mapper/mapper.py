@@ -682,13 +682,20 @@ class Mapper:
                         dst_shape,
                         dtype=band.values.dtype
                     )
+                    # determine nodata
+                    if not np.isnan(band.nodata):
+                        dst_nodata = band.nodata
+                    else:
+                        # if band nodata is NaN we set
+                        # no-data to None (rasterio default)
+                        dst_nodata = None
                     band.reproject(
                         inplace=True,
                         target_crs=reference_band.crs,
                         dst_transform=dst_transform,
                         destination=destination,
-                        dst_nodata=band.nodata)
-        
+                        dst_nodata=dst_nodata)
+
         self.data = scoll
 
         logger.info(f"Finished extraction of {self.sensor} scenes")
