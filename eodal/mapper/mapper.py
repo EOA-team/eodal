@@ -509,6 +509,9 @@ class Mapper:
         scoll = SceneCollection()
         logger.info(f"Starting extraction of {self.sensor} scenes")
         # filter out datasets where mosaicing is necessary (time stamp is the same)
+        # TODO: allow a user-defined temporal tolerance (background: some
+        # platforms such as Landsat provide the "scene-center" time, i.e., two
+        # scenes that were acquired one-after-another differ only be a few minutes)
         self.metadata["_duplicated"] = self.metadata[self.time_column].duplicated(
             keep=False
         )
