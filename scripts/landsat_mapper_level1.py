@@ -104,7 +104,7 @@ if __name__ == "__main__":
     mapper.data
 
     # the scenes can be plotted
-    f_scenes = mapper.data.plot(['nir08', 'red', 'green'], figsize=(15,15))
+    f_scenes = mapper.data.plot(['nir08', 'red', 'green'], figsize=(15,10))
     f_scenes.savefig('img/landsat1_Zurich.png', dpi=300)
 
     # make the SceneCollection obtained persistent so that we do not have to re-run
