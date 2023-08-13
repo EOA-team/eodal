@@ -647,7 +647,9 @@ class Mapper:
                 idx = self.metadata[
                     abs(
                         self.metadata[self.time_column]
-                        - pd.to_datetime(updated_scene_properties.acquisition_time)
+                        - pd.to_datetime(
+                            updated_scene_properties.acquisition_time,
+                            utc=True)
                     )
                     < pd.Timedelta(60, unit="minutes")
                 ].index
