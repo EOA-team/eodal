@@ -20,7 +20,7 @@ pystac-client
 sentinelsat
 python-dotenv
 requests
-planetary_computer
+planetary_computer>=1.0.0
 alive_progress
 rasterstats
 pyyaml
