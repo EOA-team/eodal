@@ -334,6 +334,15 @@ class Mapper:
     def time_column(self) -> str:
         return self._time_column
 
+    @time_column.setter
+    def time_column(self, value: str):
+        """..versionadd:: 0.2.2"""
+        if not isinstance(value, str):
+            raise TypeError('time_column must be a string')
+        if len(value) <= 0:
+            raise ValueError('String must not be empty')
+        self._time_column = value
+
     def query_scenes(self) -> None:
         """
         Query available scenes for the current `MapperConfigs` and loads
@@ -381,6 +390,11 @@ class Mapper:
                 scenes_df = find_raw_data_by_bbox(**kwargs)
             except Exception as e:
                 raise DatabaseError(f"Querying metadata DB failed: {e}")
+
+        # make sure the time column is handled as pandas datetime
+        # objects
+        scenes_df[self.time_column] = pd.to_datetime(
+            scenes_df[self.time_column])
 
         # populate the metadata attribute
         self.metadata = scenes_df
@@ -455,6 +469,7 @@ class Mapper:
         scene_constructor_kwargs: Optional[Dict[str, Any]] = {},
         scene_modifier: Optional[Callable[..., RasterCollection]] = None,
         scene_modifier_kwargs: Optional[Dict[str, Any]] = {},
+        round_time_stamps_to_freq: Optional[str] = None
     ) -> None:
         """
         Auxiliary method to handle EOdal scenes and store them into a SceneCollection.
@@ -483,6 +498,16 @@ class Mapper:
             are no pixel shifts due to re-projections from different spatial
             reference systems such as different UTM zones.
 
+        ..versionadd:: 0.2.2
+        
+            When mosaicing (i.e., a scene is split into multiple tiles) we not only
+            have to look for spatial and temporal overlap (old behavior) but we
+            must also allow a certain tolerance in the timestamps in the range of
+            typically some seconds to minutes to merge imagery that was acquired
+            slightly one-after-another. To do so, a new keyword argument
+            `round_time_stamps_to_freq` was added that defaults to None (old behavior)
+            and can be set to any string value accepted by `~pandas.Timestamp.round`.
+
         :param scene_constructor:
             Callable used to read the scenes found into `RasterCollection` fulfilling
             the `is_scene` criterion (i.e., a time stamp is available). The callable is
@@ -504,17 +529,34 @@ class Mapper:
             to calculate spectral indices on the fly or for applying masks.
         :param scene_modifier_kwargs:
             optional keyword arguments for `scene_modifier` (if any).
+        :param round_time_stamps_to_freq:
+            ..versionadd:: 0.2.2
+            optionally round scene time stamps to a custom temporal frequency accepted
+            by `~pandas.Timestamp.round` to allow moscaicing of scenes with slightly
+            different timestamps as it might be necessary for some EO platforms.
         """
         # open a SceneCollection for storing the data
         scoll = SceneCollection()
         logger.info(f"Starting extraction of {self.sensor} scenes")
-        # filter out datasets where mosaicing is necessary (time stamp is the same)
-        # TODO: allow a user-defined temporal tolerance (background: some
+        # filter out datasets for which mosaicing is necessary (time stamp is the same)
+        # ..versionadd:: 0.2.2
+        # Allow a user-defined temporal tolerance (background: some
         # platforms such as Landsat provide the "scene-center" time, i.e., two
         # scenes that were acquired one-after-another differ only be a few minutes)
+        if round_time_stamps_to_freq is not None:
+            # new optional behavior eodal >= 0.2.2
+            rounded_time_column = \
+                f'{self.time_column}_rounded_{round_time_stamps_to_freq}'
+            self.metadata[rounded_time_column] = \
+                self.metadata[self.time_column].dt.round(
+                    freq=round_time_stamps_to_freq)
+            # set time column to rounded time stamps but keep
+            # the name of the "old", i.e., original time column
+            self.time_column = rounded_time_column
+
         self.metadata["_duplicated"] = self.metadata[self.time_column].duplicated(
-            keep=False
-        )
+                keep=False
+            )
         # datasets where the 'duplicated' entry is False are truely unqiue
         _metadata_unique = self.metadata[~self.metadata._duplicated].copy()
         _metadata_nonunique = self.metadata[self.metadata._duplicated].copy()
@@ -555,14 +597,14 @@ class Mapper:
                 # merge datasets using rasterio and read results back into a scene
                 band_options = {
                     "band_names": _scene.band_names,
-                    "band_aliases": _scene.band_aliases,
+                    "band_aliases": _scene.band_aliases
                 }
                 scene = merge_datasets(
                     datasets=dataset_list,
                     target_crs=self.metadata.target_epsg.unique()[0],
                     vector_features=self.mapper_configs.feature.to_geoseries(),
                     sensor=self.sensor,
-                    band_options=band_options,
+                    band_options=band_options
                 )
                 # handle scene properties. They need to be merged as well
                 merged_scene_properties = scene_properties_list[0]
@@ -599,7 +641,7 @@ class Mapper:
             )
             for updated_scene_properties in update_scene_properties_list:
                 # use the time stamp for finding the correct metadata
-                # records. Theremight be some disagreement in the milliseconds
+                # records. There might be some disagreement in the milliseconds
                 # because of different precision levels therefore, an offset
                 # of less than 1 second is tolerated
                 idx = self.metadata[
@@ -746,6 +788,7 @@ class Mapper:
         self,
         scene_kwargs: Optional[Dict[str, Any]] = None,
         pixel_kwargs: Optional[Dict[str, Any]] = None,
+        round_time_stamps_to_freq: Optional[str] = None
     ) -> None:
         """
         Load scenes from `~Mapper.query_scenes` result into a `SceneCollection`
@@ -764,6 +807,11 @@ class Mapper:
             key-word arguments to pass to `~Mapper._load_pixels` for handling
             single pixel values. These arguments *MUST* be provided when
             using `Point` or `MulitPoint` geometries in the `Mapper` call.
+        :param round_time_stamps_to_freq:
+            ..versionadd:: 0.2.2
+            optionally round scene time stamps to a custom temporal frequency accepted
+            by `~pandas.Timestamp.round` to allow moscaicing of scenes with slightly
+            different timestamps as it might be necessary for some EO platforms.
         """
         # check if the correct keyword arguments have been passed
         if not self._geoms_are_points:
@@ -795,15 +843,6 @@ class Mapper:
         except KeyError as e:
             raise ValueError(f"Could not determine CRS of scenes: {e}")
 
-        # check if mosaicing scenes is required. This is done by checking the
-        # sensing_time time stamps. If there are multiple scenes with the same
-        # time stamp they must be mosaiced into a single scene
-        self.metadata["mosaicing"] = False
-        duplicated_idx = self.metadata[
-            self.metadata.duplicated([self.time_column])
-        ].index
-        self.metadata.loc[duplicated_idx, "mosaicing"] = True
-
         # provide paths to raster data. Depending on th settings, this is a path on the
         # file system or a URL
         self.metadata["real_path"] = ""
@@ -818,4 +857,7 @@ class Mapper:
         if self._geoms_are_points:
             self._load_pixels(**pixel_kwargs)
         else:
-            self._load_scenes_collection(**scene_kwargs)
+            self._load_scenes_collection(
+                round_time_stamps_to_freq=round_time_stamps_to_freq,
+                **scene_kwargs
+            )
