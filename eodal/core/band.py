@@ -1981,7 +1981,10 @@ class Band(object):
         except Exception as e:
             raise ReprojectionError(f"Could not re-project band {self.band_name}: {e}")
 
-        # cast array back to original dtype
+        # cast array back to original data type
+        # make sure to handle NaNs properly
+        if np.isnan(out_data) and not self.values.dtype == float:
+            out_data[np.isnan(out_data)] = np.nanmin(out_data)
         if len(out_data.shape) == 2:
             out_data = out_data.astype(self.values.dtype)
         elif len(out_data.shape) == 3:
