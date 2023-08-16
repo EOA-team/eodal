@@ -62,6 +62,7 @@ def query_stac(
         backoff_factor=1,
         status_forcelist=[502, 503, 504])
     stac_api_io.session.mount("http://", HTTPAdapter(max_retries=retries))
+    stac_api_io.session.mount("https://", HTTPAdapter(max_retries=retries))
 
     # handle certificate bundle
     stac_api_io.session.verify = Settings.STAC_API_IO_CA_BUNDLE
