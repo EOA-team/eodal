@@ -55,8 +55,8 @@ def query_stac(
 
     # ..versionadd:: 0.2.1
     # add retries in case of HTTP 502, 503 and 504 errors
-    # TODO this should be changed once
-    # https://github.com/stac-utils/pystac-client/issues/520 is solved
+    # TODO pass `Retry` object to `StacApiIO` with python >= 3.8
+    # and `pystac-client` >= 0.7.0.
     retries = Retry(
         total=Settings.NUMBER_HTTPS_RETRIES,
         backoff_factor=1,
