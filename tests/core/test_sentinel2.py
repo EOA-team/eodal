@@ -250,8 +250,7 @@ def test_ignore_scl(datadir, get_s2_safe_l2a, get_polygons_2):
         handler['SCL'].meta
 
 
-def test_band_selections(datadir, get_s2_safe_l2a, get_polygons, get_polygons_2,
-                         get_bandstack):
+def test_band_selections(datadir, get_s2_safe_l2a, get_polygons_2):
     """testing invalid band selections"""
 
     in_dir = get_s2_safe_l2a()
