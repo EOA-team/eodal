@@ -1579,7 +1579,7 @@ class Band(object):
         # get color-map
         cmap = user_defined_colors
         if cmap is None:
-            cmap = plt.cm.get_cmap(colormap)
+            cmap = mpl.colormaps.get_cmap(colormap)
 
         # check if data is continuous (spectral) or discrete (np.unit8)
         if discrete_values:
