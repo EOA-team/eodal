@@ -394,7 +394,7 @@ class Mapper:
         # make sure the time column is handled as pandas datetime
         # objects
         scenes_df[self.time_column] = pd.to_datetime(
-            scenes_df[self.time_column])
+            scenes_df[self.time_column], utc=True)
 
         # populate the metadata attribute
         self.metadata = scenes_df
