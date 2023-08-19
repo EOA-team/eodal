@@ -25,7 +25,7 @@ import geopandas as gpd
 import pandas as pd
 
 from shapely import wkt
-from shapely.errors import WKTReadingError
+from shapely.errors import ShapelyError
 from shapely.geometry import MultiPoint, MultiPolygon, Point, Polygon
 from typing import Any, Dict, Optional
 
@@ -148,7 +148,7 @@ class Feature:
             raise ValueError(
                 "Dictionary does not have fields required to instantiate a new Feature"
             )
-        except WKTReadingError as e:
+        except ShapelyError as e:
             raise ValueError(f"Invalid Geometry: {e}")
 
     def to_epsg(self, epsg: int):
