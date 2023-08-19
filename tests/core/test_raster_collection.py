@@ -14,6 +14,7 @@ from eodal.core.band import Band
 from eodal.core.raster import RasterCollection
 from eodal.utils.exceptions import BandNotFoundError
 
+
 def test_ndarray_constructor():
     """
     basic test with ``np.ndarray`` backend in raster collection
@@ -93,6 +94,7 @@ def test_ndarray_constructor():
     with pytest.raises(BandNotFoundError):
         handler.drop_band('test')
 
+
 def test_rasterio_constructor_single_band(get_bandstack):
     """
     RasterCollection from rasterio dataset (single band)
@@ -114,6 +116,7 @@ def test_rasterio_constructor_single_band(get_bandstack):
     assert handler['B1'].geo_info.epsg == 32632, 'wrong EPSG code inserted'
     assert handler['B1'].geo_info.pixres_x == 10, 'wrong pixel size in x direction'
     assert handler['B1'].geo_info.pixres_y == -10, 'wrong pixel size in y direction'
+
 
 def test_scale():
     """scaling of raster band"""
@@ -142,6 +145,7 @@ def test_scale():
     after_scaling = handler.get_values()
     assert (after_scaling == (scale * (before_scaling + offset))).all(), 'values not scaled correctly'
     assert (after_scaling == 300).all(), 'wrong value after scaling'
+
 
 def test_rasterio_constructor_multi_band(get_bandstack):    
     """
@@ -189,6 +193,7 @@ def test_rasterio_constructor_multi_band(get_bandstack):
     )
     assert gTiff_collection.has_band_aliases, 'band aliases must exist'
 
+
 def test_reprojection(get_bandstack):
     """Reprojecting data in raster collection into a different CRS"""
     # read multi-band geoTiff into new handler with custom destination names
@@ -211,6 +216,7 @@ def test_reprojection(get_bandstack):
     # plot RGB
     fig_rgb = reprojected.plot_multiple_bands(band_selection=['red', 'green', 'blue'])
     assert isinstance(fig_rgb, plt.Figure), 'not a matplotlib figure'
+
 
 def test_resampling(datadir,get_bandstack):
     """Resampling into a different pixel size"""

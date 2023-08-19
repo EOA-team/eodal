@@ -78,6 +78,10 @@ def preprocess_sentinel2_scenes(
 
 if __name__ == '__main__':
 
+    import os
+    cwd = Path(__file__).parents[1]
+    os.chdir(cwd)
+
     # user-inputs
     # -------------------------- Collection -------------------------------
     collection: str = 'sentinel2-msi'
@@ -150,7 +154,7 @@ if __name__ == '__main__':
 
     # EOdal SceneCollections can be made persistent by storing them as serialized
     # pickled objects on disk (and can be loaded from there)
-    fpath = Path('../data/sample_mapper_data.pkl')
+    fpath = Path('data/sample_mapper_data.pkl')
     with open(fpath, 'wb+') as dst:
         dst.write(mapper.data.to_pickle())
 

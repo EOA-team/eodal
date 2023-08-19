@@ -127,7 +127,8 @@ class Landsat(RasterCollection):
         elif isinstance(in_dir, Path):
             fpath_json = in_dir.joinpath('MTL.json')
             if fpath_json.exists():
-                metadata = json.loads(metadata_json.read_text())
+                with open(fpath_json, 'r') as src:
+                    metadata = json.load(src)
             else:
                 fpath_xml = in_dir.joinpath('MTL.xml')
                 metadata_xml_tree = ElementTree.parse(fpath_xml)

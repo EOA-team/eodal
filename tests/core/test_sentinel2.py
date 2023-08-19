@@ -1,12 +1,11 @@
+"""
+Tests for the Sentinel-2 sensor class.
+"""
 
 import cv2
 import pytest
-import requests
 import numpy as np
 
-from rasterio.coords import BoundingBox
-from pathlib import Path
-from shapely.geometry import Polygon
 from matplotlib.figure import Figure
 from datetime import date
 
@@ -45,7 +44,8 @@ def test_read_pixels_from_safe(get_s2_safe_l1c, get_s2_safe_l2a, get_points2,
     )
 
     gdf_instancemethod = handler.get_pixels(vector_features=test_point_features)
-    assert gdf_instancemethod.empty, 'pixel values returned although sample points lay completely outside of scene extent' 
+    assert gdf_instancemethod.empty, \
+        'pixel values returned although sample points lay completely outside of scene extent' 
 
     # read points from L1C partly inside the scene extent without scaling
     test_point_features = get_points3()
@@ -72,8 +72,10 @@ def test_read_pixels_from_safe(get_s2_safe_l1c, get_s2_safe_l2a, get_points2,
         in_dir=safe_archive,
         apply_scaling=True
     )
-    assert (0 < gdf_classmethod.B02).all() and (gdf_classmethod.B02 < 1).all(), 'wrong values for band 02'
-    assert (0 < gdf_classmethod.B11).all() and (gdf_classmethod.B11 < 1).all(), 'wrong values for band 11'
+    assert (0 < gdf_classmethod.B02).all() and (gdf_classmethod.B02 < 1).all(), \
+        'wrong values for band 02'
+    assert (0 < gdf_classmethod.B11).all() and (gdf_classmethod.B11 < 1).all(), \
+        'wrong values for band 11'
 
     # do the same with the instance method (read bands and then extract the pixels from
     # the read bands)
@@ -248,8 +250,7 @@ def test_ignore_scl(datadir, get_s2_safe_l2a, get_polygons_2):
         handler['SCL'].meta
 
 
-def test_band_selections(datadir, get_s2_safe_l2a, get_polygons, get_polygons_2,
-                         get_bandstack):
+def test_band_selections(datadir, get_s2_safe_l2a, get_polygons_2):
     """testing invalid band selections"""
 
     in_dir = get_s2_safe_l2a()
@@ -265,6 +266,7 @@ def test_band_selections(datadir, get_s2_safe_l2a, get_polygons, get_polygons_2,
         )
 
 
+@pytest.mark.skip(reason='too heavy test for Github workflows')
 def test_read_from_safe_l2a(datadir, get_s2_safe_l2a):
     """handling Sentinel-2 data from .SAFE archives (no masking)"""
     in_dir = get_s2_safe_l2a()

@@ -14,6 +14,7 @@ from shapely.geometry import Polygon
 from eodal.core.band import Band
 from eodal.core.band import GeoInfo
 
+
 def test_base_constructors():
     """
     test base constructor calls
@@ -62,6 +63,7 @@ def test_base_constructors():
     band = Band(band_name=band_name, values=zarr_values, geo_info=geo_info)
     assert band.is_zarr
 
+
 def test_band_from_rasterio(get_test_band, get_bandstack):
     """
     Tests instance and class methods of the `Band` class
@@ -85,7 +87,7 @@ def test_band_from_rasterio(get_test_band, get_bandstack):
     assert band.geo_info.uly == 5256840.0, 'wrong upper left y coordinate'
 
     band_bounds_mask = band.bounds
-    assert band_bounds_mask.type == 'Polygon'
+    assert band_bounds_mask.geom_type == 'Polygon'
     assert band_bounds_mask.exterior.bounds[0] == band.geo_info.ulx, \
         'upper left x coordinate does not match'
     assert band_bounds_mask.exterior.bounds[3] == band.geo_info.uly, \
@@ -110,6 +112,7 @@ def test_band_from_rasterio(get_test_band, get_bandstack):
             band_idx=22,
         )
 
+
 def test_reprojection(datadir, get_test_band):
     """reprojection into another CRS"""
     # define test data sources
@@ -132,6 +135,7 @@ def test_reprojection(datadir, get_test_band):
     assert meta['width'] == reprojected.ncols
     assert meta['transform'] == reprojected.transform
 
+
 def test_bandstatistics(get_test_band):
 
     band = get_test_band()
@@ -151,6 +155,7 @@ def test_bandstatistics(get_test_band):
     assert gdf.B02.min() == stats[0]['min'], 'band statistics not the same after conversion'
     assert gdf.B02.mean() == stats[0]['mean'], 'band statistics not the same after conversion'
 
+
 def test_to_xarray(get_test_band):
     band = get_test_band()
     # convert to xarray
@@ -165,6 +170,7 @@ def test_to_xarray(get_test_band):
         'masked values were not set to nan correctly'
     assert xarr.shape[1] == band.nrows and xarr.shape[2] == band.ncols, \
         'wrong number of rows and columns in xarray'
+
 
 def test_resampling(get_test_band):
     band = get_test_band()
@@ -199,6 +205,7 @@ def test_resampling(get_test_band):
     )
 
     assert (band.nrows, band.ncols) == old_shape, 'resampling to target shape did not work'
+
 
 def test_masking(datadir, get_test_band, get_bandstack, get_points3):
     """masking of band data"""
@@ -240,6 +247,7 @@ def test_masking(datadir, get_test_band, get_bandstack, get_points3):
     band_read_again = Band.from_rasterio(fpath_out)
     assert (band_read_again.values == band.values.data).all(), \
         'band data not the same after writing'
+
 
 def test_read_pixels(get_bandstack, get_test_band, get_polygons, get_points3):
     # read single pixels from raster dataset
@@ -297,6 +305,7 @@ def test_read_pixels(get_bandstack, get_test_band, get_polygons, get_points3):
     assert resampled.geo_info.pixres_x == 5, 'wrong x pixel resolution'
     assert resampled.geo_info.pixres_y == -5, 'wrong y pixel resolution'
     assert resampled.bounds == band.bounds, 'band bounds should be the same after resampling'
+
 
 def test_from_vector(get_polygons):
     vector_features = get_polygons()
@@ -356,6 +365,7 @@ def test_from_vector(get_polygons):
     assert band_from_points.values.dtype == 'uint32', 'wrong data type'
     assert band_from_points.reduce(method='max')[0]['max'] == \
         point_gdf.GIS_ID.values.astype(int).max(), 'miss-match in band statistics'
+
 
 def test_clip_band(get_test_band):
     """
@@ -441,6 +451,7 @@ def test_clip_band(get_test_band):
     assert band_clipped.geo_info.ulx == band_before_clip.geo_info.ulx, 'upper left x should be the same'
     assert band_clipped.geo_info.uly == band_before_clip.geo_info.uly - 2000, 'wrong upper left y coordinate'
 
+
 def test_clip_band_small_extents(get_project_root_path):
     # geometry for clipping data to
     small_test_geom = Polygon(
@@ -466,6 +477,7 @@ def test_clip_band_small_extents(get_project_root_path):
     assert (clipped.values == np.array([[1716, 1698],[1690, 1690]])).all(), \
         'wrong values returned'
     assert not clipped.is_masked_array, 'should not be a masked array'
+
 
 def test_reduce_band_by_polygons(get_polygons, get_test_band):
     """reduction of band raster values by polygons"""

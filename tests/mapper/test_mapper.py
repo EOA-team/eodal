@@ -36,6 +36,7 @@ from eodal.mapper.mapper import MapperConfigs, Mapper
 Settings = get_settings()
 Settings.USE_STAC = True
 
+
 def test_mapper_configs(tmppath):
 
     # construct a Feature
@@ -71,6 +72,7 @@ def test_mapper_configs(tmppath):
             'wrong filtering expression'
         assert _filter.entity == mapper_configs_rl.metadata_filters[idx].entity, \
             'wrong filtering entity'
+
 
 @pytest.mark.skip(reason="At the moment, we cannot test with a DB since we have no test DB")
 @pytest.mark.parametrize(
@@ -184,6 +186,7 @@ def test_mapper_get_scenes_stac(collection, time_start, time_end, geom, metadata
     assert isinstance(mapper.metadata, gpd.GeoDataFrame), 'expected a GeoDataFrame'
     assert not mapper.metadata.empty, 'expected some items to be returned'
 
+
 @pytest.fixture
 def get_mapper():
     def _get_mapper():
@@ -220,6 +223,7 @@ def get_mapper():
         return mapper
     return _get_mapper
 
+
 def test_mapper_load_scenes(get_mapper):
     """
     test loading of Sentinel-2 scenes into a SceneCollection instance
@@ -235,6 +239,7 @@ def test_mapper_load_scenes(get_mapper):
 
     assert isinstance(mapper.data, SceneCollection), 'expected a SceneCollection'
     assert isinstance(mapper.data[mapper.data.identifiers[0]], Sentinel2), 'expected a Sentinel 2 scene'
+
 
 @pytest.mark.parametrize(
     'collection,time_start,time_end,geom,metadata_filters',

@@ -7,6 +7,7 @@ import pytest
 from eodal.core.band import Band
 from eodal.core.raster import RasterCollection
 
+
 def test_raster_slice(get_bandstack):
     """test slicing of RasterCollections to get a subset"""
 

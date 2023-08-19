@@ -1579,7 +1579,7 @@ class Band(object):
         # get color-map
         cmap = user_defined_colors
         if cmap is None:
-            cmap = plt.cm.get_cmap(colormap)
+            cmap = mpl.colormaps.get_cmap(colormap)
 
         # check if data is continuous (spectral) or discrete (np.unit8)
         if discrete_values:
@@ -1981,7 +1981,11 @@ class Band(object):
         except Exception as e:
             raise ReprojectionError(f"Could not re-project band {self.band_name}: {e}")
 
-        # cast array back to original dtype
+        # cast array back to original data type
+        # make sure to handle NaNs properly
+        if np.isnan(out_data).any() and not self.values.dtype == float:
+            out_data[np.isnan(out_data)] = np.nanmin(out_data)
+
         if len(out_data.shape) == 2:
             out_data = out_data.astype(self.values.dtype)
         elif len(out_data.shape) == 3:

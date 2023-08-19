@@ -46,20 +46,24 @@ def get_ndvi(
     mapper.load_scenes(scene_kwargs=scene_kwargs)
 
     # calculate the NDVI
-    for scene_uri, scene in mapper.data:
+    for scene_timestamp, scene in mapper.data:
         scene.calc_si('NDVI', inplace=True)
         # save NDVI as GeoTiff
         fpath_ndvi = output_dir.joinpath(
-            scene_uri.stem + '_ndvi.tif'
+            f'{scene_timestamp}_ndvi.tif'
         )
         scene['ndvi'].to_rasterio(fpath_ndvi)
 
 
 if __name__ == '__main__':
 
+    import os
+    cwd = Path(__file__).parents[1]
+    os.chdir(cwd)
+
     # -------------------------- Paths -------------------------------------
     # define the output directory where to save the NDVI GeoTiff files
-    output_dir = Path('data')
+    output_dir = cwd.joinpath('data')
 
     # user-inputs
     # -------------------------- Collection -------------------------------
@@ -73,7 +77,8 @@ if __name__ == '__main__':
     cloudy_pixel_percentage: int = 25  # percent (scene-wide)
 
     # ---------------------- Spatial Feature  ------------------------------
-    geom = Path('data/sample_polygons/ZH_Polygon_73129_ESCH_EPSG32632.shp')
+    geom = cwd.joinpath(
+        'data/sample_polygons/ZH_Polygon_73129_ESCH_EPSG32632.shp')
 
     # ------------------------- Metadata Filters ---------------------------
     metadata_filters: List[Filter] = [
