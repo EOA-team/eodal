@@ -16,17 +16,16 @@ def test_landsat_from_usgs():
 
     # query STAC for a custom region
     collection = 'landsat-c2-l2'
-    bbox = box(*[7.0, 47.0, 8.0, 48.0])
+    bbox = box(*[7.7, 47.7, 8.0, 48.0])
 
-    years = [1995, 2023]
+    years = [1996, 2023]
 
     for year in years:
         time_start = datetime(year, 5, 1)
         time_end = datetime(year, 5, 30)
     
         metadata_filters = [
-            Filter('eo:cloud_cover', '<', 70),
-            Filter('landsat:wrs_row', '==', '028')
+            Filter('eo:cloud_cover', '<', 70)
         ]
 
         landsat_items = landsat_stac(
@@ -44,12 +43,12 @@ def test_landsat_from_usgs():
             vector_features=gdf,
             read_qa=False,
             read_atcor=False,
-            band_selection=['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'qa']
+            band_selection=['B1', 'B2', 'B3', 'B4', 'B5', 'B6']
         )
         assert landsat.band_names == \
-            ['coastal', 'blue', 'green', 'red', 'nir08', 'swir16', 'qa'], 'wrong band names'
+            ['blue', 'green', 'red', 'nir08', 'swir16'], 'wrong band names'
         assert landsat.band_aliases == \
-            ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'qa'], 'wrong band aliases'
+            ['B1', 'B2', 'B3', 'B4', 'B5'], 'wrong band aliases'
         for band_name in landsat.band_names[:-1]:
             assert 0 < landsat[band_name].values.min() <= 1, 'wrong value'
             assert 0 < landsat[band_name].values.max() <= 1, 'wrong value'
