@@ -50,6 +50,10 @@ Settings.USE_STAC = True
 
 if __name__ == "__main__":
 
+    import os
+    cwd = Path(__file__).parents[1]
+    os.chdir(cwd)
+
     # user-inputs
     # -------------------------- Collection -------------------------------
     collection = 'landsat-c2-l1'
