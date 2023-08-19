@@ -71,6 +71,10 @@ def prepocess_landsat_scene(
 
 if __name__ == "__main__":
 
+    import os
+    cwd = Path(__file__).parents[1]
+    os.chdir(cwd)
+
     # user-inputs
     # -------------------------- Collection -------------------------------
     collection = 'landsat-c2-l2'
@@ -134,6 +138,6 @@ if __name__ == "__main__":
 
     # make the SceneCollection obtained persistent so that we do not have to re-run
     # the STAC query all the time we use the data.
-    fpath = Path('../data/sample_mapper_data.pkl')
+    fpath = Path('data/sample_mapper_data.pkl')
     with open(fpath, 'wb+') as dst:
         dst.write(mapper.data.to_pickle())
