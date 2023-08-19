@@ -1,4 +1,5 @@
 [![Documentation Status](https://readthedocs.org/projects/eodal/badge/?version=latest)](https://eodal.readthedocs.io/en/latest/?badge=latest)
+[![codecov](https://codecov.io/gh/lukasValentin/eodal/graph/badge.svg?token=87CFHMHC41)](https://codecov.io/gh/lukasValentin/eodal)
 
 # E:earth_africa:dal Earth Observation Data Analysis Library
 
