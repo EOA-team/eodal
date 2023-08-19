@@ -13,12 +13,13 @@ Categories for changes are: Added, Changed, Deprecated, Removed, Fixed, Security
 Version `0.2.2 < https://github.com/EOA-team/eodal/releases/tag/v0.2.2>`__
 --------------------------------------------------------------------------------
 
-Release date: 2023-08-XX
+Release date: 2023-08-19
 
 - Added: Full support for USGS Landsat Collection-2 data given access to data >50 years of data starting with Landsat-1 (#66).
 - Changed: The spectral index module has undergone some flexibilization efforts. Now, custom bands can be passed for index calculation.
 - Fixed: Calls to new `pydantic_settings` have been added where necessary to provide compatability with `pydantic` version 2.+ (#73).
 - Added: The mapper now also supports merging (mosaicing) of scenes with slightly different time stamps as it often happens with EO platforms when scenes are acquired one after another. It works by calling `pandas.Timestamp.round` on the scene metadata time column.
+- Fixed: A set of deprecation warnings from `pydantic`, `matplotlib` and `shapely`.
 
 
 Version `0.2.1 < https://github.com/EOA-team/eodal/releases/tag/v0.2.1>`__
