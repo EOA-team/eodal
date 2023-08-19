@@ -15,7 +15,7 @@ from shapely.geometry import box
 def test_landsat_from_usgs():
 
     # query STAC for a custom region
-    collection = 'landsat_mapper-c2-l2'
+    collection = 'landsat-c2-l2'
     bbox = box(*[7.0, 47.0, 8.0, 48.0])
 
     years = [1995, 2023]
@@ -26,7 +26,7 @@ def test_landsat_from_usgs():
     
         metadata_filters = [
             Filter('eo:cloud_cover', '<', 70),
-            Filter('landsat_mapper:wrs_row', '==', '028')
+            Filter('landsat:wrs_row', '==', '028')
         ]
 
         landsat_items = landsat_stac(

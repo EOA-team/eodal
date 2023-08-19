@@ -4,27 +4,32 @@ Tests for the pystac client interface
 
 import pytest
 
-from datetime import date
+from datetime import datetime
+from shapely.geometry import box
 
 from eodal.mapper.filter import Filter
 from eodal.metadata.stac import sentinel1, sentinel2
 from eodal.utils.sentinel1 import _url_to_safe_name
 from eodal.utils.sentinel2 import ProcessingLevels
 
+
 def test_mspc_sentinel1(get_polygons):
     """Sentinel-1 GRD and RTC from MSPC"""
 
-    date_start = date(2022, 5, 1)
-    date_end = date(2022, 5, 31)
+    time_start = datetime(2022, 5, 1)
+    time_end = datetime(2022, 5, 31)
 
     polys = get_polygons()
+    bbox = box(*polys.to_crs(epsg=4326).total_bounds())
 
+    # test RTC product
+    metadata_filters = [Filter('product_type', '==', 'RTC')]
     res_s1 = sentinel1(
-        time_start=date_start,
-        time_end=date_end,
-        bounding_box=polys,
-        metadata_filters=[],
-        platform='s1'
+        metadata_filters=metadata_filters,
+            collection='sentinel1-grd',
+            bounding_box=bbox,
+            time_start=time_start,
+            time_end=time_end
     )
 
     assert not res_s1.empty, 'no mapper found'
@@ -35,11 +40,11 @@ def test_mspc_sentinel1(get_polygons):
 
     # test GRD
     res_grd_s1 = sentinel1(
-        time_start=date_start,
-        time_end=date_end,
-        bounding_box=polys,
-        platform='s1',
-        metadata_filters=[Filter('product_type','==','GRD')]
+        metadata_filters=metadata_filters,
+            collection='sentinel1-grd',
+            bounding_box=bbox,
+            time_start=time_start,
+            time_end=time_end
     )
 
     assert not res_grd_s1.empty, 'no mapper found'
@@ -49,31 +54,32 @@ def test_mspc_sentinel1(get_polygons):
     assert 'rtc' not in res_grd_s1.iloc[0].assets['vh']['href'], \
         'RTC substring found in GRD-only dataset'
 
+
 def test_mspc_sentinel2(get_polygons):
     """Sentinel-2 L2A from MSPC"""
 
     # define time period
-    date_start = date(2022, 5, 1)
-    date_end = date(2022, 5, 31)
-    # select processing level
-    processing_level = 'Level-2A'
+    time_start = datetime(2022, 5, 1)
+    time_end = datetime(2022, 5, 31)
     # set scene cloud cover threshold [%]
     cloud_cover_threshold = 80
 
     polys = get_polygons()
+    bbox = box(*polys.to_crs(epsg=4326).total_bounds())
 
     metadata_filters = [
         Filter('cloudy_pixel_percentage', '<', cloud_cover_threshold),
-        Filter('processing_level', '==', processing_level)
+        Filter('processing_level', '==', 'L2A')
     ]
 
     # run stack query and make sure some items are returned
     res_s2 = sentinel2(
-        time_start=date_start,
-        time_end=date_end,
-        bounding_box=polys,
         metadata_filters=metadata_filters,
-        platform='s2'
+            collection='sentinel2-msi',
+            bounding_box=bbox,
+            time_start=time_start,
+            time_end=time_end
     )
+        
     assert not res_s2.empty, 'no results found'
     assert 'assets' in res_s2.columns, 'no assets provided'

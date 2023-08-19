@@ -9,6 +9,7 @@ import pytest
 from eodal.core.band import Band
 from eodal.core.raster import RasterCollection
 
+
 def test_raster_iterator(get_bandstack):
     """test the __iter__() method of RasterCollections"""
 
