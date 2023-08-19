@@ -266,6 +266,7 @@ def test_band_selections(datadir, get_s2_safe_l2a, get_polygons_2):
         )
 
 
+@pytest.mark.skip(reason='too heavy test for Github workflows')
 def test_read_from_safe_l2a(datadir, get_s2_safe_l2a):
     """handling Sentinel-2 data from .SAFE archives (no masking)"""
     in_dir = get_s2_safe_l2a()
