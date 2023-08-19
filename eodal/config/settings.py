@@ -123,12 +123,6 @@ class Settings(BaseSettings):
         self.logger.addHandler(fh)
         self.logger.addHandler(ch)
 
-    # env files are encoded utf-8, only
-    class Config:
-        env_file = "../../docker-services/.env"
-        env_file_encoding = "utf-8"
-        arbitrary_types_allowed = True
-
 
 @lru_cache()
 def get_settings():
