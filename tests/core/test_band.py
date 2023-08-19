@@ -85,7 +85,7 @@ def test_band_from_rasterio(get_test_band, get_bandstack):
     assert band.geo_info.uly == 5256840.0, 'wrong upper left y coordinate'
 
     band_bounds_mask = band.bounds
-    assert band_bounds_mask.type == 'Polygon'
+    assert band_bounds_mask.geom_type == 'Polygon'
     assert band_bounds_mask.exterior.bounds[0] == band.geo_info.ulx, \
         'upper left x coordinate does not match'
     assert band_bounds_mask.exterior.bounds[3] == band.geo_info.uly, \
