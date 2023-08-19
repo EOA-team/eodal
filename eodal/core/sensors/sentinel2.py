@@ -525,8 +525,9 @@ class Sentinel2(RasterCollection):
         if gdf.dtypes[band_names].unique() in ["float32", "float64"]:
             gdf[band_names] = gdf[band_names].replace({0.0, np.nan})
             gdf.dropna(axis=0, inplace=True)
-        elif gdf.dtypes[band_names].unique() in ["int16", "int32", "int64"]:
-            gdf = gdf.loc[~(gdf[band_df_safe.band_name] == 0).all(axis=1)]
+        elif gdf.dtypes[band_names].unique() in ["uint16", "int16", "int32", "int64"]:
+            gdf = gdf.loc[
+                ~(gdf[band_df_safe.band_name] == 0).all(axis=1)].copy()
 
         return gdf
 
