@@ -22,6 +22,7 @@ from __future__ import annotations
 import eodal
 import os
 import geopandas as gpd
+import numpy as np
 import uuid
 
 from pathlib import Path
@@ -40,7 +41,8 @@ def _get_crs_and_attribs(
     in_file: Path, **kwargs
 ) -> Tuple[GeoInfo, List[Dict[str, Any]]]:
     """
-    Returns the ``GeoInfo`` from a multi-band raster dataset
+    Returns the ``GeoInfo``, attributes and data type from
+    a multi-band raster dataset
 
     :param in_file:
         raster datasets from which to extract the ``GeoInfo`` and
@@ -55,7 +57,8 @@ def _get_crs_and_attribs(
     ds = RasterCollection.from_multi_band_raster(fpath_raster=in_file, **kwargs)
     geo_info = ds[ds.band_names[0]].geo_info
     attrs = [ds[x].get_attributes() for x in ds.band_names]
-    return geo_info, attrs
+    dtype = ds[ds.band_names[0]].values.dtype
+    return geo_info, attrs, dtype
 
 
 def merge_datasets(
@@ -110,7 +113,7 @@ def merge_datasets(
     crs_list = []
     attrs_list = []
     for dataset in datasets:
-        geo_info, attrs = _get_crs_and_attribs(in_file=dataset)
+        geo_info, attrs, dtype = _get_crs_and_attribs(in_file=dataset)
         crs_list.append(geo_info.epsg)
         attrs_list.append(attrs)
 
@@ -133,6 +136,7 @@ def merge_datasets(
         res = merge(datasets=datasets, dst_path=out_file, dst_kwds=dst_kwds, **kwargs)
         if res is not None:
             out_ds, out_transform = res[0], res[1]
+            out_ds = out_ds.astype(dtype)
     except Exception as e:
         raise Exception(f"Could not merge datasets: {e}")
 
@@ -188,16 +192,24 @@ def merge_datasets(
             else:
                 band_alias = f"B{idx+1}"
 
+        # get the mask from nodata values
+        nodata_mask = out_ds[idx, :, :] == nodata
+        band_arr = np.ma.masked_array(
+            data=out_ds[idx, :, :],
+            mask=nodata_mask,
+            fill_value=nodata
+        )
+
         raster.add_band(
             band_constructor=Band,
             band_name=band_name,
-            values=out_ds[idx, :, :],
+            values=band_arr,
             geo_info=geo_info,
             is_tiled=is_tiled,
             scale=scale,
             offset=offset,
             band_alias=band_alias,
-            unit=unit,
+            unit=unit
         )
 
     # clip raster collection if required to vector_features to keep consistency
