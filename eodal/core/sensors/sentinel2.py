@@ -411,7 +411,8 @@ class Sentinel2(RasterCollection):
             )
         # set SCL fill value to 0
         if "SCL" in sentinel2.band_names:
-            sentinel2["SCL"].values.fill_value = 0
+            if sentinel2["SCL"].is_masked_array:
+                sentinel2["SCL"].values.fill_value = 0
         return sentinel2
 
     @classmethod
