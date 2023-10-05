@@ -1691,6 +1691,7 @@ class Band(object):
             )
 
         # check if array is already masked
+        fill_value = None
         if self.is_masked_array:
             orig_mask = self.values.mask
             # update the existing mask

@@ -394,7 +394,11 @@ class Sentinel2(RasterCollection):
                 )
                 # cast back to boolean
                 mask = res.astype("bool")
-                sentinel2.mask(mask=mask, bands_to_mask=[band_name], inplace=True)
+                sentinel2.mask(
+                    mask=mask,
+                    bands_to_mask=[band_name],
+                    inplace=True
+                )
         # scaling of reflectance values (i.e., do not scale SCL)
         if apply_scaling:
             sel_bands = sentinel2.band_names
