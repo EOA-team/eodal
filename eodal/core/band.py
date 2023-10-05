@@ -1691,7 +1691,6 @@ class Band(object):
             )
 
         # check if array is already masked
-        fill_value = None
         if self.is_masked_array:
             orig_mask = self.values.mask
             # update the existing mask
@@ -1700,8 +1699,13 @@ class Band(object):
                     # ignore pixels already masked
                     if not orig_mask[row, col]:
                         orig_mask[row, col] = mask[row, col]
+            # re-use original fill value
+            fill_value = self.values.fill_value
             # update band data array
-            masked_array = np.ma.MaskedArray(data=self.values.data, mask=orig_mask)
+            masked_array = np.ma.MaskedArray(
+                data=self.values.data,
+                mask=orig_mask,
+                fill_value=fill_value)
         elif self.is_ndarray:
             masked_array = np.ma.MaskedArray(data=self.values, mask=mask)
         elif self.is_zarr:
