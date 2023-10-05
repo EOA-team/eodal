@@ -409,6 +409,9 @@ class Sentinel2(RasterCollection):
                 band_selection=sel_bands,
                 pixel_values_to_ignore=[sentinel2[sentinel2.band_names[0]].nodata],
             )
+        # set SCL fill value to 0
+        if "SCL" in sentinel2.band_names:
+            sentinel2["SCL"].values.fill_value = 0
         return sentinel2
 
     @classmethod
