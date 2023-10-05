@@ -1895,8 +1895,10 @@ class Band(object):
             out_mask = cv2.resize(in_mask, dim_resampled, cv2.INTER_NEAREST_EXACT)
             # convert mask back to boolean array
             out_mask = out_mask.astype(bool)
+            # re-use fill value of the original array
+            fill_value = self.values.fill_value
             # save as masked array
-            res = np.ma.masked_array(data=res, mask=out_mask)
+            res = np.ma.masked_array(data=res, mask=out_mask, fill_value=fill_value)
 
         # update the geo_info with new pixel resolution. The upper left x and y
         # coordinate must be changed if the pixel coordinates refer to the center
@@ -1967,6 +1969,7 @@ class Band(object):
         if self.is_masked_array:
             band_data = deepcopy(self.values.data).astype(float)
             band_mask = deepcopy(self.values.mask).astype(float)
+            fill_value = self.values.fill_value
         elif self.is_ndarray:
             band_data = deepcopy(self.values).astype(float)
         elif self.is_zarr:
@@ -2009,7 +2012,8 @@ class Band(object):
             # due to the raster alignment
             nodata = reprojection_options.get("src_nodata", 0)
             out_mask[out_data == nodata] = True
-            out_data = np.ma.MaskedArray(data=out_data, mask=out_mask)
+            out_data = np.ma.MaskedArray(
+                data=out_data, mask=out_mask, fill_value=fill_value)
 
         new_geo_info = GeoInfo.from_affine(affine=out_transform, epsg=target_crs)
         if inplace:
