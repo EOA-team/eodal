@@ -2211,7 +2211,10 @@ class Band(object):
                     scaled_array[~np.isin(scaled_array, pixel_values_to_ignore)]
                     + offset
                 )
-            scaled_array = np.ma.MaskedArray(data=scaled_array, mask=self.values.mask)
+            # reuse fill value
+            fill_value = self.values.fill_value
+            scaled_array = np.ma.MaskedArray(
+                data=scaled_array, mask=self.values.mask, fill_value=fill_value)
         elif self.is_ndarray:
             if pixel_values_to_ignore is None:
                 scaled_array = scale * (self.values + offset)
