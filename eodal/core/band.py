@@ -2379,3 +2379,5 @@ class Band(object):
                 dst.write(self.values, 1)
             elif self.is_ndarray:
                 dst.write(self.values, 1)
+
+            # TODO: Write scale and offset to the file's metadata
