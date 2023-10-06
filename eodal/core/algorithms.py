@@ -39,10 +39,10 @@ Settings = get_settings()
 
 def _get_crs_and_attribs(
     in_file: Path, **kwargs
-) -> Tuple[GeoInfo, List[Dict[str, Any]]]:
+) -> Tuple[GeoInfo, List[Dict[str, Any]], str]:
     """
     Returns the ``GeoInfo``, attributes and data type from
-    a multi-band raster dataset
+    a multi-band raster dataset.
 
     :param in_file:
         raster datasets from which to extract the ``GeoInfo`` and
@@ -133,10 +133,11 @@ def merge_datasets(
     # use rasterio merge to get a new raster dataset
     dst_kwds = {"QUALITY": "100", "REVERSIBLE": "YES"}
     try:
-        res = merge(datasets=datasets, dst_path=out_file, dst_kwds=dst_kwds, **kwargs)
+        res = merge(
+            datasets=datasets, dst_path=out_file, dst_kwds=dst_kwds,
+            dtype=dtype, **kwargs)
         if res is not None:
             out_ds, out_transform = res[0], res[1]
-            out_ds = out_ds.astype(dtype)
     except Exception as e:
         raise Exception(f"Could not merge datasets: {e}")
 
