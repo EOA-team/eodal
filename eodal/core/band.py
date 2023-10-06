@@ -1707,7 +1707,10 @@ class Band(object):
                 mask=orig_mask,
                 fill_value=fill_value)
         elif self.is_ndarray:
-            masked_array = np.ma.MaskedArray(data=self.values, mask=mask)
+            # determine fill value from nodata value
+            fill_value = self.nodata
+            masked_array = np.ma.MaskedArray(
+                data=self.values, mask=mask, fill_value=fill_value)
         elif self.is_zarr:
             raise NotImplementedError()
 
