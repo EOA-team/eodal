@@ -101,6 +101,7 @@ from eodal.config import get_settings
 from eodal.core.band import Band
 from eodal.core.operators import Operator
 from eodal.core.spectral_indices import SpectralIndices
+from eodal.core.utils import get_highest_dtype
 from eodal.utils.constants import ProcessingLevels
 from eodal.utils.decorators import check_band_names
 from eodal.utils.exceptions import BandNotFoundError
@@ -1721,24 +1722,16 @@ class RasterCollection(MutableMapping):
         # check meta and update it with the selected driver for writing the result
         meta = deepcopy(self[band_selection[0]].meta)
         dtypes = [self[x].values.dtype for x in band_selection]
-        if len(set(dtypes)) != 1:
-            UserWarning(
-                f"Multiple data types found in arrays to write ({set(dtypes)}). "
-                f"Casting to highest data type"
-            )
 
-        if len(set(dtypes)) == 1:
-            dtype_str = str(dtypes[0])
-        else:
-            # TODO: determine highest dtype
-            dtype_str = "float32"
+        # data type checking. We need to get the highest data type
+        highest_dtype = get_highest_dtype(dtypes)
 
         # update driver, the number of bands and the metadata value
         meta.update(
             {
                 "driver": driver,
                 "count": len(band_selection),
-                "dtype": dtype_str,
+                "dtype": str(highest_dtype),
                 "nodata": self[band_selection[0]].nodata,
             }
         )
@@ -1748,8 +1741,8 @@ class RasterCollection(MutableMapping):
             for idx, band_name in enumerate(band_selection):
                 # check with band name to set
                 dst.set_band_description(idx + 1, band_name)
-                # write band data
-                band_data = self.get_band(band_name).values.astype(dtype_str)
+                # write band data. Cast to highest dtype if necessary.
+                band_data = self.get_band(band_name).values.astype(highest_dtype)
                 # set masked pixels to nodata
                 if self[band_name].is_masked_array:
                     vals = band_data.data
