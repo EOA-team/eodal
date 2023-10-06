@@ -293,7 +293,7 @@ class Sentinel2(RasterCollection):
         masking_after_read_required = False
 
         if kwargs.get("vector_features") is not None:
-            bounds_df, shape_mask, lowest_resolution = adopt_vector_features_to_mask(
+            bounds_df, shape_mask, _ = adopt_vector_features_to_mask(
                 band_df=band_df_safe,
                 vector_features=kwargs.get("vector_features")
             )
@@ -382,9 +382,6 @@ class Sentinel2(RasterCollection):
                 )
             # apply actual vector features if masking is required
             if masking_after_read_required:
-                # nothing to do when the lowest resolution is passed
-                if band_safe.band_resolution.values == lowest_resolution:
-                    continue
                 # otherwise resample the mask of the lowest resolution to the
                 # current resolution using nearest neighbor interpolation
                 tmp = shape_mask.astype("uint8")
