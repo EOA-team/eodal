@@ -1743,8 +1743,8 @@ class RasterCollection(MutableMapping):
             # set scale and offset
             scales = [self[band_name].scale for band_name in band_selection]
             offsets = [self[band_name].offset for band_name in band_selection]
-            dst._set_all_scales([scales])
-            dst._set_all_offsets([offsets])
+            dst._set_all_scales(scales)
+            dst._set_all_offsets(offsets)
             
             for idx, band_name in enumerate(band_selection):
                 # check with band name to set
