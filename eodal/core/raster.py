@@ -1733,15 +1733,23 @@ class RasterCollection(MutableMapping):
                 "count": len(band_selection),
                 "dtype": str(highest_dtype),
                 "nodata": self[band_selection[0]].nodata,
+                "compression": "DEFLATE"
             }
         )
 
         # open the result dataset and try to write the bands
         with rio.open(fpath_raster, "w+", **meta) as dst:
+
+            # set scale and offset
+            scales = [self[band_name].scale for band_name in band_selection]
+            offsets = [self[band_name].offset for band_name in band_selection]
+            dst._set_all_scales([scales])
+            dst._set_all_offsets([offsets])
+            
             for idx, band_name in enumerate(band_selection):
                 # check with band name to set
                 dst.set_band_description(idx + 1, band_name)
-                # write band data. Cast to highest dtype if necessary.
+                # write band data. Cast to highest data type if necessary.
                 band_data = self.get_band(band_name).values.astype(highest_dtype)
                 # set masked pixels to nodata
                 if self[band_name].is_masked_array:
