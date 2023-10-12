@@ -1372,6 +1372,9 @@ class Band(object):
         meta["transform"] = self.transform
         meta["is_tile"] = self.is_tiled
         meta["driver"] = driver
+        # "compress" as suggested here:
+        # https://github.com/rasterio/rasterio/discussions/2933#discussioncomment-7208578
+        meta["compress"] = "DEFLATE"
         meta.update(kwargs)
 
         return meta
@@ -2371,6 +2374,9 @@ class Band(object):
         with rio.open(fpath_raster, "w+", **meta) as dst:
             # set band name
             dst.set_band_description(1, self.band_name)
+            # set scale and offset
+            dst._set_all_scales([self.scale])
+            dst._set_all_offsets([self.offset])
             # write band data
             if self.is_masked_array:
                 vals = self.values.data
@@ -2379,5 +2385,3 @@ class Band(object):
                 dst.write(self.values, 1)
             elif self.is_ndarray:
                 dst.write(self.values, 1)
-
-            # TODO: Write scale and offset to the file's metadata
