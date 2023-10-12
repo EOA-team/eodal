@@ -90,6 +90,7 @@ from matplotlib.pyplot import Figure
 from numbers import Number
 from pathlib import Path
 from rasterio.drivers import driver_from_extension
+from rasterio.io import MemoryFile
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -1676,6 +1677,7 @@ class RasterCollection(MutableMapping):
         fpath_raster: Path,
         band_selection: Optional[List[str]] = None,
         use_band_aliases: Optional[bool] = False,
+        as_cog: Optional[bool] = False
     ) -> None:
         """
         Writes bands in collection to a raster dataset on disk using
@@ -1690,14 +1692,30 @@ class RasterCollection(MutableMapping):
         :param use_band_aliases:
             use band aliases instead of band names for setting raster
             band descriptions to the output dataset
+        :param as_cog:
+            write the raster dataset as cloud-optimized GeoTIFF. This
+            requires the ``rio-cogeo`` package to be installed. Disabled
+            by default.
         """
-        # check output file naming and driver
-        try:
-            driver = driver_from_extension(fpath_raster)
-        except Exception as e:
-            raise ValueError(
-                f"Could not determine GDAL driver for " f"{fpath_raster.name}: {e}"
-            )
+        # check if COG output is enabled
+        if as_cog:
+            try:
+                from rio_cogeo.cogeo import cog_translate
+                from rio_cogeo.profiles import cog_profiles
+            except ModuleNotFoundError:
+                raise ModuleNotFoundError(
+                    "rio-cogeo is required for writing cloud-optimized GeoTIFFs\n" +
+                    "Install it with `pip install rio-cogeo`"
+                )
+            driver = "GTiff"
+        else:
+            # check output file naming and driver
+            try:
+                driver = driver_from_extension(fpath_raster)
+            except Exception as e:
+                raise ValueError(
+                    f"Could not determine GDAL driver for " f"{fpath_raster.name}: {e}"
+                )
 
         # check band_selection, if not provided use all available bands
         if band_selection is None:
@@ -1738,20 +1756,46 @@ class RasterCollection(MutableMapping):
         )
 
         # open the result dataset and try to write the bands
-        with rio.open(fpath_raster, "w+", **meta) as dst:
+        if as_cog:
+            with MemoryFile() as memfile:
+                with memfile.open(**meta) as mem:
+                    # set scales and offsets
+                    scales = [self[band_name].scale for band_name in band_selection]
+                    offsets = [self[band_name].offset for band_name in band_selection]
+                    mem._set_all_scales(scales)
+                    mem._set_all_offsets(offsets)
+                    # polulate data
+                    for idx, band_name in enumerate(band_selection):
+                        # check with band name to set
+                        mem.set_band_description(idx + 1, band_name)
+                        # write band data. Cast to highest data type if necessary.
+                        band_data = self.get_band(band_name).values.astype(highest_dtype)
+                        mem.write(band_data, idx + 1)
 
-            # set scales and offsets
-            scales = [self[band_name].scale for band_name in band_selection]
-            offsets = [self[band_name].offset for band_name in band_selection]
-            dst._set_all_scales(scales)
-            dst._set_all_offsets(offsets)
-            
-            for idx, band_name in enumerate(band_selection):
-                # check with band name to set
-                dst.set_band_description(idx + 1, band_name)
-                # write band data. Cast to highest data type if necessary.
-                band_data = self.get_band(band_name).values.astype(highest_dtype)
-                dst.write(band_data, idx + 1)
+                    # write the COG
+                    dst_profile = cog_profiles.get("deflate")
+                    cog_translate(
+                        mem,
+                        fpath_raster,
+                        dst_profile,
+                        in_memory=True,
+                        quiet=True
+                    )
+
+        else:
+            with rio.open(fpath_raster, "w+", **meta) as dst:
+                # set scales and offsets
+                scales = [self[band_name].scale for band_name in band_selection]
+                offsets = [self[band_name].offset for band_name in band_selection]
+                dst._set_all_scales(scales)
+                dst._set_all_offsets(offsets)
+                # polulate data
+                for idx, band_name in enumerate(band_selection):
+                    # check with band name to set
+                    dst.set_band_description(idx + 1, band_name)
+                    # write band data. Cast to highest data type if necessary.
+                    band_data = self.get_band(band_name).values.astype(highest_dtype)
+                    dst.write(band_data, idx + 1)
 
     @check_band_names
     def to_xarray(self, band_selection: Optional[List[str]] = None) -> xr.DataArray:
