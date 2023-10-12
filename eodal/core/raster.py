@@ -1740,7 +1740,7 @@ class RasterCollection(MutableMapping):
         # open the result dataset and try to write the bands
         with rio.open(fpath_raster, "w+", **meta) as dst:
 
-            # set scale and offset
+            # set scales and offsets
             scales = [self[band_name].scale for band_name in band_selection]
             offsets = [self[band_name].offset for band_name in band_selection]
             dst._set_all_scales(scales)
