@@ -1751,17 +1751,12 @@ class RasterCollection(MutableMapping):
                 dst.set_band_description(idx + 1, band_name)
                 # write band data. Cast to highest data type if necessary.
                 band_data = self.get_band(band_name).values.astype(highest_dtype)
-                # set masked pixels to nodata
-                if self[band_name].is_masked_array:
-                    vals = band_data.data
-                    mask = band_data.mask
-                    vals[mask] = self[band_name].nodata
                 dst.write(band_data, idx + 1)
 
     @check_band_names
     def to_xarray(self, band_selection: Optional[List[str]] = None) -> xr.DataArray:
         """
-        Converts bands in collection a ``xarray.DataArray``
+        Converts bands in collection into a ``xarray.DataArray``
 
         :param band_selection:
             selection of bands to process. If not provided uses all
