@@ -2207,26 +2207,24 @@ class Band(object):
         scale, offset = self.scale, self.offset
         if self.is_masked_array:
             if pixel_values_to_ignore is None:
-                scaled_array = scale * (self.values.data - offset)
+                scaled_array = scale * self.values.data - offset
             else:
                 scaled_array = self.values.data.copy().astype(float)
-                scaled_array[~np.isin(scaled_array, pixel_values_to_ignore)] = scale * (
-                    scaled_array[~np.isin(scaled_array, pixel_values_to_ignore)]
+                scaled_array[~np.isin(scaled_array, pixel_values_to_ignore)] = scale * \
+                    scaled_array[~np.isin(scaled_array, pixel_values_to_ignore)] \
                     - offset
-                )
             # reuse fill value
             fill_value = self.values.fill_value
             scaled_array = np.ma.MaskedArray(
                 data=scaled_array, mask=self.values.mask, fill_value=fill_value)
         elif self.is_ndarray:
             if pixel_values_to_ignore is None:
-                scaled_array = scale * (self.values - offset)
+                scaled_array = scale * self.values - offset
             else:
                 scaled_array = self.values.copy().astype(float)
-                scaled_array[~np.isin(scaled_array, pixel_values_to_ignore)] = scale * (
-                    scaled_array[~np.isin(scaled_array, pixel_values_to_ignore)]
+                scaled_array[~np.isin(scaled_array, pixel_values_to_ignore)] = scale * \
+                    scaled_array[~np.isin(scaled_array, pixel_values_to_ignore)] \
                     - offset
-                )
         elif self.is_zarr:
             raise NotImplementedError()
 
