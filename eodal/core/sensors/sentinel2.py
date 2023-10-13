@@ -112,10 +112,11 @@ class Sentinel2(RasterCollection):
         baseline = get_S2_processing_baseline_from_safe(dot_safe_name=in_dir)
         # starting with baseline N0400 (400) S2 reflectances have an offset
         # value of -1000, i.e., the values reported in the .jp2 files must
-        # be subtracted by 1000 to obtain the actual reflectance factor values
+        # be subtracted by 1000 (0.1 in scaled representation) to obtain the
+        # actual reflectance factor values.
         s2_offset = 0
         if baseline >= 400:
-            s2_offset = 1000
+            s2_offset = 0.1
         return (s2_gain_factor, s2_offset)
 
     @staticmethod
