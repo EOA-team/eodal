@@ -15,7 +15,7 @@ def test_raster_iterator(get_bandstack):
 
     fpath_raster = get_bandstack()
     ds = RasterCollection.from_multi_band_raster(
-        fpath_raster=fpath_raster
+        fpath_raster=fpath_raster, nodata=0
     )
     band_names = ds.band_names
 

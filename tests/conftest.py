@@ -264,7 +264,8 @@ def get_scene_collection(get_bandstack):
         # open three scenes
         scene_list = []
         for i in range(3):
-            ds = RasterCollection.from_multi_band_raster(fpath_raster=fpath_raster)
+            ds = RasterCollection.from_multi_band_raster(
+                fpath_raster=fpath_raster, nodata=0)
             ds.scene_properties.acquisition_time = 1000 * (i+1)
             scene_list.append(ds)
         scoll = SceneCollection.from_raster_collections(

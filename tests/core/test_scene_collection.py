@@ -51,7 +51,7 @@ def test_raster_is_scene(get_bandstack):
 
     fpath_raster = get_bandstack()
     ds = RasterCollection.from_multi_band_raster(
-        fpath_raster=fpath_raster
+        fpath_raster=fpath_raster, nodata=0
     )
     assert not ds.is_scene, 'scene metadata have not been set, so it is not a scene'
 
@@ -105,7 +105,8 @@ def test_scene_collection(get_s2_safe_l2a, get_polygons_2, get_bandstack):
     with pytest.raises(ValueError):
         scoll = SceneCollection(
             scene_constructor=RasterCollection.from_multi_band_raster,
-            fpath_raster=fpath_no_scene
+            fpath_raster=fpath_no_scene,
+            nodata=0
         )
 
     # add another scene
