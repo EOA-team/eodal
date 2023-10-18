@@ -8,7 +8,7 @@ DATATYPES = [
     np.dtype('int32'),np.dtype('int64'), np.dtype('uint'),
     np.dtype('uint8'), np.dtype('uint16'), np.dtype('uint32'),
     np.dtype('uint64'), np.dtype('float16'), np.dtype('float32'),
-    np.dtype('float64'), np.dtype('float128'), np.dtype('complex64'),
+    np.dtype('float64'), np.dtype('complex64'),
     np.dtype('complex128')
 ]
 DTYPE_RANKS = {x: x.num for x in DATATYPES}
