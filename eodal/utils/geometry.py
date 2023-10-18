@@ -96,6 +96,9 @@ def prepare_gdf(
     :returns:
         resulting GeoDataFrame sorted by sensing time.
     """
+    # return an empty GeoDataFrame if there are no entries
+    if len(metadata_list) == 0:
+        return gpd.GeoDataFrame()
     df = pd.DataFrame(metadata_list)
     df.sort_values(by="sensing_time", inplace=True)
     return gpd.GeoDataFrame(df, geometry="geom", crs=df.epsg.unique()[0])
@@ -111,8 +114,6 @@ def adopt_vector_features_to_mask(
     resolution. This is necessary to avoid artifacts (namely different
     spatial extents) in the data caused by the spatial subsetting with
     different pixel sizes.
-
-    ..versionadd:: 0.3.0
 
     :param band_df:
         DataFrame containing the band metadata.
@@ -155,7 +156,7 @@ def adopt_vector_features_to_mask(
             dataset=src,
             shapes=vector_features_geom,
             all_touched=True,
-            crop=True,
+            crop=True
         )
     # get upper left coordinates rasterio takes for the band
     # with the coarsest spatial resolution

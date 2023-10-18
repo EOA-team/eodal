@@ -13,7 +13,8 @@ def test_raster_copy(get_bandstack):
     fpath_raster = get_bandstack()
     rcoll = RasterCollection.from_multi_band_raster(
         fpath_raster=fpath_raster,
-        band_aliases=['a','b','c','d','e','f','g','h','i','j']
+        band_aliases=['a','b','c','d','e','f','g','h','i','j'],
+        nodata=0
     )
     rcoll_copy = rcoll.copy()
 

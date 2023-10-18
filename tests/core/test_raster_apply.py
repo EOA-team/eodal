@@ -57,7 +57,7 @@ def test_apply_custom_function(get_bandstack):
     """
     fpath_raster = get_bandstack()
     gTiff_collection = RasterCollection.from_multi_band_raster(
-        fpath_raster=fpath_raster
+        fpath_raster=fpath_raster, nodata=0
     )
 
     # define a custom function for calculation the square root of values

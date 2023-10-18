@@ -126,9 +126,9 @@ if __name__ == '__main__':
     # optional: get the least cloudy scene
     # to apply it uncomment the statement below. This
     # will return just a single scene no matter how long the time period chosen.
-    # mapper.metadata = mapper.metadata[
-    #       mapper.metadata.cloudy_pixel_percentage ==
-    #       mapper.metadata.cloudy_pixel_percentage.min()].copy()
+    mapper.metadata = mapper.metadata[
+          mapper.metadata.cloudy_pixel_percentage ==
+          mapper.metadata.cloudy_pixel_percentage.min()].copy()
 
     # we tell EOdal how to load the Sentinel-2 scenes using `Sentinel2.from_safe`
     # and pass on some kwargs, e.g., the selection of bands we want to read.
@@ -139,6 +139,7 @@ if __name__ == '__main__':
         'scene_constructor': Sentinel2.from_safe,
         'scene_constructor_kwargs': {'band_selection':
                                      ['B02', 'B03', 'B04', 'B08'],
+                                     'apply_scaling': False,
                                      'read_scl': True},
         'scene_modifier': preprocess_sentinel2_scenes,
         'scene_modifier_kwargs': {'target_resolution': 10}
@@ -147,7 +148,14 @@ if __name__ == '__main__':
     # load the scenes available from STAC
     mapper.load_scenes(scene_kwargs=scene_kwargs)
     # the data loaded into `mapper.data` as a EOdal SceneCollection
-    mapper.data
+    scoll = mapper.data
+
+    # save scenes as cloud-optimized GeoTiff
+    for timestamp, scene in scoll:
+        scene.to_rasterio(
+            f'data/{timestamp}.tiff',
+            band_selection=['red', 'green', 'blue', 'nir_1'],
+            as_cog=True)
 
     # plot scenes in collection
     f_scenes = mapper.data.plot(band_selection=['blue', 'green', 'red'])

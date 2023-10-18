@@ -112,10 +112,11 @@ class Sentinel2(RasterCollection):
         baseline = get_S2_processing_baseline_from_safe(dot_safe_name=in_dir)
         # starting with baseline N0400 (400) S2 reflectances have an offset
         # value of -1000, i.e., the values reported in the .jp2 files must
-        # be subtracted by 1000 to obtain the actual reflectance factor values
+        # be subtracted by 1000 (0.1 in scaled representation) to obtain the
+        # actual reflectance factor values.
         s2_offset = 0
-        if baseline == 400:
-            s2_offset = -1000
+        if baseline >= 400:
+            s2_offset = 0.1
         return (s2_gain_factor, s2_offset)
 
     @staticmethod
@@ -293,7 +294,7 @@ class Sentinel2(RasterCollection):
         masking_after_read_required = False
 
         if kwargs.get("vector_features") is not None:
-            bounds_df, shape_mask, lowest_resolution = adopt_vector_features_to_mask(
+            bounds_df, shape_mask, _ = adopt_vector_features_to_mask(
                 band_df=band_df_safe,
                 vector_features=kwargs.get("vector_features")
             )
@@ -382,9 +383,6 @@ class Sentinel2(RasterCollection):
                 )
             # apply actual vector features if masking is required
             if masking_after_read_required:
-                # nothing to do when the lowest resolution is passed
-                if band_safe.band_resolution.values == lowest_resolution:
-                    continue
                 # otherwise resample the mask of the lowest resolution to the
                 # current resolution using nearest neighbor interpolation
                 tmp = shape_mask.astype("uint8")
@@ -394,7 +392,11 @@ class Sentinel2(RasterCollection):
                 )
                 # cast back to boolean
                 mask = res.astype("bool")
-                sentinel2.mask(mask=mask, bands_to_mask=[band_name], inplace=True)
+                sentinel2.mask(
+                    mask=mask,
+                    bands_to_mask=[band_name],
+                    inplace=True
+                )
         # scaling of reflectance values (i.e., do not scale SCL)
         if apply_scaling:
             sel_bands = sentinel2.band_names
@@ -405,6 +407,10 @@ class Sentinel2(RasterCollection):
                 band_selection=sel_bands,
                 pixel_values_to_ignore=[sentinel2[sentinel2.band_names[0]].nodata],
             )
+        # set SCL fill value to 0
+        if "SCL" in sentinel2.band_names:
+            if sentinel2["SCL"].is_masked_array:
+                sentinel2["SCL"].values.fill_value = 0
         return sentinel2
 
     @classmethod

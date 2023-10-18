@@ -861,6 +861,13 @@ class Band(object):
             nodata, nodata_vals = None, attrs.get("nodatavals", None)
             if nodata_vals is not None:
                 nodata = nodata_vals[band_idx - 1]
+        # make sure the nodata type matches the datatype of the
+        # band values
+        if band_data.dtype.kind not in 'fc' and np.isnan(nodata):
+            raise TypeError(
+                f"The datatype of the band data is {band_data.dtype} " +
+                f"while the nodata value ({nodata}) is float.\n" +
+                "Please provide an appropriate nodata value")
 
         if masking:
             # make sure to set the EPSG code
@@ -1372,6 +1379,9 @@ class Band(object):
         meta["transform"] = self.transform
         meta["is_tile"] = self.is_tiled
         meta["driver"] = driver
+        # "compress" as suggested here:
+        # https://github.com/rasterio/rasterio/discussions/2933#discussioncomment-7208578
+        meta["compress"] = "DEFLATE"
         meta.update(kwargs)
 
         return meta
@@ -1699,10 +1709,18 @@ class Band(object):
                     # ignore pixels already masked
                     if not orig_mask[row, col]:
                         orig_mask[row, col] = mask[row, col]
+            # re-use original fill value
+            fill_value = self.values.fill_value
             # update band data array
-            masked_array = np.ma.MaskedArray(data=self.values.data, mask=orig_mask)
+            masked_array = np.ma.MaskedArray(
+                data=self.values.data,
+                mask=orig_mask,
+                fill_value=fill_value)
         elif self.is_ndarray:
-            masked_array = np.ma.MaskedArray(data=self.values, mask=mask)
+            # determine fill value from nodata value
+            fill_value = self.nodata
+            masked_array = np.ma.MaskedArray(
+                data=self.values, mask=mask, fill_value=fill_value)
         elif self.is_zarr:
             raise NotImplementedError()
 
@@ -1890,8 +1908,10 @@ class Band(object):
             out_mask = cv2.resize(in_mask, dim_resampled, cv2.INTER_NEAREST_EXACT)
             # convert mask back to boolean array
             out_mask = out_mask.astype(bool)
+            # re-use fill value of the original array
+            fill_value = self.values.fill_value
             # save as masked array
-            res = np.ma.masked_array(data=res, mask=out_mask)
+            res = np.ma.masked_array(data=res, mask=out_mask, fill_value=fill_value)
 
         # update the geo_info with new pixel resolution. The upper left x and y
         # coordinate must be changed if the pixel coordinates refer to the center
@@ -1962,6 +1982,7 @@ class Band(object):
         if self.is_masked_array:
             band_data = deepcopy(self.values.data).astype(float)
             band_mask = deepcopy(self.values.mask).astype(float)
+            fill_value = self.values.fill_value
         elif self.is_ndarray:
             band_data = deepcopy(self.values).astype(float)
         elif self.is_zarr:
@@ -2004,7 +2025,8 @@ class Band(object):
             # due to the raster alignment
             nodata = reprojection_options.get("src_nodata", 0)
             out_mask[out_data == nodata] = True
-            out_data = np.ma.MaskedArray(data=out_data, mask=out_mask)
+            out_data = np.ma.MaskedArray(
+                data=out_data, mask=out_mask, fill_value=fill_value)
 
         new_geo_info = GeoInfo.from_affine(affine=out_transform, epsg=target_crs)
         if inplace:
@@ -2192,23 +2214,24 @@ class Band(object):
         scale, offset = self.scale, self.offset
         if self.is_masked_array:
             if pixel_values_to_ignore is None:
-                scaled_array = scale * (self.values.data + offset)
+                scaled_array = scale * self.values.data - offset
             else:
                 scaled_array = self.values.data.copy().astype(float)
-                scaled_array[~np.isin(scaled_array, pixel_values_to_ignore)] = scale * (
-                    scaled_array[~np.isin(scaled_array, pixel_values_to_ignore)]
-                    + offset
-                )
-            scaled_array = np.ma.MaskedArray(data=scaled_array, mask=self.values.mask)
+                scaled_array[~np.isin(scaled_array, pixel_values_to_ignore)] = scale * \
+                    scaled_array[~np.isin(scaled_array, pixel_values_to_ignore)] \
+                    - offset
+            # reuse fill value
+            fill_value = self.values.fill_value
+            scaled_array = np.ma.MaskedArray(
+                data=scaled_array, mask=self.values.mask, fill_value=fill_value)
         elif self.is_ndarray:
             if pixel_values_to_ignore is None:
-                scaled_array = scale * (self.values + offset)
+                scaled_array = scale * self.values - offset
             else:
                 scaled_array = self.values.copy().astype(float)
-                scaled_array[~np.isin(scaled_array, pixel_values_to_ignore)] = scale * (
-                    scaled_array[~np.isin(scaled_array, pixel_values_to_ignore)]
-                    + offset
-                )
+                scaled_array[~np.isin(scaled_array, pixel_values_to_ignore)] = scale * \
+                    scaled_array[~np.isin(scaled_array, pixel_values_to_ignore)] \
+                    - offset
         elif self.is_zarr:
             raise NotImplementedError()
 
@@ -2356,6 +2379,9 @@ class Band(object):
         with rio.open(fpath_raster, "w+", **meta) as dst:
             # set band name
             dst.set_band_description(1, self.band_name)
+            # set scale and offset
+            dst._set_all_scales([self.scale])
+            dst._set_all_offsets([self.offset])
             # write band data
             if self.is_masked_array:
                 vals = self.values.data

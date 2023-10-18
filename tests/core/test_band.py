@@ -249,6 +249,19 @@ def test_masking(datadir, get_test_band, get_bandstack, get_points3):
         'band data not the same after writing'
 
 
+def test_wrong_nodata_type(get_bandstack):
+    # usage of an incorrect no-data type (nan) for INT array
+    fpath_raster = get_bandstack()
+    with pytest.raises(TypeError):
+        band = Band.from_rasterio(
+            fpath_raster=fpath_raster,
+            band_idx=1,
+            band_name_dst='B02',
+            full_bounding_box_only=True,
+            nodata=np.nan
+        )
+
+
 def test_read_pixels(get_bandstack, get_test_band, get_polygons, get_points3):
     # read single pixels from raster dataset
     fpath_raster = get_bandstack()
@@ -285,7 +298,8 @@ def test_read_pixels(get_bandstack, get_test_band, get_polygons, get_points3):
         band_idx=1,
         band_name_dst='B02',
         vector_features=vector_features,
-        full_bounding_box_only=True
+        full_bounding_box_only=True,
+        nodata=0
     )
 
     assert not band.is_masked_array, 'data should not be masked'

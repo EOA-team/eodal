@@ -16,7 +16,8 @@ def test_raster_slice(get_bandstack):
                    'nir1', 'nir2', 'swir1', 'swir2']
     ds = RasterCollection.from_multi_band_raster(
         fpath_raster=fpath_raster,
-        band_aliases=color_names
+        band_aliases=color_names,
+        nodata=0
     )
 
     # slicing using band names
