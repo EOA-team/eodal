@@ -104,7 +104,7 @@ def test_raster_algebra_band_and_raster(get_bandstack):
     assert rcoll_le.get_values().any(), 'wrong results'
 
     # RasterCollection <-> RasterCollection
-    other = RasterCollection.from_multi_band_raster(fpath)
+    other = RasterCollection.from_multi_band_raster(fpath, nodata=0)
     rcoll_add = rcoll + other
     assert (rcoll_add.get_values() == rcoll.get_values() + other.get_values()).all(), 'wrong result'
     rcoll_sub = rcoll - other

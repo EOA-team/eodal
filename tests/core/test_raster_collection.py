@@ -47,7 +47,8 @@ def test_ndarray_constructor():
         band_name=band_name,
         values=values,
         band_alias=color_name,
-        geo_info=geo_info
+        geo_info=geo_info,
+        nodata=np.nan
     )
 
     assert len(handler) == 1, 'wrong number of bands in collection'
@@ -105,7 +106,12 @@ def test_rasterio_constructor_single_band(get_bandstack):
     # add a band from rasterio
     fpath_raster = get_bandstack()
     band_idx = 1
-    handler.add_band(Band.from_rasterio, fpath_raster=fpath_raster, band_idx=band_idx)
+    handler.add_band(
+        Band.from_rasterio,
+        fpath_raster=fpath_raster,
+        band_idx=band_idx,
+        nodata=0
+    )
 
     assert set(handler.band_names) == {'B1'}, \
         'band names not set properly in collection'
@@ -137,14 +143,15 @@ def test_scale():
         values=ones,
         geo_info=geo_info,
         scale=scale,
-        offset=offset
+        offset=offset,
+        nodata=0
     )
 
     before_scaling = handler.get_values()
     handler.scale(inplace=True)
     after_scaling = handler.get_values()
-    assert (after_scaling == (scale * (before_scaling + offset))).all(), 'values not scaled correctly'
-    assert (after_scaling == 300).all(), 'wrong value after scaling'
+    assert (after_scaling == scale * before_scaling - offset).all(), 'values not scaled correctly'
+    assert (after_scaling == 98).all(), 'wrong value after scaling'
 
 
 def test_rasterio_constructor_multi_band(get_bandstack):    
@@ -154,13 +161,13 @@ def test_rasterio_constructor_multi_band(get_bandstack):
     # read multi-band geoTiff into new handler
     fpath_raster = get_bandstack()
     gTiff_collection = RasterCollection.from_multi_band_raster(
-        fpath_raster=fpath_raster
+        fpath_raster=fpath_raster, nodata=0
     )
 
     assert gTiff_collection.band_names == \
         ['B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B11', 'B12'], \
         'wrong list of band names in collection'
-    assert gTiff_collection.is_bandstack(), 'collection must be bandstacked'
+    assert gTiff_collection.is_bandstack(), 'collection must be band-stacked'
     gTiff_collection['B02'].crs == 32632, 'wrong CRS'
 
     # read multi-band geoTiff into new handler with custom destination names
@@ -168,7 +175,8 @@ def test_rasterio_constructor_multi_band(get_bandstack):
               'nir_1', 'nir_2', 'swir_1', 'swir_2']
     gTiff_collection = RasterCollection.from_multi_band_raster(
         fpath_raster=fpath_raster,
-        band_names_dst=colors
+        band_names_dst=colors,
+        nodata=0
     )
     assert gTiff_collection.band_names == colors, 'band names not set properly'
     gTiff_collection.calc_si('NDVI', inplace=True)
@@ -189,7 +197,8 @@ def test_rasterio_constructor_multi_band(get_bandstack):
     # with band aliases
     gTiff_collection = RasterCollection.from_multi_band_raster(
         fpath_raster=fpath_raster,
-        band_aliases=colors
+        band_aliases=colors,
+        nodata=0
     )
     assert gTiff_collection.has_band_aliases, 'band aliases must exist'
 
@@ -202,7 +211,8 @@ def test_reprojection(get_bandstack):
     fpath_raster = get_bandstack()
     gTiff_collection = RasterCollection.from_multi_band_raster(
         fpath_raster=fpath_raster,
-        band_names_dst=colors
+        band_names_dst=colors,
+        nodata=0
     )
     # try reprojection of raster bands to geographic coordinates
     reprojected = gTiff_collection.reproject(target_crs=4326)
@@ -227,7 +237,8 @@ def test_resampling(datadir,get_bandstack):
     # resample all bands to 5m
     gTiff_collection = RasterCollection.from_multi_band_raster(
         fpath_raster=fpath_raster,
-        band_aliases=colors
+        band_aliases=colors,
+        nodata=0
     )
     resampled = gTiff_collection.resample(
         target_resolution=5
@@ -240,11 +251,13 @@ def test_resampling(datadir,get_bandstack):
     resampled.to_rasterio(fpath_out)
     assert fpath_out.exists(), 'output-file not created'
 
+
 def test_clipping(get_bandstack):
     """Spatial clipping (subsetting) of RasterCollections"""
     fpath_raster = get_bandstack()
     rcoll = RasterCollection.from_multi_band_raster(
-        fpath_raster=fpath_raster
+        fpath_raster=fpath_raster,
+        nodata=0
     )
     # clip the collection to a Polygon buffered 100m inwards of the
     # bounding box of the first band
@@ -262,11 +275,13 @@ def test_clipping(get_bandstack):
     with pytest.raises(ValueError):
         rcoll.clip_bands(clipping_bounds=clipping_bounds, inplace=True)
 
+
 def test_band_summaries(get_bandstack, get_polygons):
     """test band summary statistics"""
     fpath_raster = get_bandstack()
     rcoll = RasterCollection.from_multi_band_raster(
-        fpath_raster=fpath_raster
+        fpath_raster=fpath_raster,
+        nodata=0
     )
     # try band summary statistics for polygons
     polys = get_polygons()
