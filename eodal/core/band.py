@@ -861,6 +861,13 @@ class Band(object):
             nodata, nodata_vals = None, attrs.get("nodatavals", None)
             if nodata_vals is not None:
                 nodata = nodata_vals[band_idx - 1]
+        # make sure the nodata type matches the datatype of the
+        # band values
+        if band_data.dtype.kind not in 'fc' and np.isnan(nodata):
+            raise TypeError(
+                f"The datatype of the band data is {band_data.dtype} " +
+                f"while the nodata value ({nodata}) is float.\n" +
+                "Please provide an appropriate nodata value")
 
         if masking:
             # make sure to set the EPSG code
