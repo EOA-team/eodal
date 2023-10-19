@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     # define CREODIAS username and password
     CREODIAS_USER: str = ""
     CREODIAS_PASSWORD: str = ""
+    # define CREODIAS TOTP secret for 2FA
+    CREODIAS_TOTP_SECRET: str = ""
+    # CREODIAS API endpoint for downloading zipped datasets
+    CREODIAS_ZIPPER_URL: str = "https://zipper.creodias.eu/download"
+
     # maximum number of records per request: 2000 (CREODIAS currently does not allow
     # more)
     CREODIAS_MAX_RECORDS: int = 2000
