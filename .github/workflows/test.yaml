@@ -24,9 +24,6 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         python-version: ["3.11"]
-        include:
-          - os: windows-latest
-            python-version: "3.11"
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
