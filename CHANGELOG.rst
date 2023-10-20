@@ -10,6 +10,21 @@ The format is based on `Keep a Changelog`_, and this project adheres to `Semanti
 
 Categories for changes are: Added, Changed, Deprecated, Removed, Fixed, Security.
 
+Version `0.2.3 < https://github.com/EOA-team/eodal/releases/tag/v0.2.3>`__
+--------------------------------------------------------------------------------
+
+Release date: 2023-10-XX
+
+- Fixed: a fill value is now explicitly set to each `np.ma.masked_array`. If not (previous behavior) numpy would interfere a fill value that would often not be the no-data type of the raster. In the forthcoming release of EOdal, the fill-value will now equal the nodata value.
+- Fixed: the inference of the highest data type in a `RasterCollection` has been improved and extended to all `INT`,  `FLOAT`, and `COMPLEX` data types currently supported by numpy. In the previous version, all data types were cast to `numpy.float32` or even `numpy.float64` leading to an unnecessary high consumption of memory.
+- Fixed: the `scale` and `offset` parameters are now correctly written to the file metadata when exporting a `Band` or `RasterCollection` object. In previous versions of EOdal, the information about this two attributes was not written to output. Also, the way scale and offset are applied, is now consistent with `QGIS` meaning that raster files created by EOdal will be shown with correct scale and offset in QGIS (QGIS applies them on the fly when displaying the raster data)
+- Ffixed: the no-data type is strictly checked for consistency of the data type of the band data (e.g., to avoid that `nan` is used for integer arrays, which will produce an error)
+- Added: `eodal.core.raster.RasterCollection.to_rasterio()` now takes an optional argument `as_cog` allowing to save datasets as Cloud-Optimized GeoTiffs (COG)
+- Changed: the CREODIAS API endpoints were updated
+- Added: 2FA now enforced by CREODIAS has been implemented using `pyotp` to sign requests to get a keycloak token required to download datasets
+- Fixed: the download functionality has been made more robust by adding try-excepts blocks and enhanced logging of errors.
+
+
 Version `0.2.2 < https://github.com/EOA-team/eodal/releases/tag/v0.2.2>`__
 --------------------------------------------------------------------------------
 
