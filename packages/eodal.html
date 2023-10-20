@@ -1,0 +1,360 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal package &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="eodal.config package" href="eodal.config.html" />
+    <link rel="prev" title="API Reference" href="modules.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-eodal">
+<span id="eodal-package"></span><h1>eodal package<a class="headerlink" href="#module-eodal" title="Permalink to this heading">¶</a></h1>
+<div class="section" id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this heading">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="eodal.config.html">eodal.config package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="eodal.config.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="eodal.config.settings.html">eodal.config.settings module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.config.settings.html#eodal.config.settings.Settings"><code class="docutils literal notranslate"><span class="pre">Settings</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.config.settings.html#eodal.config.settings.get_settings"><code class="docutils literal notranslate"><span class="pre">get_settings()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.config.stac_providers.html">eodal.config.stac_providers module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.config.stac_providers.html#eodal.config.stac_providers.STAC_Providers"><code class="docutils literal notranslate"><span class="pre">STAC_Providers</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="eodal.core.html">eodal.core package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="eodal.core.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="eodal.core.sensors.html">eodal.core.sensors package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.core.sensors.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.core.utils.html">eodal.core.utils package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.core.utils.html#submodules">Submodules</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="eodal.core.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="eodal.core.algorithms.html">eodal.core.algorithms module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.core.algorithms.html#eodal.core.algorithms.merge_datasets"><code class="docutils literal notranslate"><span class="pre">merge_datasets()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.core.band.html">eodal.core.band module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.core.band.html#eodal.core.band.Band"><code class="docutils literal notranslate"><span class="pre">Band</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.core.band.html#eodal.core.band.BandOperator"><code class="docutils literal notranslate"><span class="pre">BandOperator</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.core.band.html#eodal.core.band.GeoInfo"><code class="docutils literal notranslate"><span class="pre">GeoInfo</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.core.band.html#eodal.core.band.WavelengthInfo"><code class="docutils literal notranslate"><span class="pre">WavelengthInfo</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.core.operators.html">eodal.core.operators module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.core.operators.html#eodal.core.operators.Operator"><code class="docutils literal notranslate"><span class="pre">Operator</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.core.raster.html">eodal.core.raster module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.core.raster.html#eodal.core.raster.RasterCollection"><code class="docutils literal notranslate"><span class="pre">RasterCollection</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.core.raster.html#eodal.core.raster.RasterOperator"><code class="docutils literal notranslate"><span class="pre">RasterOperator</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.core.raster.html#eodal.core.raster.SceneProperties"><code class="docutils literal notranslate"><span class="pre">SceneProperties</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.core.scene.html">eodal.core.scene module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.core.scene.html#eodal.core.scene.SceneCollection"><code class="docutils literal notranslate"><span class="pre">SceneCollection</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.core.spectral_indices.html">eodal.core.spectral_indices module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.core.spectral_indices.html#eodal.core.spectral_indices.SpectralIndices"><code class="docutils literal notranslate"><span class="pre">SpectralIndices</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="eodal.downloader.html">eodal.downloader package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="eodal.downloader.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="eodal.downloader.planet_scope.html">eodal.downloader.planet_scope package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.downloader.planet_scope.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.downloader.sentinel1.html">eodal.downloader.sentinel1 package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.downloader.sentinel1.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.downloader.sentinel2.html">eodal.downloader.sentinel2 package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.downloader.sentinel2.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.downloader.utils.html">eodal.downloader.utils package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.downloader.utils.html#submodules">Submodules</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="eodal.mapper.html">eodal.mapper package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="eodal.mapper.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="eodal.mapper.feature.html">eodal.mapper.feature module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.mapper.feature.html#eodal.mapper.feature.Feature"><code class="docutils literal notranslate"><span class="pre">Feature</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.mapper.filter.html">eodal.mapper.filter module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.mapper.filter.html#eodal.mapper.filter.Filter"><code class="docutils literal notranslate"><span class="pre">Filter</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.mapper.mapper.html">eodal.mapper.mapper module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.mapper.mapper.html#eodal.mapper.mapper.Mapper"><code class="docutils literal notranslate"><span class="pre">Mapper</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.mapper.mapper.html#eodal.mapper.mapper.MapperConfigs"><code class="docutils literal notranslate"><span class="pre">MapperConfigs</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="eodal.metadata.html">eodal.metadata package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="eodal.metadata.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="eodal.metadata.database.html">eodal.metadata.database package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.metadata.database.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.metadata.planet_scope.html">eodal.metadata.planet_scope package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.metadata.planet_scope.html#subpackages">Subpackages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.metadata.planet_scope.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.metadata.sentinel1.html">eodal.metadata.sentinel1 package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.metadata.sentinel1.html#subpackages">Subpackages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.metadata.sentinel1.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.metadata.sentinel2.html">eodal.metadata.sentinel2 package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.metadata.sentinel2.html#subpackages">Subpackages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.metadata.sentinel2.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.metadata.stac.html">eodal.metadata.stac package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.metadata.stac.html#submodules">Submodules</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="eodal.metadata.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="eodal.metadata.utils.html">eodal.metadata.utils module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.metadata.utils.html#eodal.metadata.utils.reconstruct_path"><code class="docutils literal notranslate"><span class="pre">reconstruct_path()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="eodal.utils.html">eodal.utils package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="eodal.utils.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="eodal.utils.constants.html">eodal.utils.constants package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.constants.html#eodal.utils.constants.ProcessingLevels"><code class="docutils literal notranslate"><span class="pre">ProcessingLevels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.constants.html#submodules">Submodules</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="eodal.utils.html#submodules">Submodules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="eodal.utils.arrays.html">eodal.utils.arrays module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.arrays.html#eodal.utils.arrays.array_from_points"><code class="docutils literal notranslate"><span class="pre">array_from_points()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.arrays.html#eodal.utils.arrays.count_valid"><code class="docutils literal notranslate"><span class="pre">count_valid()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.arrays.html#eodal.utils.arrays.upsample_array"><code class="docutils literal notranslate"><span class="pre">upsample_array()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.utils.decorators.html">eodal.utils.decorators module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.decorators.html#eodal.utils.decorators.check_band_names"><code class="docutils literal notranslate"><span class="pre">check_band_names()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.decorators.html#eodal.utils.decorators.check_metadata"><code class="docutils literal notranslate"><span class="pre">check_metadata()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.decorators.html#eodal.utils.decorators.check_processing_level"><code class="docutils literal notranslate"><span class="pre">check_processing_level()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.decorators.html#eodal.utils.decorators.prepare_bbox"><code class="docutils literal notranslate"><span class="pre">prepare_bbox()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.decorators.html#eodal.utils.decorators.prepare_point_features"><code class="docutils literal notranslate"><span class="pre">prepare_point_features()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.utils.exceptions.html">eodal.utils.exceptions module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.exceptions.html#eodal.utils.exceptions.APIError"><code class="docutils literal notranslate"><span class="pre">APIError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.exceptions.html#eodal.utils.exceptions.ArchiveCreationError"><code class="docutils literal notranslate"><span class="pre">ArchiveCreationError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.exceptions.html#eodal.utils.exceptions.ArchiveNotFoundError"><code class="docutils literal notranslate"><span class="pre">ArchiveNotFoundError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.exceptions.html#eodal.utils.exceptions.AuthenticationError"><code class="docutils literal notranslate"><span class="pre">AuthenticationError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.exceptions.html#eodal.utils.exceptions.BandNotFoundError"><code class="docutils literal notranslate"><span class="pre">BandNotFoundError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.exceptions.html#eodal.utils.exceptions.BlackFillOnlyError"><code class="docutils literal notranslate"><span class="pre">BlackFillOnlyError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.exceptions.html#eodal.utils.exceptions.DataExtractionError"><code class="docutils literal notranslate"><span class="pre">DataExtractionError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.exceptions.html#eodal.utils.exceptions.DataNotFoundError"><code class="docutils literal notranslate"><span class="pre">DataNotFoundError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.exceptions.html#eodal.utils.exceptions.InputError"><code class="docutils literal notranslate"><span class="pre">InputError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.exceptions.html#eodal.utils.exceptions.MetadataNotFoundError"><code class="docutils literal notranslate"><span class="pre">MetadataNotFoundError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.exceptions.html#eodal.utils.exceptions.NotProjectedError"><code class="docutils literal notranslate"><span class="pre">NotProjectedError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.exceptions.html#eodal.utils.exceptions.RegionNotFoundError"><code class="docutils literal notranslate"><span class="pre">RegionNotFoundError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.exceptions.html#eodal.utils.exceptions.ReprojectionError"><code class="docutils literal notranslate"><span class="pre">ReprojectionError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.exceptions.html#eodal.utils.exceptions.ResamplingFailedError"><code class="docutils literal notranslate"><span class="pre">ResamplingFailedError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.exceptions.html#eodal.utils.exceptions.STACError"><code class="docutils literal notranslate"><span class="pre">STACError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.exceptions.html#eodal.utils.exceptions.SceneNotFoundError"><code class="docutils literal notranslate"><span class="pre">SceneNotFoundError</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.exceptions.html#eodal.utils.exceptions.UnknownProcessingLevel"><code class="docutils literal notranslate"><span class="pre">UnknownProcessingLevel</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.utils.geometry.html">eodal.utils.geometry module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.geometry.html#eodal.utils.geometry.adopt_vector_features_to_mask"><code class="docutils literal notranslate"><span class="pre">adopt_vector_features_to_mask()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.geometry.html#eodal.utils.geometry.box_from_transform"><code class="docutils literal notranslate"><span class="pre">box_from_transform()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.geometry.html#eodal.utils.geometry.box_to_geojson"><code class="docutils literal notranslate"><span class="pre">box_to_geojson()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.geometry.html#eodal.utils.geometry.prepare_gdf"><code class="docutils literal notranslate"><span class="pre">prepare_gdf()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.utils.reprojection.html">eodal.utils.reprojection module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.reprojection.html#eodal.utils.reprojection.UTMZone"><code class="docutils literal notranslate"><span class="pre">UTMZone</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.reprojection.html#eodal.utils.reprojection.check_aoi_geoms"><code class="docutils literal notranslate"><span class="pre">check_aoi_geoms()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.reprojection.html#eodal.utils.reprojection.infer_utm_zone"><code class="docutils literal notranslate"><span class="pre">infer_utm_zone()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.reprojection.html#eodal.utils.reprojection.reproject_raster_dataset"><code class="docutils literal notranslate"><span class="pre">reproject_raster_dataset()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.utils.sentinel1.html">eodal.utils.sentinel1 module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.sentinel1.html#eodal.utils.sentinel1.get_S1_acquistion_time_from_safe"><code class="docutils literal notranslate"><span class="pre">get_S1_acquistion_time_from_safe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.sentinel1.html#eodal.utils.sentinel1.get_S1_platform_from_safe"><code class="docutils literal notranslate"><span class="pre">get_S1_platform_from_safe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.sentinel1.html#eodal.utils.sentinel1.get_s1_imaging_mode_from_safe"><code class="docutils literal notranslate"><span class="pre">get_s1_imaging_mode_from_safe()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.utils.sentinel2.html">eodal.utils.sentinel2 module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.sentinel2.html#eodal.utils.sentinel2.get_S2_acquistion_date_from_safe"><code class="docutils literal notranslate"><span class="pre">get_S2_acquistion_date_from_safe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.sentinel2.html#eodal.utils.sentinel2.get_S2_acquistion_time_from_safe"><code class="docutils literal notranslate"><span class="pre">get_S2_acquistion_time_from_safe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.sentinel2.html#eodal.utils.sentinel2.get_S2_bandfiles"><code class="docutils literal notranslate"><span class="pre">get_S2_bandfiles()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.sentinel2.html#eodal.utils.sentinel2.get_S2_bandfiles_with_res"><code class="docutils literal notranslate"><span class="pre">get_S2_bandfiles_with_res()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.sentinel2.html#eodal.utils.sentinel2.get_S2_platform_from_safe"><code class="docutils literal notranslate"><span class="pre">get_S2_platform_from_safe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.sentinel2.html#eodal.utils.sentinel2.get_S2_processing_baseline_from_safe"><code class="docutils literal notranslate"><span class="pre">get_S2_processing_baseline_from_safe()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.sentinel2.html#eodal.utils.sentinel2.get_S2_processing_level"><code class="docutils literal notranslate"><span class="pre">get_S2_processing_level()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.sentinel2.html#eodal.utils.sentinel2.get_S2_sclfile"><code class="docutils literal notranslate"><span class="pre">get_S2_sclfile()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.sentinel2.html#eodal.utils.sentinel2.get_S2_tci"><code class="docutils literal notranslate"><span class="pre">get_S2_tci()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.utils.stacking.html">eodal.utils.stacking module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.stacking.html#eodal.utils.stacking.stack_dataframes"><code class="docutils literal notranslate"><span class="pre">stack_dataframes()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.utils.timestamps.html">eodal.utils.timestamps module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.timestamps.html#eodal.utils.timestamps.datetime_to_date"><code class="docutils literal notranslate"><span class="pre">datetime_to_date()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.utils.types.html">eodal.utils.types module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.types.html#eodal.utils.types.xml_to_dict_recursive"><code class="docutils literal notranslate"><span class="pre">xml_to_dict_recursive()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="eodal.utils.warnings.html">eodal.utils.warnings module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="eodal.utils.warnings.html#eodal.utils.warnings.NothingToDo"><code class="docutils literal notranslate"><span class="pre">NothingToDo</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">eodal package</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">API Reference</a><ul>
+      <li>Previous: <a href="modules.html" title="previous chapter">API Reference</a></li>
+      <li>Next: <a href="eodal.config.html" title="next chapter">eodal.config package</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/packages/eodal.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,287 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.utils.geometry &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for eodal.utils.geometry</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Vector geometry operations.</span>
+
+<span class="sd">Copyright (C) 2022/2023 Lukas Valentin Graf</span>
+
+<span class="sd">This program is free software: you can redistribute it and/or modify</span>
+<span class="sd">it under the terms of the GNU General Public License as published by</span>
+<span class="sd">the Free Software Foundation, either version 3 of the License, or</span>
+<span class="sd">(at your option) any later version.</span>
+
+<span class="sd">This program is distributed in the hope that it will be useful,</span>
+<span class="sd">but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="sd">MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="sd">GNU General Public License for more details.</span>
+
+<span class="sd">You should have received a copy of the GNU General Public License</span>
+<span class="sd">along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">geopandas</span> <span class="k">as</span> <span class="nn">gpd</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">rasterio</span> <span class="k">as</span> <span class="nn">rio</span>
+
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">rasterio.mask</span> <span class="kn">import</span> <span class="n">raster_geometry_mask</span>
+<span class="kn">from</span> <span class="nn">shapely.geometry</span> <span class="kn">import</span> <span class="n">box</span><span class="p">,</span> <span class="n">Point</span><span class="p">,</span> <span class="n">Polygon</span>
+
+<span class="kn">from</span> <span class="nn">eodal.core.utils.geometry</span> <span class="kn">import</span> <span class="n">convert_3D_2D</span>
+
+
+<div class="viewcode-block" id="box_to_geojson"><a class="viewcode-back" href="../../../packages/eodal.utils.geometry.html#eodal.utils.geometry.box_to_geojson">[docs]</a><span class="k">def</span> <span class="nf">box_to_geojson</span><span class="p">(</span><span class="n">gdf</span><span class="p">:</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span> <span class="o">|</span> <span class="n">Polygon</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Casts the bounding box of a `GeoDataFrame` to GeoJson</span>
+
+<span class="sd">    :param gdf:</span>
+<span class="sd">        Non-empty `GeoDataFrame` or shapely rectangular Polygon</span>
+<span class="sd">        in geographic coordinates</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        `total_bounds` of gpd in GeoJson notation</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># GeoJSON should be in geographic coordinates</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">gdf</span><span class="p">,</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">):</span>
+        <span class="n">_gdf</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">gdf</span><span class="p">)</span>
+        <span class="n">gdf_wgs84</span> <span class="o">=</span> <span class="n">_gdf</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="n">epsg</span><span class="o">=</span><span class="mi">4326</span><span class="p">)</span>
+        <span class="n">bbox</span> <span class="o">=</span> <span class="n">gdf_wgs84</span><span class="o">.</span><span class="n">total_bounds</span>
+        <span class="n">bbox_poly</span> <span class="o">=</span> <span class="n">box</span><span class="p">(</span><span class="o">*</span><span class="n">bbox</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">gdf</span><span class="p">,</span> <span class="n">Polygon</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">gdf</span><span class="p">,</span> <span class="n">Point</span><span class="p">):</span>
+        <span class="n">bbox_poly</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">gdf</span><span class="p">)</span>
+    <span class="n">bbox_json</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoSeries</span><span class="p">([</span><span class="n">bbox_poly</span><span class="p">])</span><span class="o">.</span><span class="n">to_json</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">bbox_json</span><span class="p">)[</span><span class="s2">&quot;features&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;geometry&quot;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="box_from_transform"><a class="viewcode-back" href="../../../packages/eodal.utils.geometry.html#eodal.utils.geometry.box_from_transform">[docs]</a><span class="k">def</span> <span class="nf">box_from_transform</span><span class="p">(</span>
+        <span class="n">transform</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="nb">tuple</span><span class="p">,</span>
+        <span class="n">shape</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Polygon</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get a `shapely` box geometry from a transform vector</span>
+<span class="sd">    and raster shape.</span>
+
+<span class="sd">    ..versionadd:: 0.3.0</span>
+
+<span class="sd">    :param transform:</span>
+<span class="sd">        affine-like transform parameters.</span>
+<span class="sd">    :param shape:</span>
+<span class="sd">        raster shape (nrows, ncols).</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        resulting geometry as `shapely.geometry.box` object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># get pixel resolution</span>
+    <span class="n">pixres_x</span> <span class="o">=</span> <span class="n">transform</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">pixres_y</span> <span class="o">=</span> <span class="n">transform</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span>
+    <span class="c1"># get origin of raster in spatial reference system coordinates</span>
+    <span class="n">minx</span> <span class="o">=</span> <span class="n">transform</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">maxy</span> <span class="o">=</span> <span class="n">transform</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span>
+    <span class="c1"># get extent of raster in spatial reference system coordinates</span>
+    <span class="n">maxx</span> <span class="o">=</span> <span class="n">minx</span> <span class="o">+</span> <span class="p">(</span><span class="n">pixres_x</span> <span class="o">*</span> <span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">miny</span> <span class="o">=</span> <span class="n">maxy</span> <span class="o">+</span> <span class="p">(</span><span class="n">pixres_y</span> <span class="o">*</span> <span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="c1"># construct the box geometry</span>
+    <span class="k">return</span> <span class="n">box</span><span class="p">(</span><span class="n">minx</span><span class="p">,</span> <span class="n">miny</span><span class="p">,</span> <span class="n">maxx</span><span class="p">,</span> <span class="n">maxy</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="prepare_gdf"><a class="viewcode-back" href="../../../packages/eodal.utils.geometry.html#eodal.utils.geometry.prepare_gdf">[docs]</a><span class="k">def</span> <span class="nf">prepare_gdf</span><span class="p">(</span>
+        <span class="n">metadata_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert list of metadata dictionaries to a GeoDataFrame.</span>
+
+<span class="sd">    ..versionadd:: 0.3.0</span>
+
+<span class="sd">    :param metadata_list:</span>
+<span class="sd">        list of metadata entries as dictionaries.</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        resulting GeoDataFrame sorted by sensing time.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">metadata_list</span><span class="p">)</span>
+    <span class="n">df</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="s2">&quot;sensing_time&quot;</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">geometry</span><span class="o">=</span><span class="s2">&quot;geom&quot;</span><span class="p">,</span> <span class="n">crs</span><span class="o">=</span><span class="n">df</span><span class="o">.</span><span class="n">epsg</span><span class="o">.</span><span class="n">unique</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="adopt_vector_features_to_mask"><a class="viewcode-back" href="../../../packages/eodal.utils.geometry.html#eodal.utils.geometry.adopt_vector_features_to_mask">[docs]</a><span class="k">def</span> <span class="nf">adopt_vector_features_to_mask</span><span class="p">(</span>
+        <span class="n">band_df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+        <span class="n">vector_features</span><span class="p">:</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span> <span class="o">|</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoSeries</span> <span class="o">|</span> <span class="n">Path</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Adopt the vector features used for clipping and/or masking data</span>
+<span class="sd">    to the spatial resolution of the band with the coarsest spatial</span>
+<span class="sd">    resolution. This is necessary to avoid artifacts (namely different</span>
+<span class="sd">    spatial extents) in the data caused by the spatial subsetting with</span>
+<span class="sd">    different pixel sizes.</span>
+
+<span class="sd">    ..versionadd:: 0.3.0</span>
+
+<span class="sd">    :param band_df:</span>
+<span class="sd">        DataFrame containing the band metadata.</span>
+<span class="sd">    :param vector_features:</span>
+<span class="sd">        vector features to be used for masking.</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        Updated vector features, shape of the resulting mask and</span>
+<span class="sd">        spatial resolution of the band with the coarsest spatial</span>
+<span class="sd">        resolution.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># get lowest spatial resolution</span>
+    <span class="n">lowest_resolution</span> <span class="o">=</span> <span class="n">band_df</span><span class="p">[</span><span class="s2">&quot;band_resolution&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+    <span class="c1"># get band with lowest spatial resolution</span>
+    <span class="n">low_res_band</span> <span class="o">=</span> <span class="n">band_df</span><span class="p">[</span><span class="n">band_df</span><span class="p">[</span><span class="s2">&quot;band_resolution&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">lowest_resolution</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># get vector feature(s) for spatial subsetting</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">vector_features</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+        <span class="n">vector_features_df</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">vector_features</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">vector_features</span><span class="p">,</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">):</span>
+        <span class="n">vector_features_df</span> <span class="o">=</span> <span class="n">vector_features</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">vector_features</span><span class="p">,</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoSeries</span><span class="p">):</span>
+        <span class="n">vector_features_df</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">(</span><span class="n">geometry</span><span class="o">=</span><span class="n">vector_features</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;Geometry must be vector file, GeoSeries or GeoDataFrame&quot;</span>
+        <span class="p">)</span>
+
+    <span class="c1"># drop Nones in geometry column</span>
+    <span class="n">none_idx</span> <span class="o">=</span> <span class="n">vector_features_df</span><span class="p">[</span>
+        <span class="n">vector_features_df</span><span class="o">.</span><span class="n">geometry</span> <span class="o">==</span> <span class="kc">None</span><span class="p">]</span><span class="o">.</span><span class="n">index</span>  <span class="c1"># noqa: E711</span>
+    <span class="n">vector_features_df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="n">none_idx</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="n">rio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">low_res_band</span><span class="o">.</span><span class="n">band_path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">src</span><span class="p">:</span>
+        <span class="c1"># convert to raster CRS</span>
+        <span class="n">raster_crs</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">crs</span>
+        <span class="n">vector_features_df</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="n">crs</span><span class="o">=</span><span class="n">raster_crs</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="c1"># check if the geometry contains the z (3rd) dimension. If yes</span>
+        <span class="c1"># convert it to 2d to avoid an error poping up from rasterio</span>
+        <span class="n">vector_features_geom</span> <span class="o">=</span> <span class="n">convert_3D_2D</span><span class="p">(</span><span class="n">vector_features_df</span><span class="o">.</span><span class="n">geometry</span><span class="p">)</span>
+        <span class="n">shape_mask</span><span class="p">,</span> <span class="n">transform</span><span class="p">,</span> <span class="n">window</span> <span class="o">=</span> <span class="n">raster_geometry_mask</span><span class="p">(</span>
+            <span class="n">dataset</span><span class="o">=</span><span class="n">src</span><span class="p">,</span>
+            <span class="n">shapes</span><span class="o">=</span><span class="n">vector_features_geom</span><span class="p">,</span>
+            <span class="n">all_touched</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">crop</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="c1"># get upper left coordinates rasterio takes for the band</span>
+    <span class="c1"># with the coarsest spatial resolution</span>
+    <span class="n">ulx_low_res</span><span class="p">,</span> <span class="n">uly_low_res</span> <span class="o">=</span> <span class="n">transform</span><span class="o">.</span><span class="n">c</span><span class="p">,</span> <span class="n">transform</span><span class="o">.</span><span class="n">f</span>
+    <span class="c1"># reconstruct the lower right corner</span>
+    <span class="n">llx_low_res</span> <span class="o">=</span> <span class="n">ulx_low_res</span> <span class="o">+</span> <span class="n">window</span><span class="o">.</span><span class="n">width</span> <span class="o">*</span> <span class="n">transform</span><span class="o">.</span><span class="n">a</span>
+    <span class="n">lly_low_res</span> <span class="o">=</span> <span class="n">uly_low_res</span> <span class="o">+</span> <span class="n">window</span><span class="o">.</span><span class="n">height</span> <span class="o">*</span> <span class="n">transform</span><span class="o">.</span><span class="n">e</span>
+
+    <span class="c1"># overwrite original vector features&#39; bounds in the S2 scene</span>
+    <span class="c1"># geometry of the lowest spatial resolution</span>
+    <span class="n">low_res_feature_bounds_s2_grid</span> <span class="o">=</span> <span class="n">box</span><span class="p">(</span>
+        <span class="n">minx</span><span class="o">=</span><span class="n">ulx_low_res</span><span class="p">,</span>
+        <span class="n">miny</span><span class="o">=</span><span class="n">lly_low_res</span><span class="p">,</span>
+        <span class="n">maxx</span><span class="o">=</span><span class="n">llx_low_res</span><span class="p">,</span>
+        <span class="n">maxy</span><span class="o">=</span><span class="n">uly_low_res</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="c1"># update bounds and pass them on to the kwargs</span>
+    <span class="n">bounds_df</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">(</span>
+        <span class="n">geometry</span><span class="o">=</span><span class="p">[</span><span class="n">low_res_feature_bounds_s2_grid</span><span class="p">],</span>
+    <span class="p">)</span>
+    <span class="n">bounds_df</span><span class="o">.</span><span class="n">set_crs</span><span class="p">(</span><span class="n">crs</span><span class="o">=</span><span class="n">raster_crs</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">bounds_df</span><span class="p">,</span> <span class="n">shape_mask</span><span class="p">,</span> <span class="n">lowest_resolution</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../packages/modules.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

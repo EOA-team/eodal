@@ -1,0 +1,851 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.core.sensors.sentinel2 &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/alabaster.css" />
+    <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
+    <script src="../../../../_static/jquery.js"></script>
+    <script src="../../../../_static/underscore.js"></script>
+    <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../../_static/doctools.js"></script>
+    <script src="../../../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for eodal.core.sensors.sentinel2</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module contains the ``Sentinel2`` class that inherits from</span>
+<span class="sd">eodal&#39;s core ``RasterCollection`` class.</span>
+
+<span class="sd">The ``Sentinel2`` class enables reading one or more spectral bands from Sentinel-2</span>
+<span class="sd">data in .SAFE format which is ESA&#39;s standard format for distributing Sentinel-2 data.</span>
+
+<span class="sd">The class handles data in L1C and L2A processing level.</span>
+
+<span class="sd">Copyright (C) 2022 Lukas Valentin Graf</span>
+
+<span class="sd">This program is free software: you can redistribute it and/or modify</span>
+<span class="sd">it under the terms of the GNU General Public License as published by</span>
+<span class="sd">the Free Software Foundation, either version 3 of the License, or</span>
+<span class="sd">(at your option) any later version.</span>
+
+<span class="sd">This program is distributed in the hope that it will be useful,</span>
+<span class="sd">but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="sd">MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="sd">GNU General Public License for more details.</span>
+
+<span class="sd">You should have received a copy of the GNU General Public License</span>
+<span class="sd">along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">geopandas</span> <span class="k">as</span> <span class="nn">gpd</span>
+<span class="kn">import</span> <span class="nn">rasterio</span> <span class="k">as</span> <span class="nn">rio</span>
+
+<span class="kn">from</span> <span class="nn">matplotlib.pyplot</span> <span class="kn">import</span> <span class="n">Figure</span>
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">colors</span>
+<span class="kn">from</span> <span class="nn">numbers</span> <span class="kn">import</span> <span class="n">Number</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">shapely.geometry</span> <span class="kn">import</span> <span class="n">box</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">from</span> <span class="nn">eodal.core.band</span> <span class="kn">import</span> <span class="n">Band</span><span class="p">,</span> <span class="n">WavelengthInfo</span>
+<span class="kn">from</span> <span class="nn">eodal.core.raster</span> <span class="kn">import</span> <span class="n">RasterCollection</span><span class="p">,</span> <span class="n">SceneProperties</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.constants.sentinel2</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">band_resolution</span><span class="p">,</span>
+    <span class="n">band_widths</span><span class="p">,</span>
+    <span class="n">central_wavelengths</span><span class="p">,</span>
+    <span class="n">ProcessingLevels</span><span class="p">,</span>
+    <span class="n">s2_band_mapping</span><span class="p">,</span>
+    <span class="n">s2_gain_factor</span><span class="p">,</span>
+    <span class="n">SCL_Classes</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.decorators</span> <span class="kn">import</span> <span class="n">prepare_point_features</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.geometry</span> <span class="kn">import</span> <span class="n">adopt_vector_features_to_mask</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.exceptions</span> <span class="kn">import</span> <span class="n">BandNotFoundError</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.sentinel2</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">get_S2_bandfiles_with_res</span><span class="p">,</span>
+    <span class="n">get_S2_platform_from_safe</span><span class="p">,</span>
+    <span class="n">get_S2_processing_level</span><span class="p">,</span>
+    <span class="n">get_S2_acquistion_time_from_safe</span><span class="p">,</span>
+    <span class="n">get_S2_processing_baseline_from_safe</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">eodal.config</span> <span class="kn">import</span> <span class="n">get_settings</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.sentinel2</span> <span class="kn">import</span> <span class="n">_url_to_safe_name</span>
+
+<span class="n">Settings</span> <span class="o">=</span> <span class="n">get_settings</span><span class="p">()</span>
+<span class="n">Settings</span><span class="o">.</span><span class="n">USE_STAC</span> <span class="o">=</span> <span class="kc">False</span>
+
+
+<div class="viewcode-block" id="Sentinel2"><a class="viewcode-back" href="../../../../packages/eodal.core.sensors.sentinel2.html#eodal.core.sensors.sentinel2.Sentinel2">[docs]</a><span class="k">class</span> <span class="nc">Sentinel2</span><span class="p">(</span><span class="n">RasterCollection</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for storing Sentinel-2 band data read from bandstacks or</span>
+<span class="sd">    .SAFE archives (L1C and L2A level) overwriting methods inherited</span>
+<span class="sd">    from `~eodal.utils.io.SatDataHandler`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_blackfilled</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Checks if the scene is black-filled (nodata only)&quot;&quot;&quot;</span>
+        <span class="c1"># if SCL is available use this layer</span>
+        <span class="k">if</span> <span class="s2">&quot;SCL&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">band_names</span><span class="p">:</span>
+            <span class="n">scl_stats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_scl_stats</span><span class="p">()</span>
+            <span class="n">no_data_count</span> <span class="o">=</span> <span class="n">scl_stats</span><span class="p">[</span><span class="n">scl_stats</span><span class="o">.</span><span class="n">Class_Value</span><span class="o">.</span><span class="n">isin</span><span class="p">([</span><span class="mi">0</span><span class="p">])][</span>
+                <span class="s2">&quot;Class_Abs_Count&quot;</span>
+            <span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+            <span class="n">all_pixels</span> <span class="o">=</span> <span class="n">scl_stats</span><span class="p">[</span><span class="s2">&quot;Class_Abs_Count&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">no_data_count</span> <span class="o">==</span> <span class="n">all_pixels</span>
+        <span class="c1"># otherwise check the reflectance values from the first</span>
+        <span class="c1"># band in the collection. If all values are zero then</span>
+        <span class="c1"># the pixels are considered backfilled</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">band_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">band_names</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="p">[</span><span class="n">band_name</span><span class="p">]</span><span class="o">.</span><span class="n">is_masked_array</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="n">band_name</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">data</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="p">[</span><span class="n">band_name</span><span class="p">]</span><span class="o">.</span><span class="n">is_ndarray</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="n">band_name</span><span class="p">]</span><span class="o">.</span><span class="n">values</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="bp">self</span><span class="p">[</span><span class="n">band_name</span><span class="p">]</span><span class="o">.</span><span class="n">is_zarr</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_get_gain_and_offset</span><span class="p">(</span><span class="n">in_dir</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Number</span><span class="p">,</span> <span class="n">Number</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns gain and offset factor depending on the PDGS processing baseline</span>
+
+<span class="sd">        :param in_dir:</span>
+<span class="sd">            Sentinel-2 .SAFE archive folder from which to read data</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            tuple whose first entry denotes the gain and whose second entry</span>
+<span class="sd">            denotes the offset value to apply to the image data to scale</span>
+<span class="sd">            it between 0 and 1.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># check the PDGS baseline</span>
+        <span class="n">baseline</span> <span class="o">=</span> <span class="n">get_S2_processing_baseline_from_safe</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="o">=</span><span class="n">in_dir</span><span class="p">)</span>
+        <span class="c1"># starting with baseline N0400 (400) S2 reflectances have an offset</span>
+        <span class="c1"># value of -1000, i.e., the values reported in the .jp2 files must</span>
+        <span class="c1"># be subtracted by 1000 to obtain the actual reflectance factor values</span>
+        <span class="n">s2_offset</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">baseline</span> <span class="o">==</span> <span class="mi">400</span><span class="p">:</span>
+            <span class="n">s2_offset</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1000</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">s2_gain_factor</span><span class="p">,</span> <span class="n">s2_offset</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_get_band_files</span><span class="p">(</span>
+        <span class="n">in_dir</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]],</span> <span class="n">band_selection</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">read_scl</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the paths to the single Sentinel-2 bands.</span>
+
+<span class="sd">        There are two options:</span>
+
+<span class="sd">        * Returns the file-paths to the selected Sentinel-2 bands in a .SAFE archive</span>
+<span class="sd">          folder and checks the processing level of the data (L1C or L2A).</span>
+<span class="sd">        * Returns the links to the assets from a STAC query</span>
+
+<span class="sd">        :param in_dir:</span>
+<span class="sd">            Sentinel-2 .SAFE archive folder from which to read data or dictionary</span>
+<span class="sd">            with assets from a STAC query</span>
+<span class="sd">        :param band_selection:</span>
+<span class="sd">            selection of spectral Sentinel-2 bands to read</span>
+<span class="sd">        :param read_scl:</span>
+<span class="sd">            if True and the processing level is L2A the scene classification layer</span>
+<span class="sd">            is read in addition to the spectral bands</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            ``DataFrame`` with paths to the jp2 files with the spectral band data</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># check processing level (use B01 for STAC)</span>
+        <span class="k">if</span> <span class="n">Settings</span><span class="o">.</span><span class="n">USE_STAC</span><span class="p">:</span>
+            <span class="n">processing_level</span> <span class="o">=</span> <span class="n">get_S2_processing_level</span><span class="p">(</span>
+                <span class="n">dot_safe_name</span><span class="o">=</span><span class="n">in_dir</span><span class="p">[</span><span class="s2">&quot;B01&quot;</span><span class="p">][</span><span class="s2">&quot;href&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">processing_level</span> <span class="o">=</span> <span class="n">get_S2_processing_level</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="o">=</span><span class="n">in_dir</span><span class="p">)</span>
+
+        <span class="c1"># define also a local flag of the processing level so this method also works</span>
+        <span class="c1"># when called from a classmethod</span>
+        <span class="n">is_l2a</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="n">processing_level</span> <span class="o">==</span> <span class="n">ProcessingLevels</span><span class="o">.</span><span class="n">L1C</span><span class="p">:</span>
+            <span class="n">is_l2a</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># check if SCL should e read (L2A)</span>
+        <span class="k">if</span> <span class="n">is_l2a</span> <span class="ow">and</span> <span class="n">read_scl</span><span class="p">:</span>
+            <span class="n">scl_in_selection</span> <span class="o">=</span> <span class="s2">&quot;scl&quot;</span> <span class="ow">in</span> <span class="n">band_selection</span> <span class="ow">or</span> <span class="s2">&quot;SCL&quot;</span> <span class="ow">in</span> <span class="n">band_selection</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">scl_in_selection</span><span class="p">:</span>
+                <span class="n">band_selection</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;SCL&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">read_scl</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;scl&quot;</span> <span class="ow">in</span> <span class="n">band_selection</span><span class="p">:</span>
+                <span class="n">band_selection</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s2">&quot;scl&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s2">&quot;SCL&quot;</span> <span class="ow">in</span> <span class="n">band_selection</span><span class="p">:</span>
+                <span class="n">band_selection</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s2">&quot;SCL&quot;</span><span class="p">)</span>
+
+        <span class="c1"># determine native spatial resolution of Sentinel-2 bands</span>
+        <span class="n">band_res</span> <span class="o">=</span> <span class="n">band_resolution</span><span class="p">[</span><span class="n">processing_level</span><span class="p">]</span>
+        <span class="n">band_selection_spatial_res</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">band_res</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="n">band_selection</span>
+        <span class="p">]</span>
+
+        <span class="c1"># search band files depending on processing level and spatial resolution(s)</span>
+        <span class="n">band_df_safe</span> <span class="o">=</span> <span class="n">get_S2_bandfiles_with_res</span><span class="p">(</span>
+            <span class="n">in_dir</span><span class="o">=</span><span class="n">in_dir</span><span class="p">,</span> <span class="n">band_selection</span><span class="o">=</span><span class="n">band_selection_spatial_res</span><span class="p">,</span> <span class="n">is_l2a</span><span class="o">=</span><span class="n">is_l2a</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">band_df_safe</span>
+
+    <span class="k">def</span> <span class="nf">_process_band_selection</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">in_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">band_selection</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">read_scl</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adopts the selection of Sentinel-2 spectral bands to ensure</span>
+<span class="sd">        that default bands are read if not specified otherwise.</span>
+
+<span class="sd">        :param in_dir:</span>
+<span class="sd">            path to the .SAFE archive of the S2 scene</span>
+<span class="sd">        :param band_selection:</span>
+<span class="sd">            optional selection of Sentinel-2 band names. If None the band</span>
+<span class="sd">            selection is aligned so that all 10 and 20m bands are read</span>
+<span class="sd">        :param read_scl:</span>
+<span class="sd">            if True (defaults) ensures that the scene classification layer</span>
+<span class="sd">            is read (L2A processing level)</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            ``DataFrame`` with file-paths to the spectral bands</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># load 10 and 20 bands by default</span>
+        <span class="k">if</span> <span class="n">band_selection</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">band_selection</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">s2_band_mapping</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="n">bands_to_exclude</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;B01&quot;</span><span class="p">,</span> <span class="s2">&quot;B09&quot;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">band</span> <span class="ow">in</span> <span class="n">bands_to_exclude</span><span class="p">:</span>
+                <span class="n">band_selection</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">band</span><span class="p">)</span>
+
+        <span class="c1"># determine which spatial resolutions are selected and check processing level</span>
+        <span class="n">band_df_safe</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_band_files</span><span class="p">(</span>
+            <span class="n">in_dir</span><span class="o">=</span><span class="n">in_dir</span><span class="p">,</span> <span class="n">band_selection</span><span class="o">=</span><span class="n">band_selection</span><span class="p">,</span> <span class="n">read_scl</span><span class="o">=</span><span class="n">read_scl</span>
+        <span class="p">)</span>
+        <span class="c1"># check if a band in the band_selection was not found</span>
+        <span class="k">if</span> <span class="n">band_selection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">band_selection</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">band_df_safe</span><span class="o">.</span><span class="n">band_name</span><span class="p">):</span>
+                <span class="n">bands_not_found</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">band_selection</span> <span class="k">if</span> <span class="n">x</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">band_df_safe</span><span class="o">.</span><span class="n">band_name</span><span class="p">)</span>
+                <span class="p">]</span>
+                <span class="c1"># SCL might be &quot;missing&quot;</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bands_not_found</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">bands_not_found</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;SCL&quot;</span><span class="p">:</span>
+                        <span class="k">return</span> <span class="n">band_df_safe</span>
+                <span class="k">raise</span> <span class="n">BandNotFoundError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Couldnot find bands </span><span class="si">{</span><span class="n">bands_not_found</span><span class="si">}</span><span class="s2"> &quot;</span> <span class="s2">&quot;provided in selection&quot;</span>
+                <span class="p">)</span>
+        <span class="k">return</span> <span class="n">band_df_safe</span>
+
+<div class="viewcode-block" id="Sentinel2.from_safe"><a class="viewcode-back" href="../../../../packages/eodal.core.sensors.sentinel2.html#eodal.core.sensors.sentinel2.Sentinel2.from_safe">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_safe</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">in_dir</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]],</span>
+        <span class="n">band_selection</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">read_scl</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">apply_scaling</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Loads Sentinel-2 data into a `RasterCollection`.</span>
+
+<span class="sd">        There are two options:</span>
+
+<span class="sd">        * Read data from a .SAFE archive which is ESA&#39;s standard format for</span>
+<span class="sd">          distributing Sentinel-2 data (L1C and L2A processing levels).</span>
+<span class="sd">        * Read data from a Asset-List returned from a STAC query</span>
+
+<span class="sd">        NOTE:</span>
+<span class="sd">            If a spatial subset is read (`vector_features` in kwargs) the</span>
+<span class="sd">            single S2 bands are clipped to the spatial extent of the S2 in the</span>
+<span class="sd">            band selection with the coarsest (lowest) spatial resolution. This</span>
+<span class="sd">            way it is ensured that all bands share the same spatial extent</span>
+<span class="sd">            regardless of their spatial resolution (10, 20, or 60m). This is</span>
+<span class="sd">            possible because all bands share the same origin (upper left corner).</span>
+
+<span class="sd">        :param in_dir:</span>
+<span class="sd">            file-path to the .SAFE directory containing Sentinel-2 data in</span>
+<span class="sd">            L1C or L2A processing level or collection of hyper-links in the case</span>
+<span class="sd">            of STAC</span>
+<span class="sd">        :param band_selection:</span>
+<span class="sd">            selection of Sentinel-2 bands to read. Per default, all 10 and</span>
+<span class="sd">            20m bands are processed. If you wish to read less or more, specify</span>
+<span class="sd">            the band names accordingly, e.g., [&#39;B02&#39;,&#39;B03&#39;,&#39;B04&#39;] to read only the</span>
+<span class="sd">            VIS bands. If the processing level is L2A the SCL band is **always**</span>
+<span class="sd">            loaded unless you set ``read_scl`` to False.</span>
+<span class="sd">        :param read_scl:</span>
+<span class="sd">            read SCL file if available (default, L2A processing level).</span>
+<span class="sd">        :param apply_scaling:</span>
+<span class="sd">            apply Sentinel-2 gain and offset factor to derive reflectance values scaled</span>
+<span class="sd">            between 0 (negative values are possible from baseline N0400 onwards) and 1</span>
+<span class="sd">            (default behavior). Because of the reflectance offset of -1000 introduced</span>
+<span class="sd">            with PDGS baseline N0400 in January 2022 applying the automatized scaling</span>
+<span class="sd">            is recommended to always obtain physically correct reflectance factor</span>
+<span class="sd">            values - at the cost of higher storage requirements because scaling converts</span>
+<span class="sd">            the data to float32.</span>
+<span class="sd">        :param kwargs:</span>
+<span class="sd">            optional key-word arguments to pass to `~eodal.core.band.Band.from_rasterio`</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            `Sentinel2` instance with S2 bands loaded</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># load 10 and 20 bands by default</span>
+        <span class="n">band_df_safe</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_process_band_selection</span><span class="p">(</span>
+            <span class="bp">cls</span><span class="p">,</span> <span class="n">in_dir</span><span class="o">=</span><span class="n">in_dir</span><span class="p">,</span> <span class="n">band_selection</span><span class="o">=</span><span class="n">band_selection</span><span class="p">,</span> <span class="n">read_scl</span><span class="o">=</span><span class="n">read_scl</span>
+        <span class="p">)</span>
+
+        <span class="c1"># check the clipping extent of the raster with the lowest (coarsest) spatial</span>
+        <span class="c1"># resolution and remember it for all other bands with higher spatial</span>
+        <span class="c1"># resolutions.</span>
+        <span class="c1"># By doing so, it is ensured that all bands will be clipped to the same spatial</span>
+        <span class="c1"># extent regardless of their pixel size. This works since all S2 bands share the</span>
+        <span class="c1"># same coordinate origin.</span>
+        <span class="c1"># get lowest spatial resolution (maximum pixel size) band</span>
+        <span class="n">masking_after_read_required</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="k">if</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;vector_features&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">bounds_df</span><span class="p">,</span> <span class="n">shape_mask</span><span class="p">,</span> <span class="n">lowest_resolution</span> <span class="o">=</span> <span class="n">adopt_vector_features_to_mask</span><span class="p">(</span>
+                <span class="n">band_df</span><span class="o">=</span><span class="n">band_df_safe</span><span class="p">,</span>
+                <span class="n">vector_features</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;vector_features&quot;</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;full_bounding_box_only&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+                <span class="n">masking_after_read_required</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="c1"># update the vector_features entry</span>
+            <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;vector_features&quot;</span><span class="p">:</span> <span class="n">bounds_df</span><span class="p">})</span>
+
+        <span class="c1"># determine platform (S2A or S2B)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">platform</span> <span class="o">=</span> <span class="n">get_S2_platform_from_safe</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="o">=</span><span class="n">in_dir</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not determine platform: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="c1"># set scene properties (platform, sensor, acquisition date)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">acqui_time</span> <span class="o">=</span> <span class="n">get_S2_acquistion_time_from_safe</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="o">=</span><span class="n">in_dir</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not determine acquisition time: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">processing_level</span> <span class="o">=</span> <span class="n">get_S2_processing_level</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="o">=</span><span class="n">in_dir</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not determine processing level: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_dir</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+                <span class="n">product_uri</span> <span class="o">=</span> <span class="n">in_dir</span><span class="o">.</span><span class="n">name</span>
+            <span class="k">elif</span> <span class="n">Settings</span><span class="o">.</span><span class="n">USE_STAC</span><span class="p">:</span>
+                <span class="n">product_uri</span> <span class="o">=</span> <span class="n">_url_to_safe_name</span><span class="p">(</span><span class="n">in_dir</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not determine product uri: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">scene_properties</span> <span class="o">=</span> <span class="n">SceneProperties</span><span class="p">(</span>
+            <span class="n">acquisition_time</span><span class="o">=</span><span class="n">acqui_time</span><span class="p">,</span>
+            <span class="n">platform</span><span class="o">=</span><span class="n">platform</span><span class="p">,</span>
+            <span class="n">sensor</span><span class="o">=</span><span class="s2">&quot;MSI&quot;</span><span class="p">,</span>
+            <span class="n">processing_level</span><span class="o">=</span><span class="n">processing_level</span><span class="p">,</span>
+            <span class="n">product_uri</span><span class="o">=</span><span class="n">product_uri</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># set AREA_OR_POINT to Area</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;area_or_point&quot;</span><span class="p">:</span> <span class="s2">&quot;Area&quot;</span><span class="p">})</span>
+        <span class="c1"># set nodata to zero (unfortunately the S2 img metadata is incorrect here)</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;nodata&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">})</span>
+        <span class="c1"># set correct scale factor (unfortunately not correct in S2 JP2 header but</span>
+        <span class="c1"># specified in the MTD_MSIL1C and MTD_MSIL2A.xml metadata document)</span>
+        <span class="n">gain</span><span class="p">,</span> <span class="n">offset</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_gain_and_offset</span><span class="p">(</span><span class="n">in_dir</span><span class="o">=</span><span class="n">in_dir</span><span class="p">)</span>
+
+        <span class="c1"># loop over bands and add them to the collection of bands</span>
+        <span class="n">sentinel2</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">scene_properties</span><span class="o">=</span><span class="n">scene_properties</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">band_name</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">band_df_safe</span><span class="o">.</span><span class="n">band_name</span><span class="p">):</span>
+            <span class="c1"># get entry from dataframe with file-path of band</span>
+            <span class="n">band_safe</span> <span class="o">=</span> <span class="n">band_df_safe</span><span class="p">[</span><span class="n">band_df_safe</span><span class="o">.</span><span class="n">band_name</span> <span class="o">==</span> <span class="n">band_name</span><span class="p">]</span>
+            <span class="n">band_fpath</span> <span class="o">=</span> <span class="n">band_safe</span><span class="o">.</span><span class="n">band_path</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="c1"># get color name and set it as alias</span>
+            <span class="n">color_name</span> <span class="o">=</span> <span class="n">s2_band_mapping</span><span class="p">[</span><span class="n">band_name</span><span class="p">]</span>
+            <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;scale&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;offset&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">})</span>
+
+            <span class="c1"># store wavelength information per spectral band</span>
+            <span class="k">if</span> <span class="n">band_name</span> <span class="o">!=</span> <span class="s2">&quot;SCL&quot;</span><span class="p">:</span>
+                <span class="n">central_wvl</span> <span class="o">=</span> <span class="n">central_wavelengths</span><span class="p">[</span><span class="n">platform</span><span class="p">][</span><span class="n">band_name</span><span class="p">]</span>
+                <span class="n">wavelength_unit</span> <span class="o">=</span> <span class="n">central_wavelengths</span><span class="p">[</span><span class="s2">&quot;unit&quot;</span><span class="p">]</span>
+                <span class="n">band_width</span> <span class="o">=</span> <span class="n">band_widths</span><span class="p">[</span><span class="n">platform</span><span class="p">][</span><span class="n">band_name</span><span class="p">]</span>
+                <span class="n">wvl_info</span> <span class="o">=</span> <span class="n">WavelengthInfo</span><span class="p">(</span>
+                    <span class="n">central_wavelength</span><span class="o">=</span><span class="n">central_wvl</span><span class="p">,</span>
+                    <span class="n">wavelength_unit</span><span class="o">=</span><span class="n">wavelength_unit</span><span class="p">,</span>
+                    <span class="n">band_width</span><span class="o">=</span><span class="n">band_width</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;wavelength_info&quot;</span><span class="p">:</span> <span class="n">wvl_info</span><span class="p">})</span>
+                <span class="c1"># do not apply the gain and offset factors from the spectral bands</span>
+                <span class="c1"># to the SCL file</span>
+                <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;scale&quot;</span><span class="p">:</span> <span class="n">gain</span><span class="p">,</span> <span class="s2">&quot;offset&quot;</span><span class="p">:</span> <span class="n">offset</span><span class="p">})</span>
+
+            <span class="c1"># read band</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">sentinel2</span><span class="o">.</span><span class="n">add_band</span><span class="p">(</span>
+                    <span class="n">Band</span><span class="o">.</span><span class="n">from_rasterio</span><span class="p">,</span>
+                    <span class="n">fpath_raster</span><span class="o">=</span><span class="n">band_fpath</span><span class="p">,</span>
+                    <span class="n">band_idx</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                    <span class="n">band_name_dst</span><span class="o">=</span><span class="n">band_name</span><span class="p">,</span>
+                    <span class="n">band_alias</span><span class="o">=</span><span class="n">color_name</span><span class="p">,</span>
+                    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Could not add band </span><span class="si">{</span><span class="n">band_name</span><span class="si">}</span><span class="s2"> from </span><span class="si">{</span><span class="n">in_dir</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+            <span class="c1"># apply actual vector features if masking is required</span>
+            <span class="k">if</span> <span class="n">masking_after_read_required</span><span class="p">:</span>
+                <span class="c1"># nothing to do when the lowest resolution is passed</span>
+                <span class="k">if</span> <span class="n">band_safe</span><span class="o">.</span><span class="n">band_resolution</span><span class="o">.</span><span class="n">values</span> <span class="o">==</span> <span class="n">lowest_resolution</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="c1"># otherwise resample the mask of the lowest resolution to the</span>
+                <span class="c1"># current resolution using nearest neighbor interpolation</span>
+                <span class="n">tmp</span> <span class="o">=</span> <span class="n">shape_mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;uint8&quot;</span><span class="p">)</span>
+                <span class="n">dim_resampled</span> <span class="o">=</span> <span class="p">(</span><span class="n">sentinel2</span><span class="p">[</span><span class="n">band_name</span><span class="p">]</span><span class="o">.</span><span class="n">ncols</span><span class="p">,</span> <span class="n">sentinel2</span><span class="p">[</span><span class="n">band_name</span><span class="p">]</span><span class="o">.</span><span class="n">nrows</span><span class="p">)</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span>
+                    <span class="n">tmp</span><span class="p">,</span> <span class="n">dim_resampled</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_NEAREST_EXACT</span>
+                <span class="p">)</span>
+                <span class="c1"># cast back to boolean</span>
+                <span class="n">mask</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;bool&quot;</span><span class="p">)</span>
+                <span class="n">sentinel2</span><span class="o">.</span><span class="n">mask</span><span class="p">(</span><span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span> <span class="n">bands_to_mask</span><span class="o">=</span><span class="p">[</span><span class="n">band_name</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="c1"># scaling of reflectance values (i.e., do not scale SCL)</span>
+        <span class="k">if</span> <span class="n">apply_scaling</span><span class="p">:</span>
+            <span class="n">sel_bands</span> <span class="o">=</span> <span class="n">sentinel2</span><span class="o">.</span><span class="n">band_names</span>
+            <span class="k">if</span> <span class="s2">&quot;SCL&quot;</span> <span class="ow">in</span> <span class="n">sel_bands</span><span class="p">:</span>
+                <span class="n">sel_bands</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s2">&quot;SCL&quot;</span><span class="p">)</span>
+            <span class="n">sentinel2</span><span class="o">.</span><span class="n">scale</span><span class="p">(</span>
+                <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">band_selection</span><span class="o">=</span><span class="n">sel_bands</span><span class="p">,</span>
+                <span class="n">pixel_values_to_ignore</span><span class="o">=</span><span class="p">[</span><span class="n">sentinel2</span><span class="p">[</span><span class="n">sentinel2</span><span class="o">.</span><span class="n">band_names</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">nodata</span><span class="p">],</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">sentinel2</span></div>
+
+<div class="viewcode-block" id="Sentinel2.read_pixels_from_safe"><a class="viewcode-back" href="../../../../packages/eodal.core.sensors.sentinel2.html#eodal.core.sensors.sentinel2.Sentinel2.read_pixels_from_safe">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="nd">@prepare_point_features</span>
+    <span class="k">def</span> <span class="nf">read_pixels_from_safe</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">in_dir</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">vector_features</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Path</span><span class="p">,</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">],</span>
+        <span class="n">band_selection</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">read_scl</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">apply_scaling</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extracts Sentinel-2 raster values at locations defined by one or many</span>
+<span class="sd">        vector geometry features read from a vector file (e.g., ESRI shapefile) or</span>
+<span class="sd">        ``GeoDataFrame``.</span>
+
+<span class="sd">        The Sentinel-2 data must be organized in .SAFE archive structure in either</span>
+<span class="sd">        L1C or L2A processing level. Each selected Sentinel-2 band is returned as</span>
+<span class="sd">        a column in the resulting ``GeoDataFrame``. Pixels outside of the band</span>
+<span class="sd">        bounds are ignored and not returned as well as pixels set to blackfill</span>
+<span class="sd">        (zero reflectance in all spectral bands).</span>
+
+<span class="sd">        IMPORTANT:</span>
+<span class="sd">            This function works for Sentinel-2 data organized in .SAFE format!</span>
+<span class="sd">            If the Sentinel-2 data has been converted to multi-band tiffs, use</span>
+<span class="sd">            `~Sentinel2().read_pixels()` instead.</span>
+
+<span class="sd">        NOTE:</span>
+<span class="sd">            A point is dimension-less, therefore, the raster grid cell (pixel) closest</span>
+<span class="sd">            to the point is returned if the point lies within the raster.</span>
+<span class="sd">            Therefore, this method works on all Sentinel-2 bands **without** the need</span>
+<span class="sd">            to do spatial resampling! The underlying ``rasterio.sample`` function always</span>
+<span class="sd">            snaps to the closest pixel in the current spectral band.</span>
+
+<span class="sd">        :param in_dir:</span>
+<span class="sd">            Sentinel-2 scene in .SAFE structure from which to extract</span>
+<span class="sd">            pixel values at the provided point locations. Can be either a dictionary</span>
+<span class="sd">            item returned from STAC or a physical file-path</span>
+<span class="sd">        :param vector_features:</span>
+<span class="sd">            vector file (e.g., ESRI shapefile or geojson) or ``GeoDataFrame``</span>
+<span class="sd">            defining point locations for which to extract pixel values</span>
+<span class="sd">        :param band_selection:</span>
+<span class="sd">            list of bands to read. Per default all raster bands available are read.</span>
+<span class="sd">        :param read_scl:</span>
+<span class="sd">            read SCL file if available (default, L2A processing level).</span>
+<span class="sd">        :param apply_scaling:</span>
+<span class="sd">            apply Sentinel-2 gain and offset factor to derive reflectance values scaled</span>
+<span class="sd">            between 0 (negative values are possible from baseline N0400 onwards) and 1</span>
+<span class="sd">            (default behavior). Because of the reflectance offset of -1000 introduced</span>
+<span class="sd">            with PDGS baseline N0400 in January 2022 applying the automatized scaling</span>
+<span class="sd">            is recommended to always obtain physically correct reflectance factor values</span>
+<span class="sd">            - at the cost of higher storage requirements because scaling converts the</span>
+<span class="sd">            data to float32.</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            ``GeoDataFrame`` containing the extracted raster values. The band values</span>
+<span class="sd">            are appended as columns to the dataframe. Existing columns of the input</span>
+<span class="sd">            `in_file_pixels` are preserved.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># load 10 and 20 bands by default</span>
+        <span class="n">band_df_safe</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_process_band_selection</span><span class="p">(</span>
+            <span class="bp">cls</span><span class="p">,</span> <span class="n">in_dir</span><span class="o">=</span><span class="n">in_dir</span><span class="p">,</span> <span class="n">band_selection</span><span class="o">=</span><span class="n">band_selection</span><span class="p">,</span> <span class="n">read_scl</span><span class="o">=</span><span class="n">read_scl</span>
+        <span class="p">)</span>
+        <span class="c1"># get gain and offset values depending on the processing baseline</span>
+        <span class="n">gain</span><span class="p">,</span> <span class="n">offset</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_gain_and_offset</span><span class="p">(</span><span class="n">in_dir</span><span class="o">=</span><span class="n">in_dir</span><span class="p">)</span>
+
+        <span class="c1"># loop over spectral bands and extract the pixel values</span>
+        <span class="n">band_gdfs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">band_name</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">band_df_safe</span><span class="o">.</span><span class="n">band_name</span><span class="p">)):</span>
+            <span class="c1"># get entry from dataframe with file-path of band</span>
+            <span class="n">band_safe</span> <span class="o">=</span> <span class="n">band_df_safe</span><span class="p">[</span><span class="n">band_df_safe</span><span class="o">.</span><span class="n">band_name</span> <span class="o">==</span> <span class="n">band_name</span><span class="p">]</span>
+            <span class="n">band_fpath</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">band_safe</span><span class="o">.</span><span class="n">band_path</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+            <span class="c1"># read band pixels</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">gdf_band</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">read_pixels</span><span class="p">(</span>
+                    <span class="n">vector_features</span><span class="o">=</span><span class="n">vector_features</span><span class="p">,</span>
+                    <span class="n">fpath_raster</span><span class="o">=</span><span class="n">band_fpath</span><span class="p">,</span>
+                    <span class="n">band_idxs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                <span class="p">)</span>
+                <span class="c1"># rename the spectral band (always &quot;B1&quot; by default to its</span>
+                <span class="c1"># actual name)</span>
+                <span class="n">gdf_band</span> <span class="o">=</span> <span class="n">gdf_band</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;B1&quot;</span><span class="p">:</span> <span class="n">band_name</span><span class="p">})</span>
+
+                <span class="c1"># remove the geometry column from all GeoDataFrames but the first</span>
+                <span class="c1"># since geopandas does not support multiple geometry columns</span>
+                <span class="c1"># (they are the same for each band, anyways)</span>
+                <span class="k">if</span> <span class="n">idx</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">gdf_band</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s2">&quot;geometry&quot;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Could not extract pixels values from </span><span class="si">{</span><span class="n">band_name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+            <span class="c1"># scale values by applying gain and offset factors (recommended),</span>
+            <span class="c1"># ignore the scl layer</span>
+            <span class="k">if</span> <span class="n">band_name</span> <span class="o">!=</span> <span class="s2">&quot;SCL&quot;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">apply_scaling</span><span class="p">:</span>
+                    <span class="n">gdf_scaled</span> <span class="o">=</span> <span class="n">gdf_band</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                    <span class="n">gdf_scaled</span><span class="p">[</span><span class="n">band_name</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+                    <span class="c1"># use only pixel values were reflectance is != 0</span>
+                    <span class="n">gdf_scaled</span><span class="p">[</span><span class="n">band_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">gdf_band</span><span class="p">[</span><span class="n">band_name</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
+                        <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="n">offset</span><span class="p">,</span> <span class="n">gain</span><span class="o">=</span><span class="n">gain</span><span class="p">:</span> <span class="p">(</span><span class="n">offset</span> <span class="o">+</span> <span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="n">gain</span>
+                        <span class="k">if</span> <span class="n">x</span> <span class="o">!=</span> <span class="mi">0</span>
+                        <span class="k">else</span> <span class="mi">0</span>
+                    <span class="p">)</span>
+                    <span class="n">band_gdfs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">gdf_scaled</span><span class="p">)</span>
+                    <span class="k">continue</span>
+            <span class="n">band_gdfs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">gdf_band</span><span class="p">)</span>
+
+        <span class="c1"># concatenate the single GeoDataFrames with the band data</span>
+        <span class="n">gdf</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">band_gdfs</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># clean the dataframe and remove duplicate column names after merging</span>
+        <span class="c1"># to avoid (large) redundancies</span>
+        <span class="n">gdf</span> <span class="o">=</span> <span class="n">gdf</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="o">~</span><span class="n">gdf</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">duplicated</span><span class="p">()]</span>
+        <span class="c1"># skip all pixels with zero reflectance (either blackfilled or outside of the</span>
+        <span class="c1"># scene extent); in case of dtype float check for NaNs</span>
+        <span class="n">band_names</span> <span class="o">=</span> <span class="n">gdf</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="n">gdf</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;B&quot;</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="n">gdf</span><span class="o">.</span><span class="n">dtypes</span><span class="p">[</span><span class="n">band_names</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;float32&quot;</span><span class="p">,</span> <span class="s2">&quot;float64&quot;</span><span class="p">]:</span>
+            <span class="n">gdf</span><span class="p">[</span><span class="n">band_names</span><span class="p">]</span> <span class="o">=</span> <span class="n">gdf</span><span class="p">[</span><span class="n">band_names</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">({</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">})</span>
+            <span class="n">gdf</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">gdf</span><span class="o">.</span><span class="n">dtypes</span><span class="p">[</span><span class="n">band_names</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;uint16&quot;</span><span class="p">,</span> <span class="s2">&quot;int16&quot;</span><span class="p">,</span> <span class="s2">&quot;int32&quot;</span><span class="p">,</span> <span class="s2">&quot;int64&quot;</span><span class="p">]:</span>
+            <span class="n">gdf</span> <span class="o">=</span> <span class="n">gdf</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span>
+                <span class="o">~</span><span class="p">(</span><span class="n">gdf</span><span class="p">[</span><span class="n">band_df_safe</span><span class="o">.</span><span class="n">band_name</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">gdf</span></div>
+
+<div class="viewcode-block" id="Sentinel2.plot_scl"><a class="viewcode-back" href="../../../../packages/eodal.core.sensors.sentinel2.html#eodal.core.sensors.sentinel2.Sentinel2.plot_scl">[docs]</a>    <span class="k">def</span> <span class="nf">plot_scl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">colormap</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Figure</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Wrapper around `plot_band` method to plot the Scene Classification</span>
+<span class="sd">        Layer available from the L2A processing level. Raises an error if</span>
+<span class="sd">        the band is not available</span>
+
+<span class="sd">        :param colormap:</span>
+<span class="sd">            optional matplotlib named colormap to use for visualization. If</span>
+<span class="sd">            not provided uses a custom color map that tries to reproduce the</span>
+<span class="sd">            standard SCL colors provided by ESA.</span>
+<span class="sd">        :return:</span>
+<span class="sd">            matplotlib figure object with the SCL band data</span>
+<span class="sd">            plotted as map</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># check if SCL is a masked array. If so, fill masked values with no-data</span>
+        <span class="c1"># class (for plotting we need to manipulate the data directly),</span>
+        <span class="c1">#  therefore we work on a copy of SCL</span>
+        <span class="n">scl</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;SCL&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">scl</span><span class="o">.</span><span class="n">is_masked_array</span><span class="p">:</span>
+            <span class="n">new_values</span> <span class="o">=</span> <span class="n">scl</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">filled</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">SCL_Classes</span><span class="o">.</span><span class="n">values</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="o">==</span> <span class="s2">&quot;no_data&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="nb">object</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="n">scl</span><span class="p">,</span> <span class="s2">&quot;values&quot;</span><span class="p">,</span> <span class="n">new_values</span><span class="p">)</span>
+
+        <span class="c1"># make a color map of fixed colors</span>
+        <span class="k">if</span> <span class="n">colormap</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+            <span class="c1"># get only those colors required (classes in the layer)</span>
+            <span class="c1"># FIXME: plotting cannot really handle when values are</span>
+            <span class="c1"># missing in between, e.g., [0,2,3,4]</span>
+            <span class="n">scl_colors</span> <span class="o">=</span> <span class="n">SCL_Classes</span><span class="o">.</span><span class="n">colors</span><span class="p">()</span>
+            <span class="n">scl_dict</span> <span class="o">=</span> <span class="n">SCL_Classes</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+            <span class="n">scl_classes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">scl</span><span class="o">.</span><span class="n">values</span><span class="p">))</span>
+            <span class="n">selected_colors</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">x</span> <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">scl_colors</span><span class="p">)</span> <span class="k">if</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">scl_classes</span>
+            <span class="p">]</span>
+            <span class="n">scl_cmap</span> <span class="o">=</span> <span class="n">colors</span><span class="o">.</span><span class="n">ListedColormap</span><span class="p">(</span><span class="n">selected_colors</span><span class="p">)</span>
+            <span class="n">scl_ticks</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">scl_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="n">scl_classes</span><span class="p">]</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">scl</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span>
+                <span class="n">colormap</span><span class="o">=</span><span class="n">colormap</span><span class="p">,</span>
+                <span class="n">discrete_values</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">user_defined_colors</span><span class="o">=</span><span class="n">scl_cmap</span><span class="p">,</span>
+                <span class="n">user_defined_ticks</span><span class="o">=</span><span class="n">scl_ticks</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">BandNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not plot SCL: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Sentinel2.mask_clouds_and_shadows"><a class="viewcode-back" href="../../../../packages/eodal.core.sensors.sentinel2.html#eodal.core.sensors.sentinel2.Sentinel2.mask_clouds_and_shadows">[docs]</a>    <span class="k">def</span> <span class="nf">mask_clouds_and_shadows</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">bands_to_mask</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">cloud_classes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">11</span><span class="p">],</span>
+        <span class="n">mask_band</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;SCL&quot;</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span> <span class="o">|</span> <span class="n">Sentinel2</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        A Wrapper around the inherited ``mask`` method to mask clouds,</span>
+<span class="sd">        shadows, water and snow based on (by default) the SCL band.</span>
+<span class="sd">        Works therefore on L2A data, only.</span>
+
+<span class="sd">        NOTE:</span>
+<span class="sd">            Since the `mask_band` can be set to *any* `Band` it is also</span>
+<span class="sd">            possible to use a different cloud/shadow etc. mask, e.g., from</span>
+<span class="sd">            a custom classifier.</span>
+
+<span class="sd">        NOTE:</span>
+<span class="sd">            You might also use the mask function from</span>
+<span class="sd">            `eodal.core.raster.RasterCollection` directly.</span>
+
+<span class="sd">        :param bands_to_mask:</span>
+<span class="sd">            list of bands on which to apply the SCL mask. If not specified all bands</span>
+<span class="sd">            are masked.</span>
+<span class="sd">        :param cloud_classes:</span>
+<span class="sd">            list of SCL values to be considered as clouds/shadows and snow.</span>
+<span class="sd">            By default, all three cloud classes and cloud shadows are considered</span>
+<span class="sd">            plus snow.</span>
+<span class="sd">        :param kwargs:</span>
+<span class="sd">            optional kwargs to pass to `~eodal.core.raster.RasterCollection.mask`</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            depending on `inplace` (passed in the kwargs) a new `Sentinel2` instance</span>
+<span class="sd">            or None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">bands_to_mask</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">bands_to_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">band_names</span>
+        <span class="c1"># the mask band should never be masked as otherwise the SCL functions</span>
+        <span class="c1"># might not work as expected</span>
+        <span class="k">if</span> <span class="n">mask_band</span> <span class="ow">in</span> <span class="n">bands_to_mask</span><span class="p">:</span>
+            <span class="n">bands_to_mask</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">mask_band</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask</span><span class="p">(</span>
+                <span class="n">mask</span><span class="o">=</span><span class="n">mask_band</span><span class="p">,</span>
+                <span class="n">mask_values</span><span class="o">=</span><span class="n">cloud_classes</span><span class="p">,</span>
+                <span class="n">bands_to_mask</span><span class="o">=</span><span class="n">bands_to_mask</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">kwargs</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not mask clouds and shadows: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Sentinel2.get_scl_stats"><a class="viewcode-back" href="../../../../packages/eodal.core.sensors.sentinel2.html#eodal.core.sensors.sentinel2.Sentinel2.get_scl_stats">[docs]</a>    <span class="k">def</span> <span class="nf">get_scl_stats</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a ``DataFrame`` with the number of pixel for each</span>
+<span class="sd">        class of the scene classification layer. Works for data in</span>
+<span class="sd">        L2A processing level, only.</span>
+
+<span class="sd">        :returns:</span>
+<span class="sd">            ``DataFrame`` with pixel count of SCL classes available</span>
+<span class="sd">            in the currently loaded Sentinel-2 scene. Masked pixels</span>
+<span class="sd">            are ignored and also not used for calculating the relative</span>
+<span class="sd">            class occurences.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># check if SCL is available</span>
+        <span class="k">if</span> <span class="s2">&quot;scl&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">band_names</span> <span class="ow">and</span> <span class="s2">&quot;SCL&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">band_names</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">BandNotFoundError</span><span class="p">(</span>
+                <span class="s2">&quot;Could not find scene classification layer. Is scene L2A?&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">scl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_band</span><span class="p">(</span><span class="s2">&quot;SCL&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">BandNotFoundError</span><span class="p">:</span>
+            <span class="n">scl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_band</span><span class="p">(</span><span class="s2">&quot;scl&quot;</span><span class="p">)</span>
+        <span class="c1"># if the scl array is a masked array consider only those pixels</span>
+        <span class="c1"># not masked out</span>
+        <span class="k">if</span> <span class="n">scl</span><span class="o">.</span><span class="n">is_masked_array</span><span class="p">:</span>
+            <span class="n">scl_values</span> <span class="o">=</span> <span class="n">scl</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">compressed</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">scl_values</span> <span class="o">=</span> <span class="n">scl</span><span class="o">.</span><span class="n">values</span>
+
+        <span class="c1"># overall number of pixels; masked pixels are not considered</span>
+        <span class="n">n_pixels</span> <span class="o">=</span> <span class="n">scl_values</span><span class="o">.</span><span class="n">size</span>
+
+        <span class="c1"># count occurence of SCL classes</span>
+        <span class="n">scl_classes</span><span class="p">,</span> <span class="n">class_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">scl_values</span><span class="p">,</span> <span class="n">return_counts</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">class_occurences</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">scl_classes</span><span class="p">,</span> <span class="n">class_counts</span><span class="p">))</span>
+
+        <span class="c1"># get SCL class name (in addition to the integer code in the data)</span>
+        <span class="n">scl_class_mapping</span> <span class="o">=</span> <span class="n">SCL_Classes</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+        <span class="n">scl_stats_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">class_occurence</span> <span class="ow">in</span> <span class="n">class_occurences</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># unpack tuple</span>
+            <span class="n">class_code</span><span class="p">,</span> <span class="n">class_count</span> <span class="o">=</span> <span class="n">class_occurence</span>
+
+            <span class="n">scl_stats_dict</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">scl_stats_dict</span><span class="p">[</span><span class="s2">&quot;Class_Value&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">class_code</span>
+            <span class="n">scl_stats_dict</span><span class="p">[</span><span class="s2">&quot;Class_Name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">scl_class_mapping</span><span class="p">[</span><span class="n">class_code</span><span class="p">]</span>
+            <span class="n">scl_stats_dict</span><span class="p">[</span><span class="s2">&quot;Class_Abs_Count&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">class_count</span>
+            <span class="c1"># calculate percentage of the class count to overall number of pixels in %</span>
+            <span class="n">scl_stats_dict</span><span class="p">[</span><span class="s2">&quot;Class_Rel_Count&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">class_count</span> <span class="o">/</span> <span class="n">n_pixels</span> <span class="o">*</span> <span class="mi">100</span>
+
+            <span class="n">scl_stats_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">scl_stats_dict</span><span class="p">)</span>
+
+        <span class="c1"># convert to DataFrame</span>
+        <span class="n">scl_stats_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">scl_stats_list</span><span class="p">)</span>
+
+        <span class="c1"># append also those SCL classes not found in the scene so that always</span>
+        <span class="c1"># all SCL classes are returned (this makes handling the DataFrame easier)</span>
+        <span class="c1"># there are 12 SCL classes, so if the DataFrame has less rows append the</span>
+        <span class="c1"># missing classes</span>
+        <span class="k">if</span> <span class="n">scl_stats_df</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">scl_class_mapping</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">scl_class</span> <span class="ow">in</span> <span class="n">scl_class_mapping</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">scl_class</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">scl_stats_df</span><span class="o">.</span><span class="n">Class_Value</span><span class="o">.</span><span class="n">values</span><span class="p">:</span>
+                    <span class="n">scl_stats_dict</span> <span class="o">=</span> <span class="p">{}</span>
+                    <span class="n">scl_stats_dict</span><span class="p">[</span><span class="s2">&quot;Class_Value&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">scl_class</span><span class="p">)</span>
+                    <span class="n">scl_stats_dict</span><span class="p">[</span><span class="s2">&quot;Class_Name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">scl_class_mapping</span><span class="p">[</span><span class="n">scl_class</span><span class="p">]</span>
+                    <span class="n">scl_stats_dict</span><span class="p">[</span><span class="s2">&quot;Class_Abs_Count&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="n">scl_stats_dict</span><span class="p">[</span><span class="s2">&quot;Class_Rel_Count&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+                    <span class="n">scl_stats_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span>
+                        <span class="p">[</span>
+                            <span class="n">scl_stats_df</span><span class="p">,</span>
+                            <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+                                <span class="n">scl_stats_dict</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="n">scl_stats_df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+                            <span class="p">),</span>
+                        <span class="p">]</span>
+                    <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">scl_stats_df</span></div>
+
+<div class="viewcode-block" id="Sentinel2.get_cloudy_pixel_percentage"><a class="viewcode-back" href="../../../../packages/eodal.core.sensors.sentinel2.html#eodal.core.sensors.sentinel2.Sentinel2.get_cloudy_pixel_percentage">[docs]</a>    <span class="k">def</span> <span class="nf">get_cloudy_pixel_percentage</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">cloud_classes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">11</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the cloudy pixel percentage [0-100] for the current AOI</span>
+<span class="sd">        (L2A processing level, only) considering all SCL classes that are</span>
+<span class="sd">        not NoData.</span>
+
+<span class="sd">        :param cloud_classes:</span>
+<span class="sd">            list of SCL values to be considered as clouds. By default,</span>
+<span class="sd">            all three cloud classes and cloud shadows are considered.</span>
+<span class="sd">        :param check_for_snow:</span>
+<span class="sd">            if True (default) also counts snowy pixels as clouds.</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            cloudy pixel percentage in the AOI [0-100%] related to the</span>
+<span class="sd">            overall number of valid pixels (SCL != no_data)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># get SCL statistics</span>
+        <span class="n">scl_stats_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_scl_stats</span><span class="p">()</span>
+
+        <span class="c1"># sum up pixels labeled as clouds or cloud shadows</span>
+        <span class="n">num_cloudy_pixels</span> <span class="o">=</span> <span class="n">scl_stats_df</span><span class="p">[</span><span class="n">scl_stats_df</span><span class="o">.</span><span class="n">Class_Value</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">cloud_classes</span><span class="p">)][</span>
+            <span class="s2">&quot;Class_Abs_Count&quot;</span>
+        <span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="c1"># check for nodata (e.g., due to blackfill)</span>
+        <span class="n">nodata_pixels</span> <span class="o">=</span> <span class="n">scl_stats_df</span><span class="p">[</span><span class="n">scl_stats_df</span><span class="o">.</span><span class="n">Class_Value</span><span class="o">.</span><span class="n">isin</span><span class="p">([</span><span class="mi">0</span><span class="p">])][</span>
+            <span class="s2">&quot;Class_Abs_Count&quot;</span>
+        <span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+        <span class="c1"># and relate it to the overall number of pixels</span>
+        <span class="n">all_pixels</span> <span class="o">=</span> <span class="n">scl_stats_df</span><span class="p">[</span><span class="s2">&quot;Class_Abs_Count&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">cloudy_pixel_percentage</span> <span class="o">=</span> <span class="n">num_cloudy_pixels</span> <span class="o">/</span> <span class="p">(</span><span class="n">all_pixels</span> <span class="o">-</span> <span class="n">nodata_pixels</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span>
+        <span class="k">return</span> <span class="n">cloudy_pixel_percentage</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../packages/modules.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

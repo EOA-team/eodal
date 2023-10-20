@@ -1,0 +1,575 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.downloader.planet_scope.client &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/alabaster.css" />
+    <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
+    <script src="../../../../_static/jquery.js"></script>
+    <script src="../../../../_static/underscore.js"></script>
+    <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../../_static/doctools.js"></script>
+    <script src="../../../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for eodal.downloader.planet_scope.client</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Class for interacting with PlanetScope&#39;s Data and Order URL for checking</span>
+<span class="sd">available mapper, placing orders and downloading data.</span>
+
+<span class="sd">Make sure to have a Planet-account and to have exported your valid API key</span>
+<span class="sd">as environmental variable. You can find your API following this link:</span>
+<span class="sd">https://www.planet.com/account/#/user-settings</span>
+
+<span class="sd">Under Linux you can set your API key by running:</span>
+
+<span class="sd">.. code-block:: shell</span>
+
+<span class="sd">    export PLANET_API_KEY = &quot;&lt;your-planet-api-key&gt;&quot;</span>
+
+<span class="sd">Copyright (C) 2022 Samuel Wildhaber with some modifications by Lukas Valentin Graf</span>
+
+<span class="sd">This program is free software: you can redistribute it and/or modify</span>
+<span class="sd">it under the terms of the GNU General Public License as published by</span>
+<span class="sd">the Free Software Foundation, either version 3 of the License, or</span>
+<span class="sd">(at your option) any later version.</span>
+
+<span class="sd">This program is distributed in the hope that it will be useful,</span>
+<span class="sd">but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="sd">MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="sd">GNU General Public License for more details.</span>
+
+<span class="sd">You should have received a copy of the GNU General Public License</span>
+<span class="sd">along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">geopandas</span> <span class="k">as</span> <span class="nn">gpd</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">from</span> <span class="nn">alive_progress</span> <span class="kn">import</span> <span class="n">alive_bar</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">date</span><span class="p">,</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">requests.models</span> <span class="kn">import</span> <span class="n">Response</span>
+<span class="kn">from</span> <span class="nn">requests.sessions</span> <span class="kn">import</span> <span class="n">Session</span>
+<span class="kn">from</span> <span class="nn">shapely.geometry</span> <span class="kn">import</span> <span class="n">box</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="kn">from</span> <span class="nn">eodal.config</span> <span class="kn">import</span> <span class="n">get_settings</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.exceptions</span> <span class="kn">import</span> <span class="n">APIError</span><span class="p">,</span> <span class="n">AuthenticationError</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.geometry</span> <span class="kn">import</span> <span class="n">box_to_geojson</span>
+
+<span class="n">Settings</span> <span class="o">=</span> <span class="n">get_settings</span><span class="p">()</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">Settings</span><span class="o">.</span><span class="n">logger</span>
+
+<span class="c1"># order and data URL from Settings</span>
+<span class="n">orders_url</span> <span class="o">=</span> <span class="n">Settings</span><span class="o">.</span><span class="n">ORDERS_URL</span>
+<span class="n">data_url</span> <span class="o">=</span> <span class="n">Settings</span><span class="o">.</span><span class="n">DATA_URL</span>
+
+
+<div class="viewcode-block" id="PlanetAPIClient"><a class="viewcode-back" href="../../../../packages/eodal.downloader.planet_scope.client.html#eodal.downloader.planet_scope.client.PlanetAPIClient">[docs]</a><span class="k">class</span> <span class="nc">PlanetAPIClient</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    `eodal` Planet-API client.</span>
+
+<span class="sd">    :attrib request:</span>
+<span class="sd">        query parameters to pass to Planet-API (e.g.,</span>
+<span class="sd">        date and dataset filters)</span>
+<span class="sd">    :attrib features:</span>
+<span class="sd">        features returned from Planet API (i.e., found</span>
+<span class="sd">        Planet-Scope mapper)</span>
+<span class="sd">    :attrib session:</span>
+<span class="sd">        (authenticated) session object to interact with</span>
+<span class="sd">        the Planet-API without re-sensing the API key for</span>
+<span class="sd">        every single request</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="PlanetAPIClient.__init__"><a class="viewcode-back" href="../../../../packages/eodal.downloader.planet_scope.client.html#eodal.downloader.planet_scope.client.PlanetAPIClient.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">request</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">features</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">[{}],</span>
+        <span class="n">session</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Session</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Class constructor method</span>
+
+<span class="sd">        :param request:</span>
+<span class="sd">            query parameters to pass to Planet-API (e.g.,</span>
+<span class="sd">            date and dataset filters)</span>
+<span class="sd">        :param features:</span>
+<span class="sd">            features returned from Planet API (i.e., found</span>
+<span class="sd">            Planet-Scope mapper)</span>
+<span class="sd">        :param session:</span>
+<span class="sd">            (authenticated) session object to interact with</span>
+<span class="sd">            the Planet-API without re-sensing the API key for</span>
+<span class="sd">            every single request</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">request</span> <span class="o">=</span> <span class="n">request</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">features</span> <span class="o">=</span> <span class="n">features</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">session</span> <span class="o">=</span> <span class="n">session</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">features</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_features</span>
+
+    <span class="nd">@features</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">features</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected a list object&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">([</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">val</span><span class="p">]):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;all list elements must be dictionaries&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_features</span> <span class="o">=</span> <span class="n">val</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">request</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request</span>
+
+    <span class="nd">@request</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">request</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected a dictionary object&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_request</span> <span class="o">=</span> <span class="n">val</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">session</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Session</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_session</span>
+
+    <span class="nd">@session</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">session</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span> <span class="n">Session</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">Session</span><span class="p">)</span> <span class="ow">and</span> <span class="n">val</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="s2">&quot;Expected a Session object &quot;</span> <span class="o">+</span> <span class="s2">&quot;(requests.sessions.Session object)&quot;</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_session</span> <span class="o">=</span> <span class="n">val</span>
+
+<div class="viewcode-block" id="PlanetAPIClient.date_to_planet_dt"><a class="viewcode-back" href="../../../../packages/eodal.downloader.planet_scope.client.html#eodal.downloader.planet_scope.client.PlanetAPIClient.date_to_planet_dt">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">date_to_planet_dt</span><span class="p">(</span><span class="n">date_to_convert</span><span class="p">:</span> <span class="n">date</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Converts datetime.date to format required by Planet API</span>
+
+<span class="sd">        :param date_to_convert:</span>
+<span class="sd">            date to convert</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            string in time format required by Planet</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">timestamp</span> <span class="o">=</span> <span class="n">datetime</span><span class="p">(</span><span class="o">*</span><span class="n">date_to_convert</span><span class="o">.</span><span class="n">timetuple</span><span class="p">()[:</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">timestamp</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">T%H:%M:%S.000Z&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PlanetAPIClient.quicksearch"><a class="viewcode-back" href="../../../../packages/eodal.downloader.planet_scope.client.html#eodal.downloader.planet_scope.client.PlanetAPIClient.quicksearch">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">quicksearch</span><span class="p">(</span><span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">,</span> <span class="n">request_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Queries the Planet Data API based on user-defined request.</span>
+
+<span class="sd">        This returns available datasets but does not place a order!</span>
+
+<span class="sd">        :param session:</span>
+<span class="sd">            authenticated session object</span>
+<span class="sd">        :param request_data:</span>
+<span class="sd">            search request in format required by Planet Data and Orders API</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            `Response` object whose json attribute contains the features found</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">quick_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">data_url</span><span class="si">}</span><span class="s2">/quick-search&quot;</span>
+        <span class="c1"># post request to the API quick search endpoint</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">quick_url</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">request_data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">APIError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;[HTTP:</span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="si">}</span><span class="s2">] Could not&quot;</span> <span class="o">+</span>
+                <span class="sa">f</span><span class="s2">&quot;query </span><span class="si">{</span><span class="n">quick_url</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">response</span></div>
+
+<div class="viewcode-block" id="PlanetAPIClient.query_planet_api"><a class="viewcode-back" href="../../../../packages/eodal.downloader.planet_scope.client.html#eodal.downloader.planet_scope.client.PlanetAPIClient.query_planet_api">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">query_planet_api</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">start_date</span><span class="p">:</span> <span class="n">date</span><span class="p">,</span>
+        <span class="n">end_date</span><span class="p">:</span> <span class="n">date</span><span class="p">,</span>
+        <span class="n">bounding_box</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">,</span>
+        <span class="n">instrument</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;PSB.SD&quot;</span><span class="p">,</span>
+        <span class="n">item_type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;PSScene&quot;</span><span class="p">,</span>
+        <span class="n">cloud_cover_threshold</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Queries the Planet API to retrieve available datasets (no download,</span>
+<span class="sd">        no order placement).</span>
+
+<span class="sd">        :param start_date:</span>
+<span class="sd">            start date of the queried time period (inclusive)</span>
+<span class="sd">        :param end_date:</span>
+<span class="sd">            end date of the queried time period (inclusive)</span>
+<span class="sd">        :param bounding_box:</span>
+<span class="sd">            file with vector feature(s) or `GeoDataFrame` with 1:N features.</span>
+<span class="sd">            The bounding box encompassing all features is taken.</span>
+<span class="sd">        :param instument:</span>
+<span class="sd">            instrument (satelitte platform) from which to download data.</span>
+<span class="sd">            `PSB.SD` (Planet Super Dove) by default.</span>
+<span class="sd">        :param item_type:</span>
+<span class="sd">            Planet product item type. `PSScene` by default.</span>
+<span class="sd">        :param cloud_cover_threshold:</span>
+<span class="sd">            cloudy pixel percentage threshold (0-100%) for filtering</span>
+<span class="sd">            too cloudy mapper</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            `PlanetAPIClient object&#39;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># open authenticated session</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">authenticate</span><span class="p">(</span><span class="bp">self</span><span class="o">=</span><span class="bp">cls</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">orders_url</span><span class="p">)</span>
+
+        <span class="c1"># check bounding box; re-project to WGS84 if necessary</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">bounding_box</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+            <span class="n">bbox</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">bounding_box</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">bounding_box</span><span class="p">,</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">):</span>
+            <span class="n">bbox</span> <span class="o">=</span> <span class="n">bounding_box</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;bounding_box must be Path object or GeoDataFrame&quot;</span><span class="p">)</span>
+        <span class="c1"># convert bounding box to geojson</span>
+        <span class="n">bbox_feature</span> <span class="o">=</span> <span class="n">box_to_geojson</span><span class="p">(</span><span class="n">gdf</span><span class="o">=</span><span class="n">bbox</span><span class="p">)</span>
+
+        <span class="c1"># scale cloud cover between 0 and 1</span>
+        <span class="n">cloud_cover_threshold</span> <span class="o">*=</span> <span class="mf">0.01</span>
+
+        <span class="c1"># adjust date time format required by Planet API</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">date_to_planet_dt</span><span class="p">(</span><span class="n">date_to_convert</span><span class="o">=</span><span class="n">start_date</span><span class="p">)</span>
+        <span class="n">end_time</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">date_to_planet_dt</span><span class="p">(</span><span class="n">date_to_convert</span><span class="o">=</span><span class="n">end_date</span><span class="p">)</span>
+
+        <span class="c1"># define the date filter</span>
+        <span class="n">date_filter</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;DateRangeFilter&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;field_name&quot;</span><span class="p">:</span> <span class="s2">&quot;acquired&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;config&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;gte&quot;</span><span class="p">:</span> <span class="n">start_time</span><span class="p">,</span> <span class="s2">&quot;lte&quot;</span><span class="p">:</span> <span class="n">end_time</span><span class="p">},</span>
+        <span class="p">}</span>
+
+        <span class="c1"># define geometry filter</span>
+        <span class="n">geom_filter</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;GeometryFilter&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;field_name&quot;</span><span class="p">:</span> <span class="s2">&quot;geometry&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;config&quot;</span><span class="p">:</span> <span class="n">bbox_feature</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="c1"># define cloud cover filter with less than 50% cloud coverage</span>
+        <span class="n">cloud_cover_filter</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;RangeFilter&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;field_name&quot;</span><span class="p">:</span> <span class="s2">&quot;cloud_cover&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;config&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;lte&quot;</span><span class="p">:</span> <span class="n">cloud_cover_threshold</span><span class="p">},</span>
+        <span class="p">}</span>
+
+        <span class="c1"># define instrument filter</span>
+        <span class="n">instrument_filter</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;StringInFilter&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;field_name&quot;</span><span class="p">:</span> <span class="s2">&quot;instrument&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;config&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">instrument</span><span class="p">],</span>
+        <span class="p">}</span>
+
+        <span class="c1"># put all filters together</span>
+        <span class="n">andfilter</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;AndFilter&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;config&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">date_filter</span><span class="p">,</span> <span class="n">instrument_filter</span><span class="p">,</span> <span class="n">geom_filter</span><span class="p">,</span> <span class="n">cloud_cover_filter</span><span class="p">],</span>
+        <span class="p">}</span>
+
+        <span class="c1"># setup the request for the API</span>
+        <span class="n">request_data</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;item_types&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">item_type</span><span class="p">],</span> <span class="s2">&quot;filter&quot;</span><span class="p">:</span> <span class="n">andfilter</span><span class="p">}</span>
+
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">quicksearch</span><span class="p">(</span><span class="n">session</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">session</span><span class="p">,</span> <span class="n">request_data</span><span class="o">=</span><span class="n">request_data</span><span class="p">)</span>
+        <span class="n">features</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s2">&quot;features&quot;</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">request</span><span class="o">=</span><span class="n">request_data</span><span class="p">,</span> <span class="n">features</span><span class="o">=</span><span class="n">features</span><span class="p">,</span> <span class="n">session</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">session</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PlanetAPIClient.authenticate"><a class="viewcode-back" href="../../../../packages/eodal.downloader.planet_scope.client.html#eodal.downloader.planet_scope.client.PlanetAPIClient.authenticate">[docs]</a>    <span class="k">def</span> <span class="nf">authenticate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Authentication for using the Planet (orders) API</span>
+
+<span class="sd">        :param url:</span>
+<span class="sd">            API end-point for testing authentication</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># open a session and try to authenticate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">session</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">Session</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">auth</span> <span class="o">=</span> <span class="p">(</span><span class="n">Settings</span><span class="o">.</span><span class="n">PLANET_API_KEY</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+        <span class="c1"># make sure authentication was successful (return code 200)</span>
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">AuthenticationError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;[HTTP:</span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="si">}</span><span class="s2">] Could not authenticate at &quot;</span>
+                <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">url</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">_check_order_status</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">order_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Back-end method called by `check_order_status` once or multiple times.</span>
+
+<span class="sd">        :param order_url:</span>
+<span class="sd">            URL of the placed order</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            current order state (e.g., &#39;running&#39;, &#39;success&#39;, &#39;failed&#39;, etc.)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">order_url</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;state&quot;</span><span class="p">]</span>
+
+<div class="viewcode-block" id="PlanetAPIClient.check_order_status"><a class="viewcode-back" href="../../../../packages/eodal.downloader.planet_scope.client.html#eodal.downloader.planet_scope.client.PlanetAPIClient.check_order_status">[docs]</a>    <span class="k">def</span> <span class="nf">check_order_status</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">order_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">loop</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">sleep_time</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">max_iter</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Checks the order status of a placed order (authenticated session required).</span>
+
+<span class="sd">        :param order_url:</span>
+<span class="sd">            URL of the placed order</span>
+<span class="sd">        :param loop:</span>
+<span class="sd">            if False makes a single query about the order status (default). If True</span>
+<span class="sd">            re-runs the query every xx seconds (10 by default) until a maximum of</span>
+<span class="sd">            yy iterations (1000 by default) is reached or the order status is one</span>
+<span class="sd">            of &#39;success&#39;, &#39;failed&#39; or &#39;partial&#39;</span>
+<span class="sd">        :param sleep_time:</span>
+<span class="sd">            time to sleep between repeated requests in seconds. Ignored if `loop`</span>
+<span class="sd">            is False (default behavior)</span>
+<span class="sd">        :param max_iter:</span>
+<span class="sd">            maximum number of iterations in case of repeated requests. Ignored if</span>
+<span class="sd">            `loop` is set to False.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">loop</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_order_status</span><span class="p">(</span><span class="n">order_url</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="n">alive_bar</span><span class="p">(</span><span class="n">max_iter</span><span class="p">,</span> <span class="n">force_tty</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">as</span> <span class="n">prog_bar</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">max_iter</span><span class="p">):</span>
+                <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_order_status</span><span class="p">(</span><span class="n">order_url</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">status</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;success&quot;</span><span class="p">,</span> <span class="s2">&quot;failed&quot;</span><span class="p">,</span> <span class="s2">&quot;partial&quot;</span><span class="p">]:</span>
+                    <span class="k">return</span> <span class="n">status</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">sleep_time</span><span class="p">)</span>
+                <span class="n">prog_bar</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">status</span></div>
+
+<div class="viewcode-block" id="PlanetAPIClient.place_order"><a class="viewcode-back" href="../../../../packages/eodal.downloader.planet_scope.client.html#eodal.downloader.planet_scope.client.PlanetAPIClient.place_order">[docs]</a>    <span class="k">def</span> <span class="nf">place_order</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">order_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">product_bundle</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;analytic_8b_sr_udm2&quot;</span><span class="p">,</span>
+        <span class="n">processing_tools</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Places (activates) an order. Only activated orders can be downloaded</span>
+<span class="sd">        once they are available.</span>
+
+<span class="sd">        IMPORTANT:</span>
+<span class="sd">            To place an order you must have already queried the quick-search</span>
+<span class="sd">            API to retrieve available item_ids!</span>
+
+<span class="sd">        :param order_name:</span>
+<span class="sd">            name of the order (will also appear in the online UI)</span>
+<span class="sd">        :param product_bundle:</span>
+<span class="sd">            product bundle to download. `analytic_8b_sr_udm2` (Super Dove</span>
+<span class="sd">            with 8 bands, surface reflectance and quality mask) by default.</span>
+<span class="sd">        :param processing_tools:</span>
+<span class="sd">            optional list of pre-processing operators offered by Planet such</span>
+<span class="sd">            as clipping image data to an Area of Interest.</span>
+<span class="sd">            See this notebook for examples:</span>
+<span class="sd">            https://github.com/planetlabs/notebooks/blob/master/jupyter-notebooks/orders/tools_and_toolchains.ipynb</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            URL of the placed order</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># set content-type to application/json</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;content-type&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">}</span>
+        <span class="c1"># prepare request body using (data part)</span>
+        <span class="n">data_request_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">data_request_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="s2">&quot;item_type&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">request</span><span class="p">[</span><span class="s2">&quot;item_types&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
+                <span class="s2">&quot;item_ids&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="p">],</span>
+                <span class="s2">&quot;product_bundle&quot;</span><span class="p">:</span> <span class="n">product_bundle</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+
+        <span class="c1"># create the order request</span>
+        <span class="n">order_request</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">order_name</span><span class="p">,</span> <span class="s2">&quot;products&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">data_request_dict</span><span class="p">]}</span>
+        <span class="c1"># add further optional processing tools (clipping, band math, etc.)</span>
+        <span class="k">if</span> <span class="n">processing_tools</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">order_request</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;tools&quot;</span><span class="p">:</span> <span class="n">processing_tools</span><span class="p">})</span>
+        <span class="n">order_request_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">order_request</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+            <span class="n">orders_url</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">order_request_json</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span> <span class="n">auth</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">auth</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">response</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">APIError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;[HTTP:</span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="si">}</span><span class="s2">]: Placing order failed:&quot;</span> <span class="o">+</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># get order ID and return its URL</span>
+        <span class="n">order_id</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+        <span class="n">order_url</span> <span class="o">=</span> <span class="n">orders_url</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span> <span class="o">+</span> <span class="n">order_id</span>
+        <span class="k">return</span> <span class="n">order_url</span></div>
+
+<div class="viewcode-block" id="PlanetAPIClient.get_orders"><a class="viewcode-back" href="../../../../packages/eodal.downloader.planet_scope.client.html#eodal.downloader.planet_scope.client.PlanetAPIClient.get_orders">[docs]</a>    <span class="k">def</span> <span class="nf">get_orders</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns all available orders in a convenient `pandas.DataFrame`</span>
+
+<span class="sd">        :returns:</span>
+<span class="sd">            `DataFrame` with all orders available</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">orders_url</span><span class="p">)</span>
+        <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+        <span class="n">orders</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s2">&quot;orders&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">orders</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PlanetAPIClient.download_order"><a class="viewcode-back" href="../../../../packages/eodal.downloader.planet_scope.client.html#eodal.downloader.planet_scope.client.PlanetAPIClient.download_order">[docs]</a>    <span class="k">def</span> <span class="nf">download_order</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">download_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">order_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="n">order_url</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Download data from an order. Order must be activated!</span>
+
+<span class="sd">        :param download_dir:</span>
+<span class="sd">            directory where to download the Planet mapper to. Each scene is</span>
+<span class="sd">            stored in a own sub-directory named by its ID to make the archive</span>
+<span class="sd">            structure comparable to Sentinel-2 and the single assets (files)</span>
+<span class="sd">            are placed within that sub-directory.</span>
+<span class="sd">        :param order_name:</span>
+<span class="sd">            name of the order to search for. Ignored if an `order_url` is provided</span>
+<span class="sd">        :param order_url:</span>
+<span class="sd">            URL of an order. If provided, `order_name` is ignored.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># get all available orders and search for the order name</span>
+        <span class="k">if</span> <span class="n">order_url</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span> <span class="ow">and</span> <span class="n">order_name</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Either order URL or name must be provided&quot;</span><span class="p">)</span>
+        <span class="c1"># get order URL from its name if the URL is not provided</span>
+        <span class="k">if</span> <span class="n">order_url</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+            <span class="n">order_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_orders</span><span class="p">()</span>
+            <span class="n">order_rec</span> <span class="o">=</span> <span class="n">order_df</span><span class="p">[</span><span class="n">order_df</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">order_name</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">order_rec</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Could not found a order named &quot;</span><span class="si">{</span><span class="n">order_name</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+            <span class="c1"># extract the order URL</span>
+            <span class="n">order_url</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">order_rec</span><span class="p">[</span><span class="s2">&quot;_links&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># get URLs of the single assets (data sets) within the order</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">order_url</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s2">&quot;_links&quot;</span><span class="p">][</span><span class="s2">&quot;results&quot;</span><span class="p">]</span>
+        <span class="n">results_urls</span> <span class="o">=</span> <span class="p">[</span><span class="n">r</span><span class="p">[</span><span class="s2">&quot;location&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">results</span><span class="p">]</span>
+
+        <span class="c1"># data handling stuff (file-naming) to prepar downloads</span>
+        <span class="n">results_folders</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+            <span class="c1"># split paths</span>
+            <span class="n">a</span> <span class="o">=</span> <span class="n">f</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="c1"># take the id part split it again and put together</span>
+            <span class="c1"># so we can extract the item id</span>
+            <span class="n">results_folders</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">,</span> <span class="mi">4</span><span class="p">)[:</span><span class="mi">4</span><span class="p">]))</span>
+
+        <span class="c1"># To construct the whole path, the file name is required</span>
+        <span class="n">results_names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+            <span class="n">results_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">results_urls</span><span class="p">)</span><span class="si">}</span><span class="s2"> items to download from Planet&quot;</span><span class="p">)</span>
+
+        <span class="c1"># actual downloading of data</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">n_results</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">results_urls</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>  <span class="c1"># -1 because we skip manifest.json</span>
+        <span class="k">for</span> <span class="n">url</span><span class="p">,</span> <span class="n">folder</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">results_urls</span><span class="p">,</span> <span class="n">results_folders</span><span class="p">,</span> <span class="n">results_names</span><span class="p">):</span>
+            <span class="c1"># skip manifest.json</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;manifest.json&quot;</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">scene_dir</span> <span class="o">=</span> <span class="n">download_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span>
+            <span class="n">scene_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">scene_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">allow_redirects</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Downloaded Planet scene </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">n_results</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+            <span class="n">idx</span> <span class="o">+=</span> <span class="mi">1</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../packages/modules.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

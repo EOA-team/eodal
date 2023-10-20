@@ -1,0 +1,365 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.mapper.mapper module &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="eodal.metadata package" href="eodal.metadata.html" />
+    <link rel="prev" title="eodal.mapper.filter module" href="eodal.mapper.filter.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-eodal.mapper.mapper">
+<span id="eodal-mapper-mapper-module"></span><h1>eodal.mapper.mapper module<a class="headerlink" href="#module-eodal.mapper.mapper" title="Permalink to this heading">¶</a></h1>
+<p>The EOdal <cite>Mapper</cite> class allows to extract and handle EO data in space and time
+and bring the data into Analysis-Ready-Format (ARD).</p>
+<div class="versionadded">
+<p><span class="versionmodified added">New in version 0.2.0.</span></p>
+</div>
+<p>Copyright (C) 2022 Lukas Valentin Graf</p>
+<p>This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.</p>
+<p>This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.</p>
+<p>You should have received a copy of the GNU General Public License
+along with this program.  If not, see &lt;<a class="reference external" href="http://www.gnu.org/licenses/">http://www.gnu.org/licenses/</a>&gt;.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="eodal.mapper.mapper.Mapper">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">eodal.mapper.mapper.</span></span><span class="sig-name descname"><span class="pre">Mapper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mapper_configs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#eodal.mapper.mapper.MapperConfigs" title="eodal.mapper.mapper.MapperConfigs"><span class="pre">MapperConfigs</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_column</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'sensing_time'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/mapper/mapper.html#Mapper"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.mapper.mapper.Mapper" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.12)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Generic class for mapping Earth Observation Data across space and time
+and bring them into Analysis-Readay-Format (ARD).</p>
+<p>The mapper class takes over searching for EO scenes, merging them and
+filling eventually occurring black-fill (no-data regions).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Attrib mapper_configs</dt>
+<dd class="field-odd"><p><cite>MapperConfig</cite> instance defining search criteria</p>
+</dd>
+<dt class="field-even">Attrib data</dt>
+<dd class="field-even"><p>loaded scene data as EOdal <cite>SceneCollection</cite></p>
+</dd>
+<dt class="field-odd">Attrib metadata</dt>
+<dd class="field-odd"><p>corresponding scene metadata as <cite>GeoDataFrame</cite>.</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.mapper.mapper.Mapper.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mapper_configs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#eodal.mapper.mapper.MapperConfigs" title="eodal.mapper.mapper.MapperConfigs"><span class="pre">MapperConfigs</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_column</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'sensing_time'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/mapper/mapper.html#Mapper.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.mapper.mapper.Mapper.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class constructor</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mapper_configs</strong> – <cite>MapperConfig</cite> instance defining search criteria</p></li>
+<li><p><strong>time_column</strong> – name of the metadata column denoting the time stamps of the scenes.
+<cite>sensing_time</cite> by default.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.mapper.mapper.Mapper.data">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">data</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="eodal.core.scene.html#eodal.core.scene.SceneCollection" title="eodal.core.scene.SceneCollection"><span class="pre">SceneCollection</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">gpd.GeoDataFrame</span></em><a class="headerlink" href="#eodal.mapper.mapper.Mapper.data" title="Permalink to this definition">¶</a></dt>
+<dd><p>SceneCollection with scenes found or GeoDataFrame in case
+single pixel values are extracted</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.mapper.mapper.Mapper.load_scenes">
+<span class="sig-name descname"><span class="pre">load_scenes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">scene_kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.12)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.12)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pixel_kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.12)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.12)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">round_time_stamps_to_freq</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/eodal/mapper/mapper.html#Mapper.load_scenes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.mapper.mapper.Mapper.load_scenes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load scenes from <cite>~Mapper.query_scenes</cite> result into a <cite>SceneCollection</cite>
+(Polygon and MultiPolygon geometries) or into a <cite>GeoDataFrame</cite> (Point
+and MultiPoint geometries).</p>
+<p>Mosaicing operations are handled on the fly so calling programs will
+always receive analysis-ready data (e.g., when working across image
+tiles).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>scene_kwargs</strong> – key-word arguments to pass to <cite>~Mapper._load_scenes_collection</cite>
+for handling EOdal scenes. These arguments <em>MUST</em> be provided when
+using <cite>Polygon</cite> or <cite>MulitPolygon</cite> geometries in the <cite>Mapper</cite> call.</p></li>
+<li><p><strong>pixel_kwargs</strong> – key-word arguments to pass to <cite>~Mapper._load_pixels</cite> for handling
+single pixel values. These arguments <em>MUST</em> be provided when
+using <cite>Point</cite> or <cite>MulitPoint</cite> geometries in the <cite>Mapper</cite> call.</p></li>
+<li><p><strong>round_time_stamps_to_freq</strong> – ..versionadd:: 0.2.2
+optionally round scene time stamps to a custom temporal frequency accepted
+by <cite>~pandas.Timestamp.round</cite> to allow moscaicing of scenes with slightly
+different timestamps as it might be necessary for some EO platforms.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.mapper.mapper.Mapper.mapper_configs">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">mapper_configs</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#eodal.mapper.mapper.MapperConfigs" title="eodal.mapper.mapper.MapperConfigs"><span class="pre">MapperConfigs</span></a></em><a class="headerlink" href="#eodal.mapper.mapper.Mapper.mapper_configs" title="Permalink to this definition">¶</a></dt>
+<dd><p>mapper configurations</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.mapper.mapper.Mapper.metadata">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">metadata</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">gpd.GeoDataFrame</span></em><a class="headerlink" href="#eodal.mapper.mapper.Mapper.metadata" title="Permalink to this definition">¶</a></dt>
+<dd><p>scene metadata found</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.mapper.mapper.Mapper.query_scenes">
+<span class="sig-name descname"><span class="pre">query_scenes</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/eodal/mapper/mapper.html#Mapper.query_scenes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.mapper.mapper.Mapper.query_scenes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Query available scenes for the current <cite>MapperConfigs</cite> and loads
+into the <cite>observations</cite> attribute.</p>
+<p>Depending on the settings of EOdal, this method either makes a
+query to a STAC resource or to a PostgreSQL/PostGIS database.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This method only queries a metadata catalog without reading data.</p>
+</div>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.mapper.mapper.Mapper.sensor">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">sensor</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></em><a class="headerlink" href="#eodal.mapper.mapper.Mapper.sensor" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.mapper.mapper.Mapper.time_column">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">time_column</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></em><a class="headerlink" href="#eodal.mapper.mapper.Mapper.time_column" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="eodal.mapper.mapper.MapperConfigs">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">eodal.mapper.mapper.</span></span><span class="sig-name descname"><span class="pre">MapperConfigs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="eodal.mapper.feature.html#eodal.mapper.feature.Feature" title="eodal.mapper.feature.Feature"><span class="pre">Feature</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_start</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.12)"><span class="pre">datetime</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_end</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.12)"><span class="pre">datetime</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata_filters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="eodal.mapper.filter.html#eodal.mapper.filter.Filter" title="eodal.mapper.filter.Filter"><span class="pre">Filter</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/mapper/mapper.html#MapperConfigs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.mapper.mapper.MapperConfigs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.12)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>global configurations of the Mapper class defining metadata search
+criteria (space and time), data collections to search and behavior
+for bringing data into analysis-ready-format (ARD)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Attrib collection</dt>
+<dd class="field-odd"><p>name of the collection (&lt;platform&gt;-&lt;sensor&gt;-&lt;processing level&gt;) to use.
+E.g., “Sentinel2-MSI-L2A</p>
+</dd>
+<dt class="field-even">Attrib feature</dt>
+<dd class="field-even"><p>geographic feature(s) for which to extract data from collection</p>
+</dd>
+<dt class="field-odd">Atrrib time_start</dt>
+<dd class="field-odd"><p>time stamp from which onwards to extract data from collection</p>
+</dd>
+<dt class="field-even">Atrrib time_end</dt>
+<dd class="field-even"><p>time stamp till which to extract data from collection</p>
+</dd>
+<dt class="field-odd">Attrib metadata_filters</dt>
+<dd class="field-odd"><p>list of custom metadata filters to shrink collection to.
+Examples include cloud cover filters in the case of optical data
+or filter by incidence angle in the case of SAR observations.</p>
+</dd>
+<dt class="field-even">Attrib data_source</dt>
+<dd class="field-even"><p>denotes from which resource (local archive, STAC archive) the
+data was read from including the STAC API end point URL.</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.mapper.mapper.MapperConfigs.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">feature</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="eodal.mapper.feature.html#eodal.mapper.feature.Feature" title="eodal.mapper.feature.Feature"><span class="pre">Feature</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_start</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.12)"><span class="pre">datetime</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_end</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.12)"><span class="pre">datetime</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata_filters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="eodal.mapper.filter.html#eodal.mapper.filter.Filter" title="eodal.mapper.filter.Filter"><span class="pre">Filter</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/mapper/mapper.html#MapperConfigs.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.mapper.mapper.MapperConfigs.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>default class constructor</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>collection</strong> – name of the collection (&lt;platform&gt;-&lt;sensor&gt;) to use.
+E.g., “sentinel2-msi”. &lt;sensor&gt; is optional and can be omitted
+if a platform does not carry more than a single sensor. I.e.,
+one could also pass “sentinel2” instead.</p></li>
+<li><p><strong>feature</strong> – geographic feature(s) for which to extract data from collection</p></li>
+<li><p><strong>time_start</strong> – time stamp from which onwards to extract data from collection</p></li>
+<li><p><strong>time_end</strong> – time stamp till which to extract data from collection</p></li>
+<li><p><strong>metadata_filters</strong> – <p>list of custom metadata filters to shrink collection to.
+Examples include cloud cover filters in the case of optical data
+or filter by incidence angle in the case of SAR observations.</p>
+</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.mapper.mapper.MapperConfigs.collection">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">collection</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></em><a class="headerlink" href="#eodal.mapper.mapper.MapperConfigs.collection" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.mapper.mapper.MapperConfigs.data_source">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">data_source</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></em><a class="headerlink" href="#eodal.mapper.mapper.MapperConfigs.data_source" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.mapper.mapper.MapperConfigs.feature">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">feature</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="eodal.mapper.feature.html#eodal.mapper.feature.Feature" title="eodal.mapper.feature.Feature"><span class="pre">Feature</span></a></em><a class="headerlink" href="#eodal.mapper.mapper.MapperConfigs.feature" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.mapper.mapper.MapperConfigs.from_yaml">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_yaml</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fpath</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/mapper/mapper.html#MapperConfigs.from_yaml"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.mapper.mapper.MapperConfigs.from_yaml" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load mapping configurations from YAML file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>fpath</strong> – file-path to yaml with Mapper configurations</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>new <cite>MapperConfigs</cite> instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.mapper.mapper.MapperConfigs.metadata_filters">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">metadata_filters</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="eodal.mapper.filter.html#eodal.mapper.filter.Filter" title="eodal.mapper.filter.Filter"><span class="pre">Filter</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></em><a class="headerlink" href="#eodal.mapper.mapper.MapperConfigs.metadata_filters" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.mapper.mapper.MapperConfigs.platform">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">platform</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></em><a class="headerlink" href="#eodal.mapper.mapper.MapperConfigs.platform" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.mapper.mapper.MapperConfigs.sensor">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">sensor</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></em><a class="headerlink" href="#eodal.mapper.mapper.MapperConfigs.sensor" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.mapper.mapper.MapperConfigs.time_end">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">time_end</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.12)"><span class="pre">datetime</span></a></em><a class="headerlink" href="#eodal.mapper.mapper.MapperConfigs.time_end" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.mapper.mapper.MapperConfigs.time_start">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">time_start</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.12)"><span class="pre">datetime</span></a></em><a class="headerlink" href="#eodal.mapper.mapper.MapperConfigs.time_start" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.mapper.mapper.MapperConfigs.to_yaml">
+<span class="sig-name descname"><span class="pre">to_yaml</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fpath</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/eodal/mapper/mapper.html#MapperConfigs.to_yaml"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.mapper.mapper.MapperConfigs.to_yaml" title="Permalink to this definition">¶</a></dt>
+<dd><p>save MapperConfig and some meta-information to YAML file (<a href="#id1"><span class="problematic" id="id2">*</span></a>.yml)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>fpath</strong> – file-path where saving the Feature instance to</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="eodal.html">eodal package</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">API Reference</a><ul>
+  <li><a href="eodal.html">eodal package</a><ul>
+  <li><a href="eodal.mapper.html">eodal.mapper package</a><ul>
+      <li>Previous: <a href="eodal.mapper.filter.html" title="previous chapter">eodal.mapper.filter module</a></li>
+      <li>Next: <a href="eodal.metadata.html" title="next chapter">eodal.metadata package</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/packages/eodal.mapper.mapper.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

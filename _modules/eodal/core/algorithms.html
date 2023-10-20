@@ -1,0 +1,319 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.core.algorithms &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for eodal.core.algorithms</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Collection of algorithms working with EOdal core objects such as Bands,</span>
+<span class="sd">RasterCollections, Scenes and SceneCollections.</span>
+
+<span class="sd">Copyright (C) 2022 Lukas Valentin Graf</span>
+
+<span class="sd">This program is free software: you can redistribute it and/or modify</span>
+<span class="sd">it under the terms of the GNU General Public License as published by</span>
+<span class="sd">the Free Software Foundation, either version 3 of the License, or</span>
+<span class="sd">(at your option) any later version.</span>
+
+<span class="sd">This program is distributed in the hope that it will be useful,</span>
+<span class="sd">but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="sd">MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="sd">GNU General Public License for more details.</span>
+
+<span class="sd">You should have received a copy of the GNU General Public License</span>
+<span class="sd">along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">eodal</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">geopandas</span> <span class="k">as</span> <span class="nn">gpd</span>
+<span class="kn">import</span> <span class="nn">uuid</span>
+
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span> <span class="nn">rasterio.merge</span> <span class="kn">import</span> <span class="n">merge</span>
+<span class="kn">from</span> <span class="nn">rasterio.crs</span> <span class="kn">import</span> <span class="n">CRS</span>
+
+<span class="kn">from</span> <span class="nn">eodal.config</span> <span class="kn">import</span> <span class="n">get_settings</span>
+<span class="kn">from</span> <span class="nn">eodal.core.band</span> <span class="kn">import</span> <span class="n">Band</span><span class="p">,</span> <span class="n">GeoInfo</span>
+<span class="kn">from</span> <span class="nn">eodal.core.raster</span> <span class="kn">import</span> <span class="n">RasterCollection</span><span class="p">,</span> <span class="n">SceneProperties</span>
+
+<span class="n">Settings</span> <span class="o">=</span> <span class="n">get_settings</span><span class="p">()</span>
+
+
+<span class="k">def</span> <span class="nf">_get_crs_and_attribs</span><span class="p">(</span>
+    <span class="n">in_file</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">GeoInfo</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns the ``GeoInfo`` from a multi-band raster dataset</span>
+
+<span class="sd">    :param in_file:</span>
+<span class="sd">        raster datasets from which to extract the ``GeoInfo`` and</span>
+<span class="sd">        attributes</span>
+<span class="sd">    :param kwargs:</span>
+<span class="sd">        optional keyword-arguments to pass to</span>
+<span class="sd">        `~eodal.core.raster.RasterCollection.from_multi_band_raster`</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        ``GeoInfo`` and metadata attributes of the raster dataset</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">ds</span> <span class="o">=</span> <span class="n">RasterCollection</span><span class="o">.</span><span class="n">from_multi_band_raster</span><span class="p">(</span><span class="n">fpath_raster</span><span class="o">=</span><span class="n">in_file</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="n">geo_info</span> <span class="o">=</span> <span class="n">ds</span><span class="p">[</span><span class="n">ds</span><span class="o">.</span><span class="n">band_names</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">geo_info</span>
+    <span class="n">attrs</span> <span class="o">=</span> <span class="p">[</span><span class="n">ds</span><span class="p">[</span><span class="n">x</span><span class="p">]</span><span class="o">.</span><span class="n">get_attributes</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">ds</span><span class="o">.</span><span class="n">band_names</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">geo_info</span><span class="p">,</span> <span class="n">attrs</span>
+
+
+<div class="viewcode-block" id="merge_datasets"><a class="viewcode-back" href="../../../packages/eodal.core.algorithms.html#eodal.core.algorithms.merge_datasets">[docs]</a><span class="k">def</span> <span class="nf">merge_datasets</span><span class="p">(</span>
+    <span class="n">datasets</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Path</span><span class="p">],</span>
+    <span class="n">out_file</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">target_crs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span> <span class="o">|</span> <span class="n">CRS</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">vector_features</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span> <span class="o">|</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">scene_properties</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SceneProperties</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">band_options</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">sensor</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="n">RasterCollection</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Merges a list of raster datasets using the ``rasterio.merge`` module.</span>
+
+<span class="sd">    The function can handle datasets in different coordinate systems by resampling</span>
+<span class="sd">    the data into a common spatial reference system either provided in the function</span>
+<span class="sd">    call or infered from the first dataset in the list.</span>
+
+<span class="sd">    ATTENTION:</span>
+<span class="sd">        All datasets must have the same number of bands and data type!</span>
+
+<span class="sd">    :param datasets:</span>
+<span class="sd">        list of datasets (as path-like objects or opened raster datasets)</span>
+<span class="sd">        to merge into a single raster</span>
+<span class="sd">    :param out_file:</span>
+<span class="sd">        name of the resulting raster dataset (optional). If None (default)</span>
+<span class="sd">        returns a new ``RasterCollection`` instance otherwise writes the data</span>
+<span class="sd">        to disk as new raster dataset.</span>
+<span class="sd">    :param target_crs:</span>
+<span class="sd">        optional target spatial coordinate reference system in which the output</span>
+<span class="sd">        product shall be generated. Must be passed as integer EPSG code or CRS</span>
+<span class="sd">        instance.</span>
+<span class="sd">    :param vector_features:</span>
+<span class="sd">        optional vector features to clip the merged dataset to (full bounding box).</span>
+<span class="sd">    :param scene_properties:</span>
+<span class="sd">        optional scene properties to set to the resulting merged dataset</span>
+<span class="sd">    :param band_options:</span>
+<span class="sd">        optional sensor-specific band options to pass to the sensor&#39;s</span>
+<span class="sd">        ``RasterCollection`` constructor</span>
+<span class="sd">    :param sensor:</span>
+<span class="sd">        if the data is from a sensor explicitly supported by eodal such as</span>
+<span class="sd">        Sentinel-2 the raster data is loaded into a sensor-specific collection</span>
+<span class="sd">    :param kwargs:</span>
+<span class="sd">        kwargs to pass to ``rasterio.warp.reproject``</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        depending on the kwargs passed either `None` (if output is written to file</span>
+<span class="sd">        directly) or a `RasterCollection` instance if the operation takes place</span>
+<span class="sd">        in memory</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># check the CRS and attributes of the datasets first</span>
+    <span class="n">crs_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">attrs_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">dataset</span> <span class="ow">in</span> <span class="n">datasets</span><span class="p">:</span>
+        <span class="n">geo_info</span><span class="p">,</span> <span class="n">attrs</span> <span class="o">=</span> <span class="n">_get_crs_and_attribs</span><span class="p">(</span><span class="n">in_file</span><span class="o">=</span><span class="n">dataset</span><span class="p">)</span>
+        <span class="n">crs_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">geo_info</span><span class="o">.</span><span class="n">epsg</span><span class="p">)</span>
+        <span class="n">attrs_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">attrs</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">target_crs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># use CRS from first dataset</span>
+        <span class="n">target_crs</span> <span class="o">=</span> <span class="n">crs_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># coordinate systems are not the same -&gt; re-projection of raster datasets</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">crs_list</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">pass</span>
+    <span class="c1"># all datasets have one coordinate system, check if it is the desired one</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">target_crs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">crs_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">target_crs</span><span class="p">:</span>
+                <span class="c1"># re-projection into target CRS required</span>
+                <span class="k">pass</span>
+
+    <span class="c1"># use rasterio merge to get a new raster dataset</span>
+    <span class="n">dst_kwds</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;QUALITY&quot;</span><span class="p">:</span> <span class="s2">&quot;100&quot;</span><span class="p">,</span> <span class="s2">&quot;REVERSIBLE&quot;</span><span class="p">:</span> <span class="s2">&quot;YES&quot;</span><span class="p">}</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">merge</span><span class="p">(</span><span class="n">datasets</span><span class="o">=</span><span class="n">datasets</span><span class="p">,</span> <span class="n">dst_path</span><span class="o">=</span><span class="n">out_file</span><span class="p">,</span> <span class="n">dst_kwds</span><span class="o">=</span><span class="n">dst_kwds</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">res</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">out_ds</span><span class="p">,</span> <span class="n">out_transform</span> <span class="o">=</span> <span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">res</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not merge datasets: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># when out_file was provided the merged data is written to file directly</span>
+    <span class="k">if</span> <span class="n">out_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span>
+    <span class="c1"># otherwise, create new RasterCollection instance from merged datasets</span>
+    <span class="c1"># add scene properties if available</span>
+    <span class="k">if</span> <span class="n">sensor</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">raster</span> <span class="o">=</span> <span class="n">RasterCollection</span><span class="p">(</span><span class="n">scene_properties</span><span class="o">=</span><span class="n">scene_properties</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">raster</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;eodal.core.sensors.</span><span class="si">{</span><span class="n">sensor</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">sensor</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">sensor</span><span class="p">[</span><span class="mi">1</span><span class="p">::]</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="o">+</span> <span class="s2">&quot;(scene_properties=scene_properties)&quot;</span>
+        <span class="p">)</span>
+    <span class="n">n_bands</span> <span class="o">=</span> <span class="n">out_ds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># take attributes of the first dataset</span>
+    <span class="n">attrs</span> <span class="o">=</span> <span class="n">attrs_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">geo_info</span> <span class="o">=</span> <span class="n">GeoInfo</span><span class="p">(</span>
+        <span class="n">epsg</span><span class="o">=</span><span class="n">target_crs</span><span class="p">,</span>
+        <span class="n">ulx</span><span class="o">=</span><span class="n">out_transform</span><span class="o">.</span><span class="n">c</span><span class="p">,</span>
+        <span class="n">uly</span><span class="o">=</span><span class="n">out_transform</span><span class="o">.</span><span class="n">f</span><span class="p">,</span>
+        <span class="n">pixres_x</span><span class="o">=</span><span class="n">out_transform</span><span class="o">.</span><span class="n">a</span><span class="p">,</span>
+        <span class="n">pixres_y</span><span class="o">=</span><span class="n">out_transform</span><span class="o">.</span><span class="n">e</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_bands</span><span class="p">):</span>
+        <span class="n">band_attrs</span> <span class="o">=</span> <span class="n">attrs</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="n">nodata</span> <span class="o">=</span> <span class="n">band_attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;nodatavals&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">nodata</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+            <span class="n">nodata</span> <span class="o">=</span> <span class="n">nodata</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">is_tiled</span> <span class="o">=</span> <span class="n">band_attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;is_tiled&quot;</span><span class="p">)</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">band_attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;scales&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">scale</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="n">scale</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="n">band_attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;offsets&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="n">offset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">unit</span> <span class="o">=</span> <span class="n">band_attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;units&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">unit</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+            <span class="n">unit</span> <span class="o">=</span> <span class="n">unit</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># get band name and alias if provided</span>
+        <span class="n">band_name</span> <span class="o">=</span> <span class="n">band_options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;band_names&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;B</span><span class="si">{</span><span class="n">idx</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">band_name</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">band_name</span><span class="p">)</span> <span class="o">==</span> <span class="n">n_bands</span><span class="p">:</span>
+                <span class="n">band_name</span> <span class="o">=</span> <span class="n">band_name</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">band_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;B</span><span class="si">{</span><span class="n">idx</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">band_alias</span> <span class="o">=</span> <span class="n">band_options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;band_aliases&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;B</span><span class="si">{</span><span class="n">idx</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">band_alias</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">band_alias</span><span class="p">)</span> <span class="o">==</span> <span class="n">n_bands</span><span class="p">:</span>
+                <span class="n">band_alias</span> <span class="o">=</span> <span class="n">band_alias</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">band_alias</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;B</span><span class="si">{</span><span class="n">idx</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span>
+
+        <span class="n">raster</span><span class="o">.</span><span class="n">add_band</span><span class="p">(</span>
+            <span class="n">band_constructor</span><span class="o">=</span><span class="n">Band</span><span class="p">,</span>
+            <span class="n">band_name</span><span class="o">=</span><span class="n">band_name</span><span class="p">,</span>
+            <span class="n">values</span><span class="o">=</span><span class="n">out_ds</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:],</span>
+            <span class="n">geo_info</span><span class="o">=</span><span class="n">geo_info</span><span class="p">,</span>
+            <span class="n">is_tiled</span><span class="o">=</span><span class="n">is_tiled</span><span class="p">,</span>
+            <span class="n">scale</span><span class="o">=</span><span class="n">scale</span><span class="p">,</span>
+            <span class="n">offset</span><span class="o">=</span><span class="n">offset</span><span class="p">,</span>
+            <span class="n">band_alias</span><span class="o">=</span><span class="n">band_alias</span><span class="p">,</span>
+            <span class="n">unit</span><span class="o">=</span><span class="n">unit</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="c1"># clip raster collection if required to vector_features to keep consistency</span>
+    <span class="c1"># of masks - this ensures that is_masked_array is set to True</span>
+    <span class="k">if</span> <span class="n">vector_features</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">raster</span><span class="o">.</span><span class="n">clip_bands</span><span class="p">(</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">clipping_bounds</span><span class="o">=</span><span class="n">vector_features</span><span class="p">)</span>
+
+    <span class="c1"># set scene properties</span>
+    <span class="k">if</span> <span class="n">scene_properties</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">raster</span><span class="o">.</span><span class="n">scene_properties</span> <span class="o">=</span> <span class="n">scene_properties</span>
+
+    <span class="k">return</span> <span class="n">raster</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../packages/modules.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

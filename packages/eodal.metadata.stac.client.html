@@ -1,0 +1,216 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.metadata.stac.client module &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="eodal.metadata.utils module" href="eodal.metadata.utils.html" />
+    <link rel="prev" title="eodal.metadata.stac package" href="eodal.metadata.stac.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-eodal.metadata.stac.client">
+<span id="eodal-metadata-stac-client-module"></span><h1>eodal.metadata.stac.client module<a class="headerlink" href="#module-eodal.metadata.stac.client" title="Permalink to this heading">¶</a></h1>
+<p>Querying datasets from a Spatio-Temporal Asset Catalog (STAC).</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.metadata.stac.client.landsat">
+<span class="sig-prename descclassname"><span class="pre">eodal.metadata.stac.client.</span></span><span class="sig-name descname"><span class="pre">landsat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">metadata_filters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="eodal.mapper.filter.html#eodal.mapper.filter.Filter" title="eodal.mapper.filter.Filter"><span class="pre">Filter</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">GeoDataFrame</span></span></span><a class="reference internal" href="../_modules/eodal/metadata/stac/client.html#landsat"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.metadata.stac.client.landsat" title="Permalink to this definition">¶</a></dt>
+<dd><p>Landsat specific STAC query function to retrieve mapper from MSPC.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>metadata_filters</strong> – custom filters for filtering scenes in catalog by some metadata attributes</p></li>
+<li><p><strong>kwargs</strong> – <dl class="field-list simple">
+<dt class="field-odd">param kwargs</dt>
+<dd class="field-odd"><p></p></dd>
+</dl>
+<p>keyword arguments to pass to <cite>query_stac</cite> function</p>
+</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>dataframe with references to found Landsat scenes</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.metadata.stac.client.query_stac">
+<span class="sig-prename descclassname"><span class="pre">eodal.metadata.stac.client.</span></span><span class="sig-name descname"><span class="pre">query_stac</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time_start</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.12)"><span class="pre">datetime</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_end</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.12)"><span class="pre">datetime</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">collection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">bounding_box</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Polygon</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.12)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.12)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/eodal/metadata/stac/client.html#query_stac"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.metadata.stac.client.query_stac" title="Permalink to this definition">¶</a></dt>
+<dd><p>Queries a STAC (Spatio-Temporal Asset Catalog) by bounding box and
+time period to get items from a user-defined collection.</p>
+<p>This is a sensor-agnostic function called by sensor-specific ones.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>time_start</strong> – start of the time period</p></li>
+<li><p><strong>time_end</strong> – end of the time period</p></li>
+<li><p><strong>collection</strong> – name of the collection
+(e.g., sentinel-2-l2a for Sentinel-2 L2A data)</p></li>
+<li><p><strong>bounding_box</strong> – bounding box either as extended well-known text in geographic coordinates
+or as shapely <code class="docutils literal notranslate"><span class="pre">Polygon</span></code> in geographic coordinates (WGS84)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>list of dictionary items returned from the STAC query</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.metadata.stac.client.sentinel1">
+<span class="sig-prename descclassname"><span class="pre">eodal.metadata.stac.client.</span></span><span class="sig-name descname"><span class="pre">sentinel1</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">metadata_filters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="eodal.mapper.filter.html#eodal.mapper.filter.Filter" title="eodal.mapper.filter.Filter"><span class="pre">Filter</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">GeoDataFrame</span></span></span><a class="reference internal" href="../_modules/eodal/metadata/stac/client.html#sentinel1"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.metadata.stac.client.sentinel1" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sentinel-1 specific STAC query function to retrieve mapper from MSPC.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Returns the RTC product by default if not stated otherwise (using
+<cite>EOdal.mapper.filter</cite> on <cite>product_type</cite></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>metadata_filters</strong> – custom filters for filtering scenes in catalog by some metadata attributes</p></li>
+<li><p><strong>kwargs</strong> – <dl class="field-list simple">
+<dt class="field-odd">param kwargs</dt>
+<dd class="field-odd"><p></p></dd>
+</dl>
+<p>keyword arguments to pass to <cite>query_stac</cite> function</p>
+</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>dataframe with references to found Sentinel-1 scenes</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.metadata.stac.client.sentinel2">
+<span class="sig-prename descclassname"><span class="pre">eodal.metadata.stac.client.</span></span><span class="sig-name descname"><span class="pre">sentinel2</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">metadata_filters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="eodal.mapper.filter.html#eodal.mapper.filter.Filter" title="eodal.mapper.filter.Filter"><span class="pre">Filter</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">GeoDataFrame</span></span></span><a class="reference internal" href="../_modules/eodal/metadata/stac/client.html#sentinel2"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.metadata.stac.client.sentinel2" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sentinel-2 specific STAC query allows filtering by scene-wide cloudy pixel
+percentage.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>metadata_filters</strong> – custom filters for filtering scenes in catalog by some metadata attributes</p></li>
+<li><p><strong>kwargs</strong> – keyword arguments to pass to <cite>query_stac</cite> function</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>dataframe with references to found Sentinel-2 scenes</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="eodal.html">eodal package</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">API Reference</a><ul>
+  <li><a href="eodal.html">eodal package</a><ul>
+  <li><a href="eodal.metadata.html">eodal.metadata package</a><ul>
+  <li><a href="eodal.metadata.stac.html">eodal.metadata.stac package</a><ul>
+      <li>Previous: <a href="eodal.metadata.stac.html" title="previous chapter">eodal.metadata.stac package</a></li>
+      <li>Next: <a href="eodal.metadata.utils.html" title="next chapter">eodal.metadata.utils module</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/packages/eodal.metadata.stac.client.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

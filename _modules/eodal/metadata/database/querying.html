@@ -1,0 +1,266 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.metadata.database.querying &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/alabaster.css" />
+    <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
+    <script src="../../../../_static/jquery.js"></script>
+    <script src="../../../../_static/underscore.js"></script>
+    <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../../_static/doctools.js"></script>
+    <script src="../../../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for eodal.metadata.database.querying</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Functions to query remote sensing platform independent metadata from the metadata DB.</span>
+
+<span class="sd">Copyright (C) 2022 Lukas Valentin Graf</span>
+
+<span class="sd">This program is free software: you can redistribute it and/or modify</span>
+<span class="sd">it under the terms of the GNU General Public License as published by</span>
+<span class="sd">the Free Software Foundation, either version 3 of the License, or</span>
+<span class="sd">(at your option) any later version.</span>
+
+<span class="sd">This program is distributed in the hope that it will be useful,</span>
+<span class="sd">but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="sd">MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="sd">GNU General Public License for more details.</span>
+
+<span class="sd">You should have received a copy of the GNU General Public License</span>
+<span class="sd">along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">geopandas</span> <span class="k">as</span> <span class="nn">gpd</span>
+
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">geoalchemy2.functions</span> <span class="kn">import</span> <span class="n">ST_Intersects</span>
+<span class="kn">from</span> <span class="nn">geoalchemy2.functions</span> <span class="kn">import</span> <span class="n">ST_GeomFromText</span>
+<span class="kn">from</span> <span class="nn">shapely.geometry</span> <span class="kn">import</span> <span class="n">Polygon</span>
+<span class="kn">from</span> <span class="nn">sqlalchemy</span> <span class="kn">import</span> <span class="n">asc</span><span class="p">,</span> <span class="n">and_</span><span class="p">,</span> <span class="n">create_engine</span><span class="p">,</span> <span class="n">inspect</span>
+<span class="kn">from</span> <span class="nn">sqlalchemy.orm.session</span> <span class="kn">import</span> <span class="n">sessionmaker</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span>
+
+<span class="kn">from</span> <span class="nn">eodal.config</span> <span class="kn">import</span> <span class="n">get_settings</span>
+<span class="kn">from</span> <span class="nn">eodal.mapper.filter</span> <span class="kn">import</span> <span class="n">Filter</span>
+<span class="kn">from</span> <span class="nn">eodal.metadata.database</span> <span class="kn">import</span> <span class="n">Regions</span><span class="p">,</span> <span class="n">S2_Raw_Metadata</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.exceptions</span> <span class="kn">import</span> <span class="n">DataNotFoundError</span><span class="p">,</span> <span class="n">RegionNotFoundError</span>
+
+<span class="n">Settings</span> <span class="o">=</span> <span class="n">get_settings</span><span class="p">()</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">Settings</span><span class="o">.</span><span class="n">logger</span>
+
+<span class="n">DB_URL</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;postgresql://</span><span class="si">{</span><span class="n">Settings</span><span class="o">.</span><span class="n">DB_USER</span><span class="si">}</span><span class="s2">:&quot;</span> <span class="o">+</span> \
+    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">Settings</span><span class="o">.</span><span class="n">DB_PW</span><span class="si">}</span><span class="s2">@</span><span class="si">{</span><span class="n">Settings</span><span class="o">.</span><span class="n">DB_HOST</span><span class="si">}</span><span class="s2">:&quot;</span> <span class="o">+</span> \
+    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">Settings</span><span class="o">.</span><span class="n">DB_PORT</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">Settings</span><span class="o">.</span><span class="n">DB_NAME</span><span class="si">}</span><span class="s2">&quot;</span>
+<span class="n">engine</span> <span class="o">=</span> <span class="n">create_engine</span><span class="p">(</span><span class="n">DB_URL</span><span class="p">,</span> <span class="n">echo</span><span class="o">=</span><span class="n">Settings</span><span class="o">.</span><span class="n">ECHO_DB</span><span class="p">)</span>
+<span class="n">session</span> <span class="o">=</span> <span class="n">sessionmaker</span><span class="p">(</span><span class="n">bind</span><span class="o">=</span><span class="n">engine</span><span class="p">)()</span>
+
+<span class="c1"># map platforms to metadata models</span>
+<span class="n">platform_mapping</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;sentinel1&quot;</span><span class="p">:</span> <span class="s2">&quot;S1_Raw_Metadata&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;sentinel2&quot;</span><span class="p">:</span> <span class="s2">&quot;S2_Raw_Metadata&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ps_superdove&quot;</span><span class="p">:</span> <span class="s2">&quot;PS_SuperDove_Metadata&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="get_region"><a class="viewcode-back" href="../../../../packages/eodal.metadata.database.querying.html#eodal.metadata.database.querying.get_region">[docs]</a><span class="k">def</span> <span class="nf">get_region</span><span class="p">(</span><span class="n">region</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Queries the metadata DB for a specific region and its geographic</span>
+<span class="sd">    extent.</span>
+
+<span class="sd">    :param region:</span>
+<span class="sd">        unique region identifier</span>
+
+<span class="sd">    :return:</span>
+<span class="sd">        `GeoDataFrame` with the geometry of the queried region</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">query_statement</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">Regions</span><span class="o">.</span><span class="n">geom</span><span class="p">,</span> <span class="n">Regions</span><span class="o">.</span><span class="n">region_uid</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">Regions</span><span class="o">.</span><span class="n">region_uid</span> <span class="o">==</span> <span class="n">region</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">statement</span>
+    <span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">gpd</span><span class="o">.</span><span class="n">read_postgis</span><span class="p">(</span><span class="n">query_statement</span><span class="p">,</span> <span class="n">session</span><span class="o">.</span><span class="n">bind</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">RegionNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">region</span><span class="si">}</span><span class="s2"> not found: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="find_raw_data_by_bbox"><a class="viewcode-back" href="../../../../packages/eodal.metadata.database.querying.html#eodal.metadata.database.querying.find_raw_data_by_bbox">[docs]</a><span class="k">def</span> <span class="nf">find_raw_data_by_bbox</span><span class="p">(</span>
+    <span class="n">platform</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">time_start</span><span class="p">:</span> <span class="n">datetime</span><span class="p">,</span>
+    <span class="n">time_end</span><span class="p">:</span> <span class="n">datetime</span><span class="p">,</span>
+    <span class="n">bounding_box</span><span class="p">:</span> <span class="n">Polygon</span><span class="p">,</span>
+    <span class="n">metadata_filters</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Filter</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Query the metadata DB by a geographic bounding box, time period</span>
+<span class="sd">    and custom filters</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># get the DB table for a given platform</span>
+    <span class="n">inspector</span> <span class="o">=</span> <span class="n">inspect</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span>
+    <span class="n">db_tables</span> <span class="o">=</span> <span class="n">inspector</span><span class="o">.</span><span class="n">get_table_names</span><span class="p">(</span><span class="n">schema</span><span class="o">=</span><span class="n">Settings</span><span class="o">.</span><span class="n">DEFAULT_SCHEMA</span><span class="p">)</span>
+    <span class="c1"># the table names follow the scheme &lt;platform&gt;_raw_metadata</span>
+    <span class="n">platform_table</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">platform</span><span class="si">}</span><span class="s2">_raw_metadata&quot;</span>
+    <span class="k">if</span> <span class="n">platform_table</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">db_tables</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">platform</span><span class="si">}</span><span class="s2"> was not found in database&quot;</span><span class="p">)</span>
+
+    <span class="c1"># loop over metadata filters and construct the sqlalchemy expressions</span>
+    <span class="n">filter_str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">metadata_filter</span> <span class="ow">in</span> <span class="n">metadata_filters</span><span class="p">:</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">metadata_filter</span><span class="o">.</span><span class="n">value</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">metadata_filter</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">==</span> <span class="nb">str</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;&quot;</span><span class="si">{</span><span class="n">metadata_filter</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s1">&quot;&#39;</span>
+        <span class="n">filter_str</span> <span class="o">+=</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;.filter(db_model.</span><span class="si">{</span><span class="n">metadata_filter</span><span class="o">.</span><span class="n">entity</span><span class="si">}</span><span class="s2"> &quot;</span>
+            <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">metadata_filter</span><span class="o">.</span><span class="n">operator</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">)&quot;</span>
+        <span class="p">)</span>
+
+    <span class="c1"># build the query using &quot;db_model&quot; as a placeholder for the actual db-model</span>
+    <span class="c1"># of the platform</span>
+    <span class="n">bounding_box_wkt</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;SRID=4326;</span><span class="si">{</span><span class="n">bounding_box</span><span class="o">.</span><span class="n">wkt</span><span class="si">}</span><span class="s2">&quot;</span>  <span class="c1"># noqa: F841</span>
+    <span class="n">query_statement_exc</span> <span class="o">=</span> <span class="p">(</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        (session.query(db_model)</span>
+<span class="sd">        .filter(ST_Intersects(db_model.geom, ST_GeomFromText(bounding_box_wkt)))</span>
+<span class="sd">        .filter(</span>
+<span class="sd">            and_(</span>
+<span class="sd">                db_model.sensing_time &lt;= time_end,</span>
+<span class="sd">                db_model.sensing_time &gt;= time_start,</span>
+<span class="sd">            )</span>
+<span class="sd">        )</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="o">+</span> <span class="n">filter_str</span>
+        <span class="o">+</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        .order_by(db_model.sensing_date.asc())</span>
+<span class="s2">        ).statement</span>
+<span class="s2">        &quot;&quot;&quot;</span>
+    <span class="p">)</span>
+    <span class="n">exec</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;from eodal.metadata.database import </span><span class="si">{</span><span class="n">platform_mapping</span><span class="p">[</span><span class="n">platform</span><span class="p">]</span><span class="si">}</span><span class="s2"> as db_model&quot;</span>
+    <span class="p">)</span>
+    <span class="n">query_statement</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span><span class="n">query_statement_exc</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">))</span>
+
+    <span class="c1"># read returned records as a GeoDataFrame and return</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">gpd</span><span class="o">.</span><span class="n">read_postgis</span><span class="p">(</span><span class="n">query_statement</span><span class="p">,</span> <span class="n">session</span><span class="o">.</span><span class="n">bind</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">DataNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not find </span><span class="si">{</span><span class="n">platform</span><span class="si">}</span><span class="s2"> data by bounding box: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_s2_tile_footprint"><a class="viewcode-back" href="../../../../packages/eodal.metadata.database.querying.html#eodal.metadata.database.querying.get_s2_tile_footprint">[docs]</a><span class="k">def</span> <span class="nf">get_s2_tile_footprint</span><span class="p">(</span><span class="n">tile_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Queries the geographic extent of a Sentinel-2 tile</span>
+
+<span class="sd">    :param sensor:</span>
+<span class="sd">        name of the sensor the tiling scheme belongs to (e.g.,</span>
+<span class="sd">        &#39;sentinel2&#39;)</span>
+<span class="sd">    :param tile_name:</span>
+<span class="sd">        name of the tile in the tiling scheme (e.g., &#39;T32TMT&#39;)</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        extent of the tile in geographic coordinates (WGS84)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">query_statement</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">S2_Raw_Metadata</span><span class="o">.</span><span class="n">geom</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">S2_Raw_Metadata</span><span class="o">.</span><span class="n">tile_id</span> <span class="o">==</span> <span class="n">tile_name</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">distinct</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">statement</span>
+    <span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">gpd</span><span class="o">.</span><span class="n">read_postgis</span><span class="p">(</span><span class="n">query_statement</span><span class="p">,</span> <span class="n">session</span><span class="o">.</span><span class="n">bind</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">DataNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">tile_name</span><span class="si">}</span><span class="s2"> not found: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../packages/modules.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

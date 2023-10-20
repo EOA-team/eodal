@@ -1,0 +1,302 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.utils.sentinel2 module &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="eodal.utils.stacking module" href="eodal.utils.stacking.html" />
+    <link rel="prev" title="eodal.utils.sentinel1 module" href="eodal.utils.sentinel1.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-eodal.utils.sentinel2">
+<span id="eodal-utils-sentinel2-module"></span><h1>eodal.utils.sentinel2 module<a class="headerlink" href="#module-eodal.utils.sentinel2" title="Permalink to this heading">¶</a></h1>
+<p>Sentinel-2 specific helper functions to interact with datasets organized
+in .SAFE structure.</p>
+<p>Copyright (C) 2022 Lukas Valentin Graf</p>
+<p>This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.</p>
+<p>This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.</p>
+<p>You should have received a copy of the GNU General Public License
+along with this program.  If not, see &lt;<a class="reference external" href="http://www.gnu.org/licenses/">http://www.gnu.org/licenses/</a>&gt;.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.utils.sentinel2.get_S2_acquistion_date_from_safe">
+<span class="sig-prename descclassname"><span class="pre">eodal.utils.sentinel2.</span></span><span class="sig-name descname"><span class="pre">get_S2_acquistion_date_from_safe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dot_safe_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.12)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.date" title="(in Python v3.12)"><span class="pre">date</span></a></span></span><a class="reference internal" href="../_modules/eodal/utils/sentinel2.html#get_S2_acquistion_date_from_safe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.utils.sentinel2.get_S2_acquistion_date_from_safe" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determines the image acquisition date of a dataset in .SAFE format
+based on the file naming</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>dot_safe_name</strong> – name of the .SAFE dataset</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>image acquistion date</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.utils.sentinel2.get_S2_acquistion_time_from_safe">
+<span class="sig-prename descclassname"><span class="pre">eodal.utils.sentinel2.</span></span><span class="sig-name descname"><span class="pre">get_S2_acquistion_time_from_safe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dot_safe_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.12)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.date" title="(in Python v3.12)"><span class="pre">date</span></a></span></span><a class="reference internal" href="../_modules/eodal/utils/sentinel2.html#get_S2_acquistion_time_from_safe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.utils.sentinel2.get_S2_acquistion_time_from_safe" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determines the image acquisition time of a dataset in .SAFE format
+based on the file naming</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>dot_safe_name</strong> – name of the .SAFE dataset</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>image acquistion time (full timestamp)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.utils.sentinel2.get_S2_bandfiles">
+<span class="sig-prename descclassname"><span class="pre">eodal.utils.sentinel2.</span></span><span class="sig-name descname"><span class="pre">get_S2_bandfiles</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_L2A</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/eodal/utils/sentinel2.html#get_S2_bandfiles"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.utils.sentinel2.get_S2_bandfiles" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns all JPEG-2000 files (<a href="#id1"><span class="problematic" id="id2">*</span></a>.jp2) found in a dataset directory
+(.SAFE).</p>
+<div class="admonition-todo admonition" id="id3">
+<p class="admonition-title">Todo</p>
+<p>This seems to be a duplicate of <code class="docutils literal notranslate"><span class="pre">get_S2_bandfiles_with_res</span></code></p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>search_dir</strong> – directory containing the JPEG2000 band files</p></li>
+<li><p><strong>resolution</strong> – select only spectral bands with a certain spatial resolution.
+Works currently on Sentinel-2 Level-2A data, only.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return files</dt>
+<dd class="field-even"><p>list of Sentinel-2 single band files</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.utils.sentinel2.get_S2_bandfiles_with_res">
+<span class="sig-prename descclassname"><span class="pre">eodal.utils.sentinel2.</span></span><span class="sig-name descname"><span class="pre">get_S2_bandfiles_with_res</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">band_selection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.12)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.12)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><span class="pre">float</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_l2a</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v2.1.1)"><span class="pre">DataFrame</span></a></span></span><a class="reference internal" href="../_modules/eodal/utils/sentinel2.html#get_S2_bandfiles_with_res"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.utils.sentinel2.get_S2_bandfiles_with_res" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the file-paths to the jp2 files with the spectral band data
+from a .SAFE Sentinel-2 dataset. Supports .SAFE datasets in L1C and
+L2A processing level.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_dir</strong> – Directory where the search_string is applied. Here - for Sentinel-2 - the
+it is the .SAFE directory of S2 rawdata files.</p></li>
+<li><p><strong>band_selection</strong> – list of tuples. Each tuple contains the name of Sentinel-2 band and
+its spatial resolution in meters.</p></li>
+<li><p><strong>is_l2a</strong> – if True (default), assumes that the data is in Sentinel-2 L2A processing
+level. If False, assumes L1C processing level.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>pandas dataframe of jp2 files</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.utils.sentinel2.get_S2_platform_from_safe">
+<span class="sig-prename descclassname"><span class="pre">eodal.utils.sentinel2.</span></span><span class="sig-name descname"><span class="pre">get_S2_platform_from_safe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dot_safe_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.12)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></span><a class="reference internal" href="../_modules/eodal/utils/sentinel2.html#get_S2_platform_from_safe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.utils.sentinel2.get_S2_platform_from_safe" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determines the platform (e.g., S2A) from the dataset in .SAFE format
+based on the file naming</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>dot_safe_name</strong> – name of the .SAFE dataset</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>platform name</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.utils.sentinel2.get_S2_processing_baseline_from_safe">
+<span class="sig-prename descclassname"><span class="pre">eodal.utils.sentinel2.</span></span><span class="sig-name descname"><span class="pre">get_S2_processing_baseline_from_safe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dot_safe_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.12)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><span class="pre">int</span></a></span></span><a class="reference internal" href="../_modules/eodal/utils/sentinel2.html#get_S2_processing_baseline_from_safe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.utils.sentinel2.get_S2_processing_baseline_from_safe" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determines the PDGS processing baseline of a dataset in .SAFE format
+based on the file naming</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>dot_safe_name</strong> – name of the .SAFE dataset</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>PDGS baseline (e.g., N0400 -&gt; 400)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.utils.sentinel2.get_S2_processing_level">
+<span class="sig-prename descclassname"><span class="pre">eodal.utils.sentinel2.</span></span><span class="sig-name descname"><span class="pre">get_S2_processing_level</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dot_safe_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.12)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="eodal.utils.constants.sentinel2.html#eodal.utils.constants.sentinel2.ProcessingLevels" title="eodal.utils.constants.sentinel2.ProcessingLevels"><span class="pre">ProcessingLevels</span></a></span></span><a class="reference internal" href="../_modules/eodal/utils/sentinel2.html#get_S2_processing_level"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.utils.sentinel2.get_S2_processing_level" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determines the processing level of a dataset in .SAFE format
+based on the file naming</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>dot_safe_name</strong> – name of the .SAFE dataset</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>processing level of the dataset</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.utils.sentinel2.get_S2_sclfile">
+<span class="sig-prename descclassname"><span class="pre">eodal.utils.sentinel2.</span></span><span class="sig-name descname"><span class="pre">get_S2_sclfile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">from_bandstack</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">in_file_bandstack</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a></span></span><a class="reference internal" href="../_modules/eodal/utils/sentinel2.html#get_S2_sclfile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.utils.sentinel2.get_S2_sclfile" title="Permalink to this definition">¶</a></dt>
+<dd><p>return the path to the S2 SCL (scene classification file). The method
+either searches for the SCL file in .SAFE structure (default, returning
+SCL file in 20m spatial resolution) or the resampled SCL file in case
+a <code class="docutils literal notranslate"><span class="pre">eodal.operational.resampling</span></code> derived band-stack was passed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_dir</strong> – either .SAFE directory (default use case) or the the directory
+containing the band-stacked geoTiff files (must have a sub-directory
+where the SCL files are stored)</p></li>
+<li><p><strong>from_bandstack</strong> – if False (Default) assumes the data to be in .SAFE format. If True
+the data must be band-stacked resampled geoTiffs derived from
+eodal’s processing pipeline</p></li>
+<li><p><strong>in_file_bandstack</strong> – file name of the bandstack for which to search the SCL file. Must be
+passed if <code class="docutils literal notranslate"><span class="pre">from_bandstack=True</span></code></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns scl_file</dt>
+<dd class="field-even"><p>SCL file-path</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.utils.sentinel2.get_S2_tci">
+<span class="sig-prename descclassname"><span class="pre">eodal.utils.sentinel2.</span></span><span class="sig-name descname"><span class="pre">get_S2_tci</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_L2A</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a></span></span><a class="reference internal" href="../_modules/eodal/utils/sentinel2.html#get_S2_tci"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.utils.sentinel2.get_S2_tci" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns path to S2 TCI (quicklook) img (10m resolution). Works for both
+Sentinel-2 processing levels (‘L2A’ and ‘L1C’).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_dir</strong> – .SAFE folder which contains Sentinel-2 data</p></li>
+<li><p><strong>is_L2A</strong> – if False, it is assumed that the data is organized in L1C .SAFE folder
+structure. The default is True.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns file_tci</dt>
+<dd class="field-even"><p>file path to the quicklook image</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="eodal.html">eodal package</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">API Reference</a><ul>
+  <li><a href="eodal.html">eodal package</a><ul>
+  <li><a href="eodal.utils.html">eodal.utils package</a><ul>
+      <li>Previous: <a href="eodal.utils.sentinel1.html" title="previous chapter">eodal.utils.sentinel1 module</a></li>
+      <li>Next: <a href="eodal.utils.stacking.html" title="next chapter">eodal.utils.stacking module</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/packages/eodal.utils.sentinel2.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

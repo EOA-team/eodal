@@ -1,0 +1,379 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.core.scene module &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="eodal.core.spectral_indices module" href="eodal.core.spectral_indices.html" />
+    <link rel="prev" title="eodal.core.raster module" href="eodal.core.raster.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-eodal.core.scene">
+<span id="eodal-core-scene-module"></span><h1>eodal.core.scene module<a class="headerlink" href="#module-eodal.core.scene" title="Permalink to this heading">¶</a></h1>
+<p>A SceneCollection is a collection of scenes. A Scene is a RasterCollections with an
+acquisition date, an unique identifier and a (remote sensing) platform that acquired
+the raster data.</p>
+<p>Copyright (C) 2022 Lukas Valentin Graf</p>
+<p>This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.</p>
+<p>This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.</p>
+<p>You should have received a copy of the GNU General Public License
+along with this program.  If not, see &lt;<a class="reference external" href="http://www.gnu.org/licenses/">http://www.gnu.org/licenses/</a>&gt;.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="eodal.core.scene.SceneCollection">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">eodal.core.scene.</span></span><span class="sig-name descname"><span class="pre">SceneCollection</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">scene_constructor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.12)"><span class="pre">Callable</span></a><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="eodal.core.raster.html#eodal.core.raster.RasterCollection" title="eodal.core.raster.RasterCollection"><span class="pre">RasterCollection</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">indexed_by_timestamps</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/scene.html#SceneCollection"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.scene.SceneCollection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.MutableMapping" title="(in Python v3.12)"><code class="xref py py-class docutils literal notranslate"><span class="pre">MutableMapping</span></code></a></p>
+<p>Collection of 0:N scenes where each scene is a RasterCollection with
+<strong>non-empty</strong> <cite>SceneProperties</cite> as each scene is indexed by its
+acquistion time.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.scene.SceneCollection.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">scene_constructor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.12)"><span class="pre">Callable</span></a><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="eodal.core.raster.html#eodal.core.raster.RasterCollection" title="eodal.core.raster.RasterCollection"><span class="pre">RasterCollection</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">indexed_by_timestamps</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/scene.html#SceneCollection.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.scene.SceneCollection.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initializes a SceneCollection object with 0 to N scenes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>scene_constructor</strong> – optional callable returning an <cite>~eodal.core.raster.RasterCollection</cite>
+instance.</p></li>
+<li><p><strong>indexed_by_timestamps</strong> – if True, all scene indices are interpreted as timestamps
+(<cite>datetime.datetime</cite>).
+Set to False if scene indices should be treated as different data types</p></li>
+<li><p><strong>args</strong> – arguments to pass to <cite>scene_constructor</cite> or one of RasterCollection’s
+class methods (e.g., <cite>RasterCollection.from_multi_band_raster</cite>)</p></li>
+<li><p><strong>kwargs</strong> – key-word arguments to pass to <cite>scene_constructor</cite> or one of
+RasterCollection’s class methods (e.g.,
+<cite>RasterCollection.from_multi_band_raster</cite>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.scene.SceneCollection.add_scene">
+<span class="sig-name descname"><span class="pre">add_scene</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">scene_constructor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="eodal.core.raster.html#eodal.core.raster.RasterCollection" title="eodal.core.raster.RasterCollection"><span class="pre">RasterCollection</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="eodal.core.raster.html#eodal.core.raster.RasterCollection" title="eodal.core.raster.RasterCollection"><span class="pre">RasterCollection</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/eodal/core/scene.html#SceneCollection.add_scene"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.scene.SceneCollection.add_scene" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds a Scene to the collection of scenes.</p>
+<p>Raises an error if a scene with the same timestamp already exists (unique
+timestamp constraint)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>scene_constructor</strong> – callable returning a <cite>~eodal.core.raster.RasterCollection</cite> instance or
+existing <cite>RasterCollection</cite> instance</p></li>
+<li><p><strong>args</strong> – positional arguments to pass to <cite>scene_constructor</cite></p></li>
+<li><p><strong>kwargs</strong> – keyword arguments to pass to <cite>scene_constructor</cite></p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.scene.SceneCollection.apply">
+<span class="sig-name descname"><span class="pre">apply</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.12)"><span class="pre">Callable</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.12)"><span class="pre">Any</span></a></span></span><a class="reference internal" href="../_modules/eodal/core/scene.html#SceneCollection.apply"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.scene.SceneCollection.apply" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply a custom function to a SceneCollection.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>func</strong> – custom callable taking the <code class="docutils literal notranslate"><span class="pre">SceneCollection</span></code> as first
+argument</p></li>
+<li><p><strong>args</strong> – optional arguments to pass to <cite>func</cite></p></li>
+<li><p><strong>kwargs</strong> – optional keyword arguments to pass to <cite>func</cite></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>results of <cite>func</cite></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.scene.SceneCollection.clip_scenes">
+<span class="sig-name descname"><span class="pre">clip_scenes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inplace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/scene.html#SceneCollection.clip_scenes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.scene.SceneCollection.clip_scenes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Clip scenes in a SceneCollection to a user-defined spatial bounds.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>inplace</strong> – if False (default) returns a copy of the <code class="docutils literal notranslate"><span class="pre">SceneCollection</span></code> instance
+with the changes applied. If True overwrites the values
+in the current instance.</p></li>
+<li><p><strong>**kwargs</strong> – <p>key-word arguments to pass to <cite>RasterCollection.clip_bands</cite> method.</p>
+</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.scene.SceneCollection.copy">
+<span class="sig-name descname"><span class="pre">copy</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/scene.html#SceneCollection.copy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.scene.SceneCollection.copy" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns a true copy of the SceneCollection</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.core.scene.SceneCollection.empty">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">empty</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a></em><a class="headerlink" href="#eodal.core.scene.SceneCollection.empty" title="Permalink to this definition">¶</a></dt>
+<dd><p>Scene Collection is empty</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.scene.SceneCollection.from_pickle">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_pickle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stream</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.12)"><span class="pre">bytes</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/scene.html#SceneCollection.from_pickle"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.scene.SceneCollection.from_pickle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load SceneCollection from pickled binary stream.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>stream</strong> – pickled binary stream to load into a SceneCollection or
+file-path to pickled binary on disk.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><cite>SceneCollection</cite> instance.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.scene.SceneCollection.from_raster_collections">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_raster_collections</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">raster_collections</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="eodal.core.raster.html#eodal.core.raster.RasterCollection" title="eodal.core.raster.RasterCollection"><span class="pre">RasterCollection</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="eodal.core.raster.html#eodal.core.raster.RasterCollection" title="eodal.core.raster.RasterCollection"><span class="pre">RasterCollection</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sort_scenes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sort_direction</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'asc'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/scene.html#SceneCollection.from_raster_collections"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.scene.SceneCollection.from_raster_collections" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a SceneCollection from a list/tuple of N RasterCollection objects.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>raster_collections</strong> – list or tuple of RasterCollections from which to create a new scene
+collection.</p></li>
+<li><p><strong>sort_scenes</strong> – if True (default) scenes are order in chronological order by their
+acquisition time.</p></li>
+<li><p><strong>sort_direction</strong> – direction of sorting. Must be either ‘asc’ (ascending) or ‘desc’
+(descending). Ignored if <cite>sort_scenes</cite> is False.</p></li>
+<li><p><strong>kwargs</strong> – key word arguments to pass to <cite>SceneCollection</cite> constructor call.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>SceneCollection instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.scene.SceneCollection.get_feature_timeseries">
+<span class="sig-name descname"><span class="pre">get_feature_timeseries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vector_features</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">gpd.GeoDataFrame</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">reindex_dataframe</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">gpd.GeoDataFrame</span></span></span><a class="reference internal" href="../_modules/eodal/core/scene.html#SceneCollection.get_feature_timeseries"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.scene.SceneCollection.get_feature_timeseries" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get a time series for 1:N vector features from SceneCollection.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vector_features</strong> – vector features for which to extract time series data. If <cite>Point</cite> geometries
+are provided calls <cite>~RasterCollection.get_pixels()</cite> on all scenes in the
+collection. If <cite>Polygon</cite> (or <cite>MultiPolygons</cite>) are provided, calls
+<cite>~RasterCollection.band_summaries()</cite> on all scenes in the collection.</p></li>
+<li><p><strong>reindex_dataframe</strong> – boolean flag whether to reindex the resulting GeoDataFrame after extracting
+data from all scenes. Set to <cite>True</cite> to ensure that the returned GeoDataFrame
+has a unique index. <cite>False</cite> by default.</p></li>
+<li><p><strong>kwargs</strong> – key word arguments to pass to <cite>~RasterCollection.get_pixels()</cite> or
+<cite>~RasterCollection.band_summaries()</cite> depending on the type of the
+input geometries.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">GeoDataFrame</span></code> with extracted raster values per feature and time stamp</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.core.scene.SceneCollection.identifiers">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">identifiers</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#eodal.core.scene.SceneCollection.identifiers" title="Permalink to this definition">¶</a></dt>
+<dd><p>list of scene identifiers</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.core.scene.SceneCollection.indexed_by_timestamps">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">indexed_by_timestamps</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a></em><a class="headerlink" href="#eodal.core.scene.SceneCollection.indexed_by_timestamps" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.core.scene.SceneCollection.is_sorted">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_sorted</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a></em><a class="headerlink" href="#eodal.core.scene.SceneCollection.is_sorted" title="Permalink to this definition">¶</a></dt>
+<dd><p>are the scenes sorted by their timstamps?</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.scene.SceneCollection.plot">
+<span class="sig-name descname"><span class="pre">plot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">band_selection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_scenes_in_row</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">6</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eodal_plot_kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">plt.Figure</span></span></span><a class="reference internal" href="../_modules/eodal/core/scene.html#SceneCollection.plot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.scene.SceneCollection.plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots scenes in a <cite>SceneCollection</cite></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>band_selection</strong> – selection of band(s) to use for plotting. Must be either a single
+band or a set of three bands</p></li>
+<li><p><strong>max_scenes_in_row</strong> – number of scenes in a row. Set to 6 by default.</p></li>
+<li><p><strong>eodal_plot_kwargs</strong> – optional keyword arguments to pass on to <cite>eodal.core.band.Band.plot()</cite></p></li>
+<li><p><strong>kwargs</strong> – optional keyword arguments to pass to <cite>matplotlib.subplots()</cite>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><cite>Figure</cite> object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.scene.SceneCollection.sort">
+<span class="sig-name descname"><span class="pre">sort</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sort_direction</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'asc'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/scene.html#SceneCollection.sort"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.scene.SceneCollection.sort" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a sorted copy of the SceneCollection.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sort_direction</strong> – direction of sorting. Must be either ‘asc’ (ascending) or ‘desc’
+(descending). Ignored if <cite>sort_scenes</cite> is False.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>sorted SceneCollection.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.core.scene.SceneCollection.timestamps">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">timestamps</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#eodal.core.scene.SceneCollection.timestamps" title="Permalink to this definition">¶</a></dt>
+<dd><p>acquisition timestamps of scenes in collection</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.scene.SceneCollection.to_pickle">
+<span class="sig-name descname"><span class="pre">to_pickle</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.12)"><span class="pre">bytes</span></a></span></span><a class="reference internal" href="../_modules/eodal/core/scene.html#SceneCollection.to_pickle"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.scene.SceneCollection.to_pickle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dumps a scene collection as pickled object</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>pickled binary object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.scene.SceneCollection.to_xarray">
+<span class="sig-name descname"><span class="pre">to_xarray</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataArray</span></span></span><a class="reference internal" href="../_modules/eodal/core/scene.html#SceneCollection.to_xarray"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.scene.SceneCollection.to_xarray" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts all scenes in a SceneCollection to a single <cite>xarray.DataArray</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>kwargs</strong> – key word arguments to pass to <cite>~RasterCollection.to_xarray</cite></p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>SceneCollection as <cite>xarray.DataArray</cite></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="eodal.html">eodal package</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">API Reference</a><ul>
+  <li><a href="eodal.html">eodal package</a><ul>
+  <li><a href="eodal.core.html">eodal.core package</a><ul>
+      <li>Previous: <a href="eodal.core.raster.html" title="previous chapter">eodal.core.raster module</a></li>
+      <li>Next: <a href="eodal.core.spectral_indices.html" title="next chapter">eodal.core.spectral_indices module</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/packages/eodal.core.scene.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

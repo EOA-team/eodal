@@ -1,0 +1,791 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.core.scene &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for eodal.core.scene</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">A SceneCollection is a collection of scenes. A Scene is a RasterCollections with an</span>
+<span class="sd">acquisition date, an unique identifier and a (remote sensing) platform that acquired</span>
+<span class="sd">the raster data.</span>
+
+<span class="sd">Copyright (C) 2022 Lukas Valentin Graf</span>
+
+<span class="sd">This program is free software: you can redistribute it and/or modify</span>
+<span class="sd">it under the terms of the GNU General Public License as published by</span>
+<span class="sd">the Free Software Foundation, either version 3 of the License, or</span>
+<span class="sd">(at your option) any later version.</span>
+
+<span class="sd">This program is distributed in the hope that it will be useful,</span>
+<span class="sd">but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="sd">MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="sd">GNU General Public License for more details.</span>
+
+<span class="sd">You should have received a copy of the GNU General Public License</span>
+<span class="sd">along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">dateutil.parser</span>
+<span class="kn">import</span> <span class="nn">geopandas</span> <span class="k">as</span> <span class="nn">gpd</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">xarray</span> <span class="k">as</span> <span class="nn">xr</span>
+
+<span class="kn">from</span> <span class="nn">collections.abc</span> <span class="kn">import</span> <span class="n">MutableMapping</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
+
+<span class="kn">from</span> <span class="nn">eodal.core.raster</span> <span class="kn">import</span> <span class="n">RasterCollection</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.exceptions</span> <span class="kn">import</span> <span class="n">SceneNotFoundError</span>
+
+
+<div class="viewcode-block" id="SceneCollection"><a class="viewcode-back" href="../../../packages/eodal.core.scene.html#eodal.core.scene.SceneCollection">[docs]</a><span class="k">class</span> <span class="nc">SceneCollection</span><span class="p">(</span><span class="n">MutableMapping</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Collection of 0:N scenes where each scene is a RasterCollection with</span>
+<span class="sd">    **non-empty** `SceneProperties` as each scene is indexed by its</span>
+<span class="sd">    acquistion time.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="SceneCollection.__init__"><a class="viewcode-back" href="../../../packages/eodal.core.scene.html#eodal.core.scene.SceneCollection.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">scene_constructor</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">RasterCollection</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">indexed_by_timestamps</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initializes a SceneCollection object with 0 to N scenes.</span>
+
+<span class="sd">        :param scene_constructor:</span>
+<span class="sd">            optional callable returning an `~eodal.core.raster.RasterCollection`</span>
+<span class="sd">            instance.</span>
+<span class="sd">        :param indexed_by_timestamps:</span>
+<span class="sd">            if True, all scene indices are interpreted as timestamps</span>
+<span class="sd">            (`datetime.datetime`).</span>
+<span class="sd">            Set to False if scene indices should be treated as different data types</span>
+<span class="sd">        :param args:</span>
+<span class="sd">            arguments to pass to `scene_constructor` or one of RasterCollection&#39;s</span>
+<span class="sd">            class methods (e.g., `RasterCollection.from_multi_band_raster`)</span>
+<span class="sd">        :param kwargs:</span>
+<span class="sd">            key-word arguments to pass to `scene_constructor` or one of</span>
+<span class="sd">            RasterCollection&#39;s class methods (e.g.,</span>
+<span class="sd">            `RasterCollection.from_multi_band_raster`)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># mapper are stored in a dictionary like collection</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_frozen</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">collection</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_frozen</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_sorted</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_indexed_by_timestamps</span> <span class="o">=</span> <span class="n">indexed_by_timestamps</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_identifiers</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">scene_constructor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">scene</span> <span class="o">=</span> <span class="n">scene_constructor</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="fm">__setitem__</span><span class="p">(</span><span class="n">scene</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">slice</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RasterCollection</span><span class="p">:</span>
+        <span class="k">def</span> <span class="nf">_get_scene_from_key</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RasterCollection</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">indexed_by_timestamps</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamps</span><span class="p">:</span>
+                    <span class="c1"># most likely time stamps are passed as strings</span>
+                    <span class="c1"># ^^ not true for scene collection loaded from pickle file</span>
+                    <span class="c1"># we infer the format using dateutil</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                        <span class="n">key</span> <span class="o">=</span> <span class="n">dateutil</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">collection</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamps</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">collection</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">identifiers</span><span class="p">:</span>
+                <span class="n">scene_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">identifiers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">timestamps</span><span class="p">[</span><span class="n">scene_idx</span><span class="p">])</span>
+
+        <span class="c1"># has a single key or slice been passed?</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">slice</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">_get_scene_from_key</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">SceneNotFoundError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Could not find a scene for key </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2"> in collection&quot;</span>
+                <span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_sorted</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Slices are not permitted on unsorted SceneCollections&quot;</span>
+                <span class="p">)</span>
+            <span class="c1"># find the index of the start and the end of the slice</span>
+            <span class="n">slice_start</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">start</span>
+            <span class="n">slice_end</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">stop</span>
+            <span class="c1"># return an empty SceneCollection if start and stop is the same</span>
+            <span class="c1"># (numpy array behavior)</span>
+            <span class="k">if</span> <span class="n">slice_start</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">slice_end</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">SceneCollection</span><span class="p">()</span>
+            <span class="c1"># if start is None use the first scene</span>
+            <span class="k">if</span> <span class="n">slice_start</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">slice_end</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">indexed_by_timestamps</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                            <span class="s2">&quot;Cannot slice on timestamps when &quot;</span>
+                            <span class="s2">&quot;`indexed_by_timestamps` is False&quot;</span>
+                        <span class="p">)</span>
+                    <span class="n">slice_start</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">date</span><span class="p">()</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">slice_end</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">identifiers</span><span class="p">:</span>
+                        <span class="n">slice_start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">identifiers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">slice_start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamps</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="c1"># if end is None use the last scene</span>
+            <span class="n">end_increment</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">if</span> <span class="n">slice_end</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">slice_start</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">indexed_by_timestamps</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                            <span class="s2">&quot;Cannot slice on timestamps when &quot;</span>
+                            <span class="s2">&quot;`indexed_by_timestamps` is False&quot;</span>
+                        <span class="p">)</span>
+                    <span class="n">slice_end</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">date</span><span class="p">()</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">slice_start</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">identifiers</span><span class="p">:</span>
+                        <span class="n">slice_end</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">identifiers</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">slice_end</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamps</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="c1"># to ensure that the :: operator works, we need to make</span>
+                <span class="c1"># sure the last band is also included in the slice</span>
+                <span class="n">end_increment</span> <span class="o">=</span> <span class="mi">1</span>
+
+            <span class="k">if</span> <span class="nb">set</span><span class="p">([</span><span class="n">slice_start</span><span class="p">,</span> <span class="n">slice_end</span><span class="p">])</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">timestamps</span><span class="p">)):</span>
+                <span class="n">idx_start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamps</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">slice_start</span><span class="p">)</span>
+                <span class="n">idx_end</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamps</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">slice_end</span><span class="p">)</span> <span class="o">+</span> <span class="n">end_increment</span>
+                <span class="n">scenes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamps</span>
+            <span class="k">elif</span> <span class="nb">set</span><span class="p">([</span><span class="n">slice_start</span><span class="p">,</span> <span class="n">slice_end</span><span class="p">])</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">identifiers</span><span class="p">)):</span>
+                <span class="n">idx_start</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">identifiers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">slice_start</span><span class="p">)</span>
+                <span class="n">idx_end</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">identifiers</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">slice_end</span><span class="p">)</span> <span class="o">+</span> <span class="n">end_increment</span>
+                <span class="n">scenes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">identifiers</span>
+            <span class="c1"># allow selection by date range</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">slice_start</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span>
+                <span class="n">slice_end</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span>
+            <span class="p">):</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">indexed_by_timestamps</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="s2">&quot;Cannot slice on timestamps when &quot;</span>
+                        <span class="s2">&quot;`indexed_by_timestamps` is False&quot;</span>
+                    <span class="p">)</span>
+                <span class="n">out_scoll</span> <span class="o">=</span> <span class="n">SceneCollection</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">timestamp</span><span class="p">,</span> <span class="n">scene</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">end_increment</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">slice_start</span> <span class="o">&lt;=</span> <span class="n">timestamp</span><span class="o">.</span><span class="n">date</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">slice_end</span><span class="p">:</span>
+                            <span class="n">out_scoll</span><span class="o">.</span><span class="n">add_scene</span><span class="p">(</span><span class="n">scene</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">slice_start</span> <span class="o">&lt;=</span> <span class="n">timestamp</span><span class="o">.</span><span class="n">date</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="n">slice_end</span><span class="p">:</span>
+                            <span class="n">out_scoll</span><span class="o">.</span><span class="n">add_scene</span><span class="p">(</span><span class="n">scene</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+                <span class="k">return</span> <span class="n">out_scoll</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">SceneNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not find scenes in </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">slice_step</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">step</span>
+            <span class="k">if</span> <span class="n">slice_step</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">slice_step</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="c1"># get an empty SceneCollection for returning the slide</span>
+            <span class="n">out_scoll</span> <span class="o">=</span> <span class="n">SceneCollection</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">idx_start</span><span class="p">,</span> <span class="n">idx_end</span><span class="p">,</span> <span class="n">slice_step</span><span class="p">):</span>
+                <span class="n">out_scoll</span><span class="o">.</span><span class="n">add_scene</span><span class="p">(</span><span class="n">_get_scene_from_key</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">scenes</span><span class="p">[</span><span class="n">idx</span><span class="p">]))</span>
+            <span class="k">return</span> <span class="n">out_scoll</span>
+
+    <span class="k">def</span> <span class="nf">__getstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="fm">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">:</span> <span class="n">RasterCollection</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">RasterCollection</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Only RasterCollection objects can be passed&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">item</span><span class="o">.</span><span class="n">is_scene</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Only RasterCollection with timestamps in &quot;</span>
+                <span class="s2">&quot;their scene_properties can be passed&quot;</span>
+            <span class="p">)</span>
+        <span class="c1"># scenes are index by their acquisition time</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">scene_properties</span><span class="o">.</span><span class="n">acquisition_time</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s2">&quot;Duplicate scene names are not permitted&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;RasterCollection passed must have an acquisition time stamp&quot;</span>
+            <span class="p">)</span>
+        <span class="c1"># it&#39;s important to make a copy of the scene before adding it</span>
+        <span class="c1"># to the collection</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">collection</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="c1"># last, use the scene uri as an alias if available</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">scene_properties</span><span class="p">,</span> <span class="s2">&quot;product_uri&quot;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_identifiers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">scene_properties</span><span class="o">.</span><span class="n">product_uri</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__setstate__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">collection</span> <span class="o">=</span> <span class="n">d</span>
+
+    <span class="k">def</span> <span class="fm">__delitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">):</span>
+        <span class="c1"># get index of the scene to be deleted to also delete its identifier</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamps</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+        <span class="c1"># casts strings back to datetime objects</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="n">dateutil</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">collection</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+        <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">identifiers</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">yield</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span>
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">collection</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;Empty EOdal SceneCollection&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">indexed_by_timestamps</span><span class="p">:</span>
+                <span class="n">timestamps</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">timestamps</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">timestamps</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">timestamps</span><span class="p">])</span>
+            <span class="k">return</span> <span class="p">(</span>
+                <span class="s2">&quot;EOdal SceneCollection</span><span class="se">\n</span><span class="s2">----------------------</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="o">+</span> <span class="sa">f</span><span class="s2">&quot;# Scenes:    </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">Timestamps:    </span><span class="si">{</span><span class="n">timestamps</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+                <span class="o">+</span> <span class="sa">f</span><span class="s1">&#39;Scene Identifiers:    </span><span class="si">{</span><span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">identifiers</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">indexed_by_timestamps</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_indexed_by_timestamps</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_sort_keys</span><span class="p">(</span>
+        <span class="n">sort_direction</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">raster_collections</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">RasterCollection</span><span class="p">]</span> <span class="o">|</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">RasterCollection</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns sorted indices from a list/ tuple of RasterCollections.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># check sort_direction passed</span>
+        <span class="k">if</span> <span class="n">sort_direction</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;asc&quot;</span><span class="p">,</span> <span class="s2">&quot;desc&quot;</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Sort direction must be one of: `asc`, `desc`&quot;</span><span class="p">)</span>
+        <span class="c1"># get timestamps of the scenes and use np.argsort to bring them</span>
+        <span class="c1"># into the desired order</span>
+        <span class="n">timestamps</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">scene_properties</span><span class="o">.</span><span class="n">acquisition_time</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">raster_collections</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">sort_direction</span> <span class="o">==</span> <span class="s2">&quot;asc&quot;</span><span class="p">:</span>
+            <span class="n">sort_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">timestamps</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">sort_direction</span> <span class="o">==</span> <span class="s2">&quot;desc&quot;</span><span class="p">:</span>
+            <span class="n">sort_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">timestamps</span><span class="p">)[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">sort_idx</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">empty</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Scene Collection is empty&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">timestamps</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;acquisition timestamps of scenes in collection&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">indexed_by_timestamps</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">keys</span><span class="p">())]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">identifiers</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;list of scene identifiers&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_identifiers</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">is_sorted</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;are the scenes sorted by their timstamps?&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_sorted</span>
+
+    <span class="nd">@is_sorted</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">is_sorted</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;are the scenes sorted by their timestamps?&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">==</span> <span class="nb">bool</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Only boolean types are accepted&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_is_sorted</span> <span class="o">=</span> <span class="n">value</span>
+
+<div class="viewcode-block" id="SceneCollection.from_pickle"><a class="viewcode-back" href="../../../packages/eodal.core.scene.html#eodal.core.scene.SceneCollection.from_pickle">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_pickle</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">stream</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="n">Path</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load SceneCollection from pickled binary stream.</span>
+
+<span class="sd">        :param stream:</span>
+<span class="sd">            pickled binary stream to load into a SceneCollection or</span>
+<span class="sd">            file-path to pickled binary on disk.</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            `SceneCollection` instance.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">reloaded</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stream</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+            <span class="n">reloaded</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span><span class="si">}</span><span class="s2"> is not a supported data type&quot;</span><span class="p">)</span>
+        <span class="c1"># open empty scene collection and add scenes one by one</span>
+        <span class="n">scoll_out</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">scene</span> <span class="ow">in</span> <span class="n">reloaded</span><span class="p">[</span><span class="s2">&quot;collection&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">scoll_out</span><span class="o">.</span><span class="n">add_scene</span><span class="p">(</span><span class="n">scene</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">scoll_out</span></div>
+
+<div class="viewcode-block" id="SceneCollection.from_raster_collections"><a class="viewcode-back" href="../../../packages/eodal.core.scene.html#eodal.core.scene.SceneCollection.from_raster_collections">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_raster_collections</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">raster_collections</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">RasterCollection</span><span class="p">]</span> <span class="o">|</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">RasterCollection</span><span class="p">],</span>
+        <span class="n">sort_scenes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">sort_direction</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;asc&quot;</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create a SceneCollection from a list/tuple of N RasterCollection objects.</span>
+
+<span class="sd">        :param raster_collections:</span>
+<span class="sd">            list or tuple of RasterCollections from which to create a new scene</span>
+<span class="sd">            collection.</span>
+<span class="sd">        :param sort_scenes:</span>
+<span class="sd">            if True (default) scenes are order in chronological order by their</span>
+<span class="sd">            acquisition time.</span>
+<span class="sd">        :param sort_direction:</span>
+<span class="sd">            direction of sorting. Must be either &#39;asc&#39; (ascending) or &#39;desc&#39;</span>
+<span class="sd">            (descending). Ignored if `sort_scenes` is False.</span>
+<span class="sd">        :param kwargs:</span>
+<span class="sd">            key word arguments to pass to `SceneCollection` constructor call.</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            SceneCollection instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># check inputs</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">raster_collections</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span>
+            <span class="n">raster_collections</span><span class="p">,</span> <span class="nb">tuple</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Can only handle lists or tuples of RasterCollections&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="p">[</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">RasterCollection</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">raster_collections</span><span class="p">]</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;All items passed must be RasterCollection instances&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x</span><span class="o">.</span><span class="n">is_scene</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">raster_collections</span><span class="p">])</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;All items passed must have an acquisition timestamp&quot;</span><span class="p">)</span>
+        <span class="c1"># check if scenes shall be sorted</span>
+        <span class="k">if</span> <span class="n">sort_scenes</span><span class="p">:</span>
+            <span class="n">sort_idx</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_sort_keys</span><span class="p">(</span><span class="n">sort_direction</span><span class="p">,</span> <span class="n">raster_collections</span><span class="p">)</span>
+            <span class="n">is_sorted</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sort_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">raster_collections</span><span class="p">))])</span>
+            <span class="n">is_sorted</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="c1"># open a SceneCollection instance and add the scenes</span>
+        <span class="n">scoll</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">scoll</span><span class="o">.</span><span class="n">is_sorted</span> <span class="o">=</span> <span class="n">is_sorted</span>
+        <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">sort_idx</span><span class="p">:</span>
+            <span class="n">scoll</span><span class="o">.</span><span class="n">add_scene</span><span class="p">(</span><span class="n">scene_constructor</span><span class="o">=</span><span class="n">raster_collections</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">scoll</span></div>
+
+<div class="viewcode-block" id="SceneCollection.add_scene"><a class="viewcode-back" href="../../../packages/eodal.core.scene.html#eodal.core.scene.SceneCollection.add_scene">[docs]</a>    <span class="k">def</span> <span class="nf">add_scene</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">scene_constructor</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">RasterCollection</span><span class="p">]</span> <span class="o">|</span> <span class="n">RasterCollection</span><span class="p">,</span>
+        <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Adds a Scene to the collection of scenes.</span>
+
+<span class="sd">        Raises an error if a scene with the same timestamp already exists (unique</span>
+<span class="sd">        timestamp constraint)</span>
+
+<span class="sd">        :param scene_constructor:</span>
+<span class="sd">            callable returning a `~eodal.core.raster.RasterCollection` instance or</span>
+<span class="sd">            existing `RasterCollection` instance</span>
+<span class="sd">        :param args:</span>
+<span class="sd">            positional arguments to pass to `scene_constructor`</span>
+<span class="sd">        :param kwargs:</span>
+<span class="sd">            keyword arguments to pass to `scene_constructor`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># if a RasterCollection is passed no constructor call is required</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">scene_constructor</span><span class="p">,</span> <span class="n">RasterCollection</span><span class="p">):</span>
+                <span class="n">scene</span> <span class="o">=</span> <span class="n">scene_constructor</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">scene</span> <span class="o">=</span> <span class="n">scene_constructor</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cannot initialize new Scene instance: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="c1"># try to add the scene to the SceneCollection</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="fm">__setitem__</span><span class="p">(</span><span class="n">scene</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cannot add scene: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SceneCollection.apply"><a class="viewcode-back" href="../../../packages/eodal.core.scene.html#eodal.core.scene.SceneCollection.apply">[docs]</a>    <span class="k">def</span> <span class="nf">apply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Apply a custom function to a SceneCollection.</span>
+
+<span class="sd">        :param func:</span>
+<span class="sd">            custom callable taking the ``SceneCollection`` as first</span>
+<span class="sd">            argument</span>
+<span class="sd">        :param args:</span>
+<span class="sd">            optional arguments to pass to `func`</span>
+<span class="sd">        :param kwargs:</span>
+<span class="sd">            optional keyword arguments to pass to `func`</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            results of `func`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">func</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span> <span class="kn">from</span> <span class="nn">e</span></div>
+
+<div class="viewcode-block" id="SceneCollection.clip_scenes"><a class="viewcode-back" href="../../../packages/eodal.core.scene.html#eodal.core.scene.SceneCollection.clip_scenes">[docs]</a>    <span class="k">def</span> <span class="nf">clip_scenes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inplace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Clip scenes in a SceneCollection to a user-defined spatial bounds.</span>
+
+<span class="sd">        :param inplace:</span>
+<span class="sd">            if False (default) returns a copy of the ``SceneCollection`` instance</span>
+<span class="sd">            with the changes applied. If True overwrites the values</span>
+<span class="sd">            in the current instance.</span>
+<span class="sd">        :param **kwargs:</span>
+<span class="sd">            key-word arguments to pass to `RasterCollection.clip_bands` method.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># loop over Scenes and try to subset them spatially</span>
+        <span class="c1"># initialize a new SceneCollection if inplace is False</span>
+        <span class="n">scoll_new</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">inplace</span><span class="p">:</span>
+            <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;inplace&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">})</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">inplace</span><span class="p">:</span>
+            <span class="n">scoll_new</span> <span class="o">=</span> <span class="n">SceneCollection</span><span class="p">(</span>
+                <span class="n">indexed_by_timestamps</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">indexed_by_timestamps</span>
+            <span class="p">)</span>
+        <span class="c1"># loop over band reproject the selected ones</span>
+        <span class="k">for</span> <span class="n">timestamp</span><span class="p">,</span> <span class="n">scene</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">inplace</span><span class="p">:</span>
+                <span class="bp">self</span><span class="p">[</span><span class="n">timestamp</span><span class="p">]</span><span class="o">.</span><span class="n">clip_bands</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">scene</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="n">timestamp</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                <span class="n">scoll_new</span><span class="o">.</span><span class="n">add_scene</span><span class="p">(</span><span class="n">scene_constructor</span><span class="o">=</span><span class="n">scene</span><span class="o">.</span><span class="n">clip_bands</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">inplace</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">scoll_new</span></div>
+
+<div class="viewcode-block" id="SceneCollection.copy"><a class="viewcode-back" href="../../../packages/eodal.core.scene.html#eodal.core.scene.SceneCollection.copy">[docs]</a>    <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;returns a true copy of the SceneCollection&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SceneCollection.get_feature_timeseries"><a class="viewcode-back" href="../../../packages/eodal.core.scene.html#eodal.core.scene.SceneCollection.get_feature_timeseries">[docs]</a>    <span class="k">def</span> <span class="nf">get_feature_timeseries</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">vector_features</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span> <span class="o">|</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">reindex_dataframe</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get a time series for 1:N vector features from SceneCollection.</span>
+
+<span class="sd">        :param vector_features:</span>
+<span class="sd">            vector features for which to extract time series data. If `Point` geometries</span>
+<span class="sd">            are provided calls `~RasterCollection.get_pixels()` on all scenes in the</span>
+<span class="sd">            collection. If `Polygon` (or `MultiPolygons`) are provided, calls</span>
+<span class="sd">            `~RasterCollection.band_summaries()` on all scenes in the collection.</span>
+<span class="sd">        :param reindex_dataframe:</span>
+<span class="sd">            boolean flag whether to reindex the resulting GeoDataFrame after extracting</span>
+<span class="sd">            data from all scenes. Set to `True` to ensure that the returned GeoDataFrame</span>
+<span class="sd">            has a unique index. `False` by default.</span>
+<span class="sd">        :param kwargs:</span>
+<span class="sd">            key word arguments to pass to `~RasterCollection.get_pixels()` or</span>
+<span class="sd">            `~RasterCollection.band_summaries()` depending on the type of the</span>
+<span class="sd">            input geometries.</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            ``GeoDataFrame`` with extracted raster values per feature and time stamp</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># check spatial datatypes</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">vector_features</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">vector_features</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+                <span class="n">gdf</span> <span class="o">=</span> <span class="n">gpd</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">vector_features</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">vector_features</span><span class="p">,</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">):</span>
+                <span class="n">gdf</span> <span class="o">=</span> <span class="n">vector_features</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s1">&#39;Can only handle pathlibo objects, GeoDataFrames or &quot;self&quot;&#39;</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="nb">set</span><span class="p">(</span><span class="n">gdf</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">geom_type</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span>
+                <span class="nb">set</span><span class="p">([</span><span class="s2">&quot;Point&quot;</span><span class="p">,</span> <span class="s2">&quot;MulitPoint&quot;</span><span class="p">])</span>
+            <span class="p">):</span>
+                <span class="n">pixels</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">elif</span> <span class="nb">set</span><span class="p">(</span><span class="n">gdf</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">geom_type</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span>
+                <span class="nb">set</span><span class="p">([</span><span class="s2">&quot;Polygon&quot;</span><span class="p">,</span> <span class="s2">&quot;MultiPolygon&quot;</span><span class="p">])</span>
+            <span class="p">):</span>
+                <span class="n">pixels</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Can only handle (Multi)Point or (Multi)Polygon geometries&quot;</span>
+                <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">vector_features</span> <span class="o">==</span> <span class="s2">&quot;self&quot;</span><span class="p">:</span>
+                <span class="n">gdf</span> <span class="o">=</span> <span class="s2">&quot;self&quot;</span>
+                <span class="n">pixels</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;When passing a string only &quot;self&quot; is permitted&#39;</span><span class="p">)</span>
+
+        <span class="c1"># loop over scenes in collection and get the feature values</span>
+        <span class="n">gdf_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">timestamp</span><span class="p">,</span> <span class="n">scene</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">pixels</span><span class="p">:</span>
+                <span class="n">_gdf</span> <span class="o">=</span> <span class="n">scene</span><span class="o">.</span><span class="n">get_pixels</span><span class="p">(</span><span class="n">vector_features</span><span class="o">=</span><span class="n">gdf</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">_gdf</span> <span class="o">=</span> <span class="n">scene</span><span class="o">.</span><span class="n">band_summaries</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">gdf</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">_gdf</span><span class="p">[</span><span class="s2">&quot;acquisition_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">timestamp</span>
+            <span class="n">gdf_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_gdf</span><span class="p">)</span>
+        <span class="c1"># reindex the resulting GeoDataFrame if required</span>
+        <span class="k">if</span> <span class="n">reindex_dataframe</span><span class="p">:</span>
+            <span class="n">gdf</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">gdf_list</span><span class="p">)</span>
+            <span class="c1"># reindexing is done by counting the features starting from zero</span>
+            <span class="n">gdf</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">gdf</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])]</span>
+            <span class="k">return</span> <span class="n">gdf</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">gdf_list</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SceneCollection.plot"><a class="viewcode-back" href="../../../packages/eodal.core.scene.html#eodal.core.scene.SceneCollection.plot">[docs]</a>    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">band_selection</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">max_scenes_in_row</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">6</span><span class="p">,</span>
+        <span class="n">eodal_plot_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">plt</span><span class="o">.</span><span class="n">Figure</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Plots scenes in a `SceneCollection`</span>
+
+<span class="sd">        :param band_selection:</span>
+<span class="sd">            selection of band(s) to use for plotting. Must be either a single</span>
+<span class="sd">            band or a set of three bands</span>
+<span class="sd">        :param max_scenes_in_row:</span>
+<span class="sd">            number of scenes in a row. Set to 6 by default.</span>
+<span class="sd">        :param eodal_plot_kwargs:</span>
+<span class="sd">            optional keyword arguments to pass on to `eodal.core.band.Band.plot()`</span>
+<span class="sd">        :param kwargs:</span>
+<span class="sd">            optional keyword arguments to pass to `matplotlib.subplots()`.</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            `Figure` object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># check number of passed bands</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">band_selection</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">band_selection</span> <span class="o">=</span> <span class="p">[</span><span class="n">band_selection</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">band_selection</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">band_selection</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;You must pass a single band name or three band names&quot;</span><span class="p">)</span>
+
+        <span class="n">plot_multiple_bands</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">band_selection</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">plot_multiple_bands</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># check number of mapper in feature_scenes and determine figure size</span>
+        <span class="n">n_scenes</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">nrows</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">ncols</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No scenes available for plotting&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">n_scenes</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">f</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="c1"># cast to array to allow indexing</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ax</span><span class="p">])</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">n_scenes</span> <span class="o">&lt;=</span> <span class="n">max_scenes_in_row</span><span class="p">:</span>
+                <span class="n">ncols</span> <span class="o">=</span> <span class="n">n_scenes</span>
+                <span class="n">f</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">ncols</span><span class="o">=</span><span class="n">ncols</span><span class="p">,</span> <span class="n">nrows</span><span class="o">=</span><span class="n">nrows</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                <span class="c1"># reshape to match the shape of ax array with &gt;1 rows</span>
+                <span class="n">ax</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">ax</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">nrows</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">n_scenes</span> <span class="o">/</span> <span class="n">max_scenes_in_row</span><span class="p">))</span>
+                <span class="n">ncols</span> <span class="o">=</span> <span class="n">max_scenes_in_row</span>
+                <span class="n">f</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">ncols</span><span class="o">=</span><span class="n">ncols</span><span class="p">,</span> <span class="n">nrows</span><span class="o">=</span><span class="n">nrows</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="c1"># get scene labels</span>
+        <span class="n">scene_labels</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+        <span class="n">row_idx</span><span class="p">,</span> <span class="n">col_idx</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">_scene</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="n">scene</span> <span class="o">=</span> <span class="n">_scene</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">plot_multiple_bands</span><span class="p">:</span>
+                <span class="n">scene</span><span class="o">.</span><span class="n">plot_multiple_bands</span><span class="p">(</span>
+                    <span class="n">band_selection</span><span class="o">=</span><span class="n">band_selection</span><span class="p">,</span>
+                    <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">[</span><span class="n">row_idx</span><span class="p">,</span> <span class="n">col_idx</span><span class="p">],</span>
+                    <span class="o">**</span><span class="n">eodal_plot_kwargs</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">scene</span><span class="p">[</span><span class="n">band_selection</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span>
+                    <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">[</span><span class="n">row_idx</span><span class="p">,</span> <span class="n">col_idx</span><span class="p">],</span> <span class="o">**</span><span class="n">eodal_plot_kwargs</span>
+                <span class="p">)</span>
+            <span class="n">ax</span><span class="p">[</span><span class="n">row_idx</span><span class="p">,</span> <span class="n">col_idx</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="n">scene_labels</span><span class="p">[</span><span class="n">idx</span><span class="p">])</span>
+            <span class="n">idx</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="c1"># switch off axes labels if sharex == True and sharey=True</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;sharex&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;sharey&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+                <span class="ow">and</span> <span class="n">n_scenes</span> <span class="o">&gt;</span> <span class="mi">1</span>
+            <span class="p">):</span>
+                <span class="k">if</span> <span class="n">nrows</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">row_idx</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">nrows</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+                        <span class="n">ax</span><span class="p">[</span><span class="n">row_idx</span><span class="p">,</span> <span class="n">col_idx</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">nrows</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">col_idx</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">ax</span><span class="p">[</span><span class="n">row_idx</span><span class="p">,</span> <span class="n">col_idx</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+            <span class="c1"># increase column (and row) counter accordingly</span>
+            <span class="n">col_idx</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="c1"># begin a new row when all columns are filled</span>
+            <span class="k">if</span> <span class="n">col_idx</span> <span class="o">==</span> <span class="n">max_scenes_in_row</span><span class="p">:</span>
+                <span class="n">col_idx</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">row_idx</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="c1"># make sure sub-plot labels do not overlap</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">f</span></div>
+
+<div class="viewcode-block" id="SceneCollection.sort"><a class="viewcode-back" href="../../../packages/eodal.core.scene.html#eodal.core.scene.SceneCollection.sort">[docs]</a>    <span class="k">def</span> <span class="nf">sort</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sort_direction</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;asc&quot;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a sorted copy of the SceneCollection.</span>
+
+<span class="sd">        :param sort_direction:</span>
+<span class="sd">            direction of sorting. Must be either &#39;asc&#39; (ascending) or &#39;desc&#39;</span>
+<span class="sd">            (descending). Ignored if `sort_scenes` is False.</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            sorted SceneCollection.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># empty SceneCollections cannot be sorted</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="c1"># get a list of all scenes in the collection and sort them</span>
+        <span class="n">scenes</span> <span class="o">=</span> <span class="p">[</span><span class="n">v</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">]</span>
+        <span class="n">sort_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sort_keys</span><span class="p">(</span><span class="n">sort_direction</span><span class="p">,</span> <span class="n">raster_collections</span><span class="o">=</span><span class="n">scenes</span><span class="p">)</span>
+        <span class="n">scoll</span> <span class="o">=</span> <span class="n">SceneCollection</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">sort_idx</span><span class="p">:</span>
+            <span class="n">scoll</span><span class="o">.</span><span class="n">add_scene</span><span class="p">(</span><span class="n">scenes</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">scoll</span></div>
+
+<div class="viewcode-block" id="SceneCollection.to_pickle"><a class="viewcode-back" href="../../../packages/eodal.core.scene.html#eodal.core.scene.SceneCollection.to_pickle">[docs]</a>    <span class="k">def</span> <span class="nf">to_pickle</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Dumps a scene collection as pickled object</span>
+
+<span class="sd">        :returns:</span>
+<span class="sd">            pickled binary object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">pickle</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="SceneCollection.to_xarray"><a class="viewcode-back" href="../../../packages/eodal.core.scene.html#eodal.core.scene.SceneCollection.to_xarray">[docs]</a>    <span class="k">def</span> <span class="nf">to_xarray</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">xr</span><span class="o">.</span><span class="n">DataArray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Converts all scenes in a SceneCollection to a single `xarray.DataArray`.</span>
+
+<span class="sd">        :param kwargs:</span>
+<span class="sd">            key word arguments to pass to `~RasterCollection.to_xarray`</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            SceneCollection as `xarray.DataArray`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># loop over scenes in Collection and convert them to xarray.DataArray</span>
+        <span class="n">xarray_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">timestamp</span><span class="p">,</span> <span class="n">scene</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
+            <span class="n">_xr</span> <span class="o">=</span> <span class="n">scene</span><span class="o">.</span><span class="n">to_xarray</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="c1"># _xr = _xr.to_dataset()</span>
+            <span class="n">_xr</span> <span class="o">=</span> <span class="n">_xr</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="n">time</span><span class="o">=</span><span class="p">[</span><span class="n">timestamp</span><span class="p">])</span>
+            <span class="n">xarray_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_xr</span><span class="p">)</span>
+        <span class="c1"># concatenate into a single xarray along the time dimension</span>
+        <span class="k">return</span> <span class="n">xr</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">xarray_list</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="s2">&quot;time&quot;</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../packages/modules.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

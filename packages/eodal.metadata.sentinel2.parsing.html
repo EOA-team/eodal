@@ -1,0 +1,278 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.metadata.sentinel2.parsing module &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="eodal.metadata.sentinel2.utils module" href="eodal.metadata.sentinel2.utils.html" />
+    <link rel="prev" title="eodal.metadata.sentinel2.database.querying module" href="eodal.metadata.sentinel2.database.querying.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-eodal.metadata.sentinel2.parsing">
+<span id="eodal-metadata-sentinel2-parsing-module"></span><h1>eodal.metadata.sentinel2.parsing module<a class="headerlink" href="#module-eodal.metadata.sentinel2.parsing" title="Permalink to this heading">¶</a></h1>
+<p>This module contains functions to extract relevant scene-specific
+Sentinel-2 metadata supporting L1C and L2A (sen2core-derived) processing levels</p>
+<p>Copyright (C) 2022 Lukas Valentin Graf</p>
+<p>This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.</p>
+<p>This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.</p>
+<p>You should have received a copy of the GNU General Public License
+along with this program.  If not, see &lt;<a class="reference external" href="http://www.gnu.org/licenses/">http://www.gnu.org/licenses/</a>&gt;.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.metadata.sentinel2.parsing.get_scene_footprint">
+<span class="sig-prename descclassname"><span class="pre">eodal.metadata.sentinel2.parsing.</span></span><span class="sig-name descname"><span class="pre">get_scene_footprint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sensor_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.12)"><span class="pre">dict</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></span><a class="reference internal" href="../_modules/eodal/metadata/sentinel2/parsing.html#get_scene_footprint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.metadata.sentinel2.parsing.get_scene_footprint" title="Permalink to this definition">¶</a></dt>
+<dd><p>get the footprint (geometry) of a scene by calculating its
+extent using the original UTM coordinates of the scene.
+The obtained footprint is then converted to WGS84 geographic
+coordinates and returned as Extended Well-Known-Text (EWKT)
+string.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>sensor_data</strong> – dict with ULX, ULY, NROWS_10m, NCOLS_10m, EPSG entries
+obtained from the MTD_TL.xml file</p>
+</dd>
+<dt class="field-even">Return wkt</dt>
+<dd class="field-even"><p>extended well-known-text representation of the scene
+footprint</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.metadata.sentinel2.parsing.loop_s2_archive">
+<span class="sig-prename descclassname"><span class="pre">eodal.metadata.sentinel2.parsing.</span></span><span class="sig-name descname"><span class="pre">loop_s2_archive</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">extract_datastrip</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">get_newest_datasets</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_execution_date</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.date" title="(in Python v3.12)"><span class="pre">date</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.12)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v2.1.1)"><span class="pre">DataFrame</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/eodal/metadata/sentinel2/parsing.html#loop_s2_archive"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.metadata.sentinel2.parsing.loop_s2_archive" title="Permalink to this definition">¶</a></dt>
+<dd><p>wrapper function to loop over an entire archive (i.e., collection) of
+Sentinel-2 mapper in either L1C or L2A processing level or a mixture
+thereof.</p>
+<p>The function returns a pandas dataframe for all found entries in the
+archive (i.e., directory). Each row in the dataframe denotes one scene.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_dir</strong> – directory containing the Sentinel-2 data (L1C and/or L2A
+processing level). Sentinel-2 mapper are assumed to follow ESA’s
+.SAFE naming convention and structure</p></li>
+<li><p><strong>extract_datastrip</strong> – If True reads also metadata from the datastrip xml file
+(MTD_DS.xml)</p></li>
+<li><p><strong>get_newest_datasets</strong> – if set to True only datasets newer than a user-defined time stamp
+will be considered for ingestion into the database. This is particularly
+useful for updating the database after new mapper have been downloaded
+or processed.</p></li>
+<li><p><strong>last_execution_date</strong> – if get_newest_datasets is True this variable needs to be set. All
+datasets younger than that date will be considered for ingestion
+into the database.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>dataframe with metadata of all mapper handled by the function
+call</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.metadata.sentinel2.parsing.parse_MTD_DS">
+<span class="sig-prename descclassname"><span class="pre">eodal.metadata.sentinel2.parsing.</span></span><span class="sig-name descname"><span class="pre">parse_MTD_DS</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.12)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.12)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/eodal/metadata/sentinel2/parsing.html#parse_MTD_DS"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.metadata.sentinel2.parsing.parse_MTD_DS" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parses the MTD_DS.xml located in tghe /DATASTRIP folder
+in each .SAFE dataset. The xml contains the noise model parameters
+alpha and beta as well as physical gain factors
+required to calculate the radiometric uncertainty
+of the Level-1C data. The extraction of this data is therefore
+optional.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>in_file</strong> – filepath of the scene metadata xml (MTD_DS.xml)</p>
+</dd>
+<dt class="field-even">Return metadata</dt>
+<dd class="field-even"><p>dictionary with extracted noise model parameters, alpha
+and beta, per spectral band of MSI</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.metadata.sentinel2.parsing.parse_MTD_MSI">
+<span class="sig-prename descclassname"><span class="pre">eodal.metadata.sentinel2.parsing.</span></span><span class="sig-name descname"><span class="pre">parse_MTD_MSI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.12)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.12)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/eodal/metadata/sentinel2/parsing.html#parse_MTD_MSI"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.metadata.sentinel2.parsing.parse_MTD_MSI" title="Permalink to this definition">¶</a></dt>
+<dd><p>parses the MTD_MSIL1C or MTD_MSIL2A metadata file that is delivered with
+ESA Sentinel-2 L1C and L2A products, respectively.</p>
+<p>The file is usually placed directly in the .SAFE root folder of an
+unzipped Sentinel-2 L1C or L2A scene.</p>
+<p>The extracted metadata is returned as a dict.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>in_file</strong> – filepath of the scene metadata xml (MTD_MSI2A.xml or MTD_MSIL1C.xml)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.metadata.sentinel2.parsing.parse_MTD_TL">
+<span class="sig-prename descclassname"><span class="pre">eodal.metadata.sentinel2.parsing.</span></span><span class="sig-name descname"><span class="pre">parse_MTD_TL</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.12)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.12)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/eodal/metadata/sentinel2/parsing.html#parse_MTD_TL"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.metadata.sentinel2.parsing.parse_MTD_TL" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parses the MTD_TL.xml metadata file provided by ESA.This metadata
+XML is usually placed in the GRANULE subfolder of a ESA-derived
+S2 product and named ‘MTD_TL.xml’.</p>
+<p>The ‘MTD_TL.xml’ is available for both processing levels (i.e.,
+L1C and L2A). The function is able to handle both processing
+sources and returns some entries available in L2A processing level,
+only, as None type objects.</p>
+<p>The function extracts the most important metadata from the XML and
+returns a dict with those extracted entries.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>in_file</strong> – filepath of the scene metadata xml 8MTD_TL.xml)</p>
+</dd>
+<dt class="field-even">Return metadata</dt>
+<dd class="field-even"><p>dict with extracted metadata entries</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.metadata.sentinel2.parsing.parse_s2_scene_metadata">
+<span class="sig-prename descclassname"><span class="pre">eodal.metadata.sentinel2.parsing.</span></span><span class="sig-name descname"><span class="pre">parse_s2_scene_metadata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">extract_datastrip</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.12)"><span class="pre">Tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.12)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.12)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/eodal/metadata/sentinel2/parsing.html#parse_s2_scene_metadata"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.metadata.sentinel2.parsing.parse_s2_scene_metadata" title="Permalink to this definition">¶</a></dt>
+<dd><p>wrapper function to extract metadata from ESA Sentinel-2
+mapper. It returns a dict with the metadata most important
+to characterize a given Sentinel-2 scene (mtd_msi).
+Optionally, some information about the datastrip can be
+extracted as well (MTD_DS.xml); this information is required
+for the uncertainty modelling and therefore not extracted by
+default.</p>
+<p>The function works on both, L1C and L2A (sen2cor-based)
+processing levels. The amount of metadata, however, is
+reduced in the case of L1C since no scene classification
+information is available.</p>
+<p>NOTE: In order to identify mapper and their processing level
+correctly, L2A mapper must have ‘_MSIL2A_’ occuring somewhere
+in the filepath. For L1C, it must be ‘_MSIL1C_’.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_dir</strong> – directory containing the L1C or L2A Sentinel-2 scene</p></li>
+<li><p><strong>extract_datastrip</strong> – If True reads also metadata from the datastrip xml file
+(MTD_DS.xml)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return mtd_msi</dt>
+<dd class="field-even"><p>dict with extracted metadata items</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="eodal.html">eodal package</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">API Reference</a><ul>
+  <li><a href="eodal.html">eodal package</a><ul>
+  <li><a href="eodal.metadata.html">eodal.metadata package</a><ul>
+  <li><a href="eodal.metadata.sentinel2.html">eodal.metadata.sentinel2 package</a><ul>
+      <li>Previous: <a href="eodal.metadata.sentinel2.database.querying.html" title="previous chapter">eodal.metadata.sentinel2.database.querying module</a></li>
+      <li>Next: <a href="eodal.metadata.sentinel2.utils.html" title="next chapter">eodal.metadata.sentinel2.utils module</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/packages/eodal.metadata.sentinel2.parsing.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

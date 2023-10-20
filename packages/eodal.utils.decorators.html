@@ -1,0 +1,164 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.utils.decorators module &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="eodal.utils.exceptions module" href="eodal.utils.exceptions.html" />
+    <link rel="prev" title="eodal.utils.arrays module" href="eodal.utils.arrays.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-eodal.utils.decorators">
+<span id="eodal-utils-decorators-module"></span><h1>eodal.utils.decorators module<a class="headerlink" href="#module-eodal.utils.decorators" title="Permalink to this heading">¶</a></h1>
+<p>Function and method decorators used to validate passed arguments.</p>
+<p>Copyright (C) 2022 Lukas Valentin Graf</p>
+<p>This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.</p>
+<p>This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.</p>
+<p>You should have received a copy of the GNU General Public License
+along with this program.  If not, see &lt;<a class="reference external" href="http://www.gnu.org/licenses/">http://www.gnu.org/licenses/</a>&gt;.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.utils.decorators.check_band_names">
+<span class="sig-prename descclassname"><span class="pre">eodal.utils.decorators.</span></span><span class="sig-name descname"><span class="pre">check_band_names</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/utils/decorators.html#check_band_names"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.utils.decorators.check_band_names" title="Permalink to this definition">¶</a></dt>
+<dd><p>checks if passed band name(s) are available</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.utils.decorators.check_metadata">
+<span class="sig-prename descclassname"><span class="pre">eodal.utils.decorators.</span></span><span class="sig-name descname"><span class="pre">check_metadata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/utils/decorators.html#check_metadata"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.utils.decorators.check_metadata" title="Permalink to this definition">¶</a></dt>
+<dd><p>validates if passed image metadata items are valid</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.utils.decorators.check_processing_level">
+<span class="sig-prename descclassname"><span class="pre">eodal.utils.decorators.</span></span><span class="sig-name descname"><span class="pre">check_processing_level</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/utils/decorators.html#check_processing_level"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.utils.decorators.check_processing_level" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.utils.decorators.prepare_bbox">
+<span class="sig-prename descclassname"><span class="pre">eodal.utils.decorators.</span></span><span class="sig-name descname"><span class="pre">prepare_bbox</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/utils/decorators.html#prepare_bbox"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.utils.decorators.prepare_bbox" title="Permalink to this definition">¶</a></dt>
+<dd><p>prepares a bounding box from 1:N vector features for STAC queries</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.utils.decorators.prepare_point_features">
+<span class="sig-prename descclassname"><span class="pre">eodal.utils.decorators.</span></span><span class="sig-name descname"><span class="pre">prepare_point_features</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/utils/decorators.html#prepare_point_features"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.utils.decorators.prepare_point_features" title="Permalink to this definition">¶</a></dt>
+<dd><p>casts MultiPoint geometries to single parts before calling pixel extraction methods</p>
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="eodal.html">eodal package</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">API Reference</a><ul>
+  <li><a href="eodal.html">eodal package</a><ul>
+  <li><a href="eodal.utils.html">eodal.utils package</a><ul>
+      <li>Previous: <a href="eodal.utils.arrays.html" title="previous chapter">eodal.utils.arrays module</a></li>
+      <li>Next: <a href="eodal.utils.exceptions.html" title="next chapter">eodal.utils.exceptions module</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/packages/eodal.utils.decorators.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

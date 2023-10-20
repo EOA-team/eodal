@@ -1,0 +1,346 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.core.sensors.sentinel2 module &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="eodal.core.utils package" href="eodal.core.utils.html" />
+    <link rel="prev" title="eodal.core.sensors.sentinel1 module" href="eodal.core.sensors.sentinel1.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-eodal.core.sensors.sentinel2">
+<span id="eodal-core-sensors-sentinel2-module"></span><h1>eodal.core.sensors.sentinel2 module<a class="headerlink" href="#module-eodal.core.sensors.sentinel2" title="Permalink to this heading">¶</a></h1>
+<p>This module contains the <code class="docutils literal notranslate"><span class="pre">Sentinel2</span></code> class that inherits from
+eodal’s core <code class="docutils literal notranslate"><span class="pre">RasterCollection</span></code> class.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">Sentinel2</span></code> class enables reading one or more spectral bands from Sentinel-2
+data in .SAFE format which is ESA’s standard format for distributing Sentinel-2 data.</p>
+<p>The class handles data in L1C and L2A processing level.</p>
+<p>Copyright (C) 2022 Lukas Valentin Graf</p>
+<p>This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.</p>
+<p>This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.</p>
+<p>You should have received a copy of the GNU General Public License
+along with this program.  If not, see &lt;<a class="reference external" href="http://www.gnu.org/licenses/">http://www.gnu.org/licenses/</a>&gt;.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="eodal.core.sensors.sentinel2.Sentinel2">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">eodal.core.sensors.sentinel2.</span></span><span class="sig-name descname"><span class="pre">Sentinel2</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">band_constructor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.12)"><span class="pre">Callable</span></a><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="eodal.core.band.html#eodal.core.band.Band" title="eodal.core.band.Band"><span class="pre">Band</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scene_properties</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="eodal.core.raster.html#eodal.core.raster.SceneProperties" title="eodal.core.raster.SceneProperties"><span class="pre">SceneProperties</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/sensors/sentinel2.html#Sentinel2"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.sensors.sentinel2.Sentinel2" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="eodal.core.raster.html#eodal.core.raster.RasterCollection" title="eodal.core.raster.RasterCollection"><code class="xref py py-class docutils literal notranslate"><span class="pre">RasterCollection</span></code></a></p>
+<p>Class for storing Sentinel-2 band data read from bandstacks or
+.SAFE archives (L1C and L2A level) overwriting methods inherited
+from <cite>~eodal.utils.io.SatDataHandler</cite>.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.sensors.sentinel2.Sentinel2.from_safe">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_safe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.12)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.12)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">band_selection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">read_scl</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">apply_scaling</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/sensors/sentinel2.html#Sentinel2.from_safe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.sensors.sentinel2.Sentinel2.from_safe" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads Sentinel-2 data into a <cite>RasterCollection</cite>.</p>
+<p>There are two options:</p>
+<ul class="simple">
+<li><p>Read data from a .SAFE archive which is ESA’s standard format for
+distributing Sentinel-2 data (L1C and L2A processing levels).</p></li>
+<li><p>Read data from a Asset-List returned from a STAC query</p></li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If a spatial subset is read (<cite>vector_features</cite> in kwargs) the
+single S2 bands are clipped to the spatial extent of the S2 in the
+band selection with the coarsest (lowest) spatial resolution. This
+way it is ensured that all bands share the same spatial extent
+regardless of their spatial resolution (10, 20, or 60m). This is
+possible because all bands share the same origin (upper left corner).</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_dir</strong> – file-path to the .SAFE directory containing Sentinel-2 data in
+L1C or L2A processing level or collection of hyper-links in the case
+of STAC</p></li>
+<li><p><strong>band_selection</strong> – selection of Sentinel-2 bands to read. Per default, all 10 and
+20m bands are processed. If you wish to read less or more, specify
+the band names accordingly, e.g., [‘B02’,’B03’,’B04’] to read only the
+VIS bands. If the processing level is L2A the SCL band is <strong>always</strong>
+loaded unless you set <code class="docutils literal notranslate"><span class="pre">read_scl</span></code> to False.</p></li>
+<li><p><strong>read_scl</strong> – read SCL file if available (default, L2A processing level).</p></li>
+<li><p><strong>apply_scaling</strong> – apply Sentinel-2 gain and offset factor to derive reflectance values scaled
+between 0 (negative values are possible from baseline N0400 onwards) and 1
+(default behavior). Because of the reflectance offset of -1000 introduced
+with PDGS baseline N0400 in January 2022 applying the automatized scaling
+is recommended to always obtain physically correct reflectance factor
+values - at the cost of higher storage requirements because scaling converts
+the data to float32.</p></li>
+<li><p><strong>kwargs</strong> – optional key-word arguments to pass to <cite>~eodal.core.band.Band.from_rasterio</cite></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><cite>Sentinel2</cite> instance with S2 bands loaded</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.sensors.sentinel2.Sentinel2.get_cloudy_pixel_percentage">
+<span class="sig-name descname"><span class="pre">get_cloudy_pixel_percentage</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cloud_classes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">[2,</span> <span class="pre">3,</span> <span class="pre">7,</span> <span class="pre">8,</span> <span class="pre">9,</span> <span class="pre">10,</span> <span class="pre">11]</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.12)"><span class="pre">float</span></a></span></span><a class="reference internal" href="../_modules/eodal/core/sensors/sentinel2.html#Sentinel2.get_cloudy_pixel_percentage"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.sensors.sentinel2.Sentinel2.get_cloudy_pixel_percentage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the cloudy pixel percentage [0-100] for the current AOI
+(L2A processing level, only) considering all SCL classes that are
+not NoData.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cloud_classes</strong> – list of SCL values to be considered as clouds. By default,
+all three cloud classes and cloud shadows are considered.</p></li>
+<li><p><strong>check_for_snow</strong> – if True (default) also counts snowy pixels as clouds.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>cloudy pixel percentage in the AOI [0-100%] related to the
+overall number of valid pixels (SCL != no_data)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.sensors.sentinel2.Sentinel2.get_scl_stats">
+<span class="sig-name descname"><span class="pre">get_scl_stats</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v2.1.1)"><span class="pre">DataFrame</span></a></span></span><a class="reference internal" href="../_modules/eodal/core/sensors/sentinel2.html#Sentinel2.get_scl_stats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.sensors.sentinel2.Sentinel2.get_scl_stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a <code class="docutils literal notranslate"><span class="pre">DataFrame</span></code> with the number of pixel for each
+class of the scene classification layer. Works for data in
+L2A processing level, only.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">DataFrame</span></code> with pixel count of SCL classes available
+in the currently loaded Sentinel-2 scene. Masked pixels
+are ignored and also not used for calculating the relative
+class occurences.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.core.sensors.sentinel2.Sentinel2.is_blackfilled">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_blackfilled</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a></em><a class="headerlink" href="#eodal.core.sensors.sentinel2.Sentinel2.is_blackfilled" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks if the scene is black-filled (nodata only)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.sensors.sentinel2.Sentinel2.mask_clouds_and_shadows">
+<span class="sig-name descname"><span class="pre">mask_clouds_and_shadows</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bands_to_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cloud_classes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">[1,</span> <span class="pre">2,</span> <span class="pre">3,</span> <span class="pre">7,</span> <span class="pre">8,</span> <span class="pre">9,</span> <span class="pre">10,</span> <span class="pre">11]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_band</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'SCL'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#eodal.core.sensors.sentinel2.Sentinel2" title="eodal.core.sensors.sentinel2.Sentinel2"><span class="pre">Sentinel2</span></a></span></span><a class="reference internal" href="../_modules/eodal/core/sensors/sentinel2.html#Sentinel2.mask_clouds_and_shadows"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.sensors.sentinel2.Sentinel2.mask_clouds_and_shadows" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Wrapper around the inherited <code class="docutils literal notranslate"><span class="pre">mask</span></code> method to mask clouds,
+shadows, water and snow based on (by default) the SCL band.
+Works therefore on L2A data, only.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Since the <cite>mask_band</cite> can be set to <em>any</em> <cite>Band</cite> it is also
+possible to use a different cloud/shadow etc. mask, e.g., from
+a custom classifier.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>You might also use the mask function from
+<cite>eodal.core.raster.RasterCollection</cite> directly.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>bands_to_mask</strong> – list of bands on which to apply the SCL mask. If not specified all bands
+are masked.</p></li>
+<li><p><strong>cloud_classes</strong> – list of SCL values to be considered as clouds/shadows and snow.
+By default, all three cloud classes and cloud shadows are considered
+plus snow.</p></li>
+<li><p><strong>kwargs</strong> – optional kwargs to pass to <cite>~eodal.core.raster.RasterCollection.mask</cite></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>depending on <cite>inplace</cite> (passed in the kwargs) a new <cite>Sentinel2</cite> instance
+or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.sensors.sentinel2.Sentinel2.plot_scl">
+<span class="sig-name descname"><span class="pre">plot_scl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">colormap</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://matplotlib.org/stable/api/figure_api.html#matplotlib.figure.Figure" title="(in Matplotlib v3.8.0)"><span class="pre">Figure</span></a></span></span><a class="reference internal" href="../_modules/eodal/core/sensors/sentinel2.html#Sentinel2.plot_scl"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.sensors.sentinel2.Sentinel2.plot_scl" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wrapper around <cite>plot_band</cite> method to plot the Scene Classification
+Layer available from the L2A processing level. Raises an error if
+the band is not available</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>colormap</strong> – optional matplotlib named colormap to use for visualization. If
+not provided uses a custom color map that tries to reproduce the
+standard SCL colors provided by ESA.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>matplotlib figure object with the SCL band data
+plotted as map</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.sensors.sentinel2.Sentinel2.read_pixels_from_safe">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">read_pixels_from_safe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vector_features</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">Path</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">gpd.GeoDataFrame</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">band_selection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">read_scl</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">apply_scaling</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">gpd.GeoDataFrame</span></span></span><a class="reference internal" href="../_modules/eodal/core/sensors/sentinel2.html#Sentinel2.read_pixels_from_safe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.sensors.sentinel2.Sentinel2.read_pixels_from_safe" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extracts Sentinel-2 raster values at locations defined by one or many
+vector geometry features read from a vector file (e.g., ESRI shapefile) or
+<code class="docutils literal notranslate"><span class="pre">GeoDataFrame</span></code>.</p>
+<p>The Sentinel-2 data must be organized in .SAFE archive structure in either
+L1C or L2A processing level. Each selected Sentinel-2 band is returned as
+a column in the resulting <code class="docutils literal notranslate"><span class="pre">GeoDataFrame</span></code>. Pixels outside of the band
+bounds are ignored and not returned as well as pixels set to blackfill
+(zero reflectance in all spectral bands).</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>This function works for Sentinel-2 data organized in .SAFE format!
+If the Sentinel-2 data has been converted to multi-band tiffs, use
+<cite>~Sentinel2().read_pixels()</cite> instead.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>A point is dimension-less, therefore, the raster grid cell (pixel) closest
+to the point is returned if the point lies within the raster.
+Therefore, this method works on all Sentinel-2 bands <strong>without</strong> the need
+to do spatial resampling! The underlying <code class="docutils literal notranslate"><span class="pre">rasterio.sample</span></code> function always
+snaps to the closest pixel in the current spectral band.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_dir</strong> – Sentinel-2 scene in .SAFE structure from which to extract
+pixel values at the provided point locations. Can be either a dictionary
+item returned from STAC or a physical file-path</p></li>
+<li><p><strong>vector_features</strong> – vector file (e.g., ESRI shapefile or geojson) or <code class="docutils literal notranslate"><span class="pre">GeoDataFrame</span></code>
+defining point locations for which to extract pixel values</p></li>
+<li><p><strong>band_selection</strong> – list of bands to read. Per default all raster bands available are read.</p></li>
+<li><p><strong>read_scl</strong> – read SCL file if available (default, L2A processing level).</p></li>
+<li><p><strong>apply_scaling</strong> – apply Sentinel-2 gain and offset factor to derive reflectance values scaled
+between 0 (negative values are possible from baseline N0400 onwards) and 1
+(default behavior). Because of the reflectance offset of -1000 introduced
+with PDGS baseline N0400 in January 2022 applying the automatized scaling
+is recommended to always obtain physically correct reflectance factor values
+- at the cost of higher storage requirements because scaling converts the
+data to float32.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">GeoDataFrame</span></code> containing the extracted raster values. The band values
+are appended as columns to the dataframe. Existing columns of the input
+<cite>in_file_pixels</cite> are preserved.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="eodal.html">eodal package</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">API Reference</a><ul>
+  <li><a href="eodal.html">eodal package</a><ul>
+  <li><a href="eodal.core.html">eodal.core package</a><ul>
+  <li><a href="eodal.core.sensors.html">eodal.core.sensors package</a><ul>
+      <li>Previous: <a href="eodal.core.sensors.sentinel1.html" title="previous chapter">eodal.core.sensors.sentinel1 module</a></li>
+      <li>Next: <a href="eodal.core.utils.html" title="next chapter">eodal.core.utils package</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/packages/eodal.core.sensors.sentinel2.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

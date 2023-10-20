@@ -1,0 +1,206 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome to the documentation of the Earth Observation Data Analysis Library (EOdal) &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="API Reference" href="packages/modules.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="welcome-to-the-documentation-of-the-earth-observation-data-analysis-library-eodal">
+<h1>Welcome to the documentation of the Earth Observation Data Analysis Library (EOdal)<a class="headerlink" href="#welcome-to-the-documentation-of-the-earth-observation-data-analysis-library-eodal" title="Permalink to this heading">¶</a></h1>
+<a class="reference internal image-reference" href="_images/eodal_s2_image_fcir.png"><img alt="Sentinel-2 false color image of Lake Lucerne, Switzerland." class="align-center" src="_images/eodal_s2_image_fcir.png" style="width: 600px;" /></a>
+<p>A truely open-source package for unified analysis of Earth Observation (EO) data.</p>
+<ul class="simple">
+<li><p>cloud-native by design thanks to <a class="reference external" href="https://stacspec.org/en/">STAC</a></p></li>
+<li><p>access to petabytes of satellite imagery including Landsat, Sentinel-1, Sentinel-2 and PlanetScope</p></li>
+<li><p>EO data querying, I/O, processing, analysis and visualization in a single package</p></li>
+<li><p>Modulare and lightweight architecture</p></li>
+<li><p>Almost unlimited expandability with interfaces to <a class="reference external" href="https://docs.xarray.dev/en/stable/">xarray</a>, <a class="reference external" href="https://numpy.org/">numpy</a>, <a class="reference external" href="https://geopandas.org/en/stable/">geopandas</a>, and many more</p></li>
+</ul>
+<div class="section" id="getting-started">
+<h2>Getting started<a class="headerlink" href="#getting-started" title="Permalink to this heading">¶</a></h2>
+<p>EOdal can be installed from <a class="reference external" href="https://pypi.org/project/eodal/">PyPi</a> or from <a class="reference external" href="https://github.com/EOA-team/eodal">source</a>.</p>
+<p>To get started you might have a look at some Jupyter notebooks we prepared. Check them out <a class="reference external" href="https://github.com/EOA-team/eodal_notebooks">here</a></p>
+</div>
+<div class="section" id="example">
+<h2>Example<a class="headerlink" href="#example" title="Permalink to this heading">¶</a></h2>
+<div class="literal-block-wrapper docutils container" id="id1">
+<div class="code-block-caption"><span class="caption-text">eodal_example.py</span><a class="headerlink" href="#id1" title="Permalink to this code">¶</a></div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">geopandas</span> <span class="k">as</span> <span class="nn">gpd</span>
+
+ <span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+ <span class="kn">from</span> <span class="nn">eodal.core.sensors.sentinel2</span> <span class="kn">import</span> <span class="n">Sentinel2</span>
+ <span class="kn">from</span> <span class="nn">eodal.mapper.feature</span> <span class="kn">import</span> <span class="n">Feature</span>
+ <span class="kn">from</span> <span class="nn">eodal.mapper.filter</span> <span class="kn">import</span> <span class="n">Filter</span>
+ <span class="kn">from</span> <span class="nn">eodal.mapper.mapper</span> <span class="kn">import</span> <span class="n">Mapper</span><span class="p">,</span> <span class="n">MapperConfigs</span>
+ <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span>
+
+
+ <span class="c1">#%% user-inputs</span>
+ <span class="c1"># -------------------------- Collection -------------------------------</span>
+ <span class="n">collection</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;sentinel2-msi&#39;</span>
+
+ <span class="c1"># ------------------------- Time Range ---------------------------------</span>
+ <span class="n">time_start</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">=</span> <span class="n">datetime</span><span class="p">(</span><span class="mi">2022</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span>           <span class="c1"># year, month, day (incl.)</span>
+ <span class="n">time_end</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">=</span> <span class="n">datetime</span><span class="p">(</span><span class="mi">2022</span><span class="p">,</span><span class="mi">6</span><span class="p">,</span><span class="mi">30</span><span class="p">)</span>            <span class="c1"># year, month, day (incl.)</span>
+
+ <span class="c1"># ---------------------- Spatial Feature  ------------------------------</span>
+ <span class="n">geom</span><span class="p">:</span> <span class="n">Path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s1">&#39;data/sample_polygons/lake_lucerne.gpkg&#39;</span><span class="p">)</span>
+
+ <span class="c1"># ------------------------- Metadata Filters ---------------------------</span>
+ <span class="n">metadata_filters</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Filter</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+     <span class="n">Filter</span><span class="p">(</span><span class="s1">&#39;cloudy_pixel_percentage&#39;</span><span class="p">,</span><span class="s1">&#39;&lt;&#39;</span><span class="p">,</span> <span class="mi">80</span><span class="p">),</span>
+     <span class="n">Filter</span><span class="p">(</span><span class="s1">&#39;processing_level&#39;</span><span class="p">,</span> <span class="s1">&#39;==&#39;</span><span class="p">,</span> <span class="s1">&#39;Level-2A&#39;</span><span class="p">)</span>
+ <span class="p">]</span>
+
+ <span class="c1"># query the scenes available (no I/O of scenes, this only fetches metadata)</span>
+ <span class="n">feature</span> <span class="o">=</span> <span class="n">Feature</span><span class="o">.</span><span class="n">from_geoseries</span><span class="p">(</span><span class="n">gpd</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">geom</span><span class="p">)</span><span class="o">.</span><span class="n">geometry</span><span class="p">)</span>
+ <span class="n">mapper_configs</span> <span class="o">=</span> <span class="n">MapperConfigs</span><span class="p">(</span>
+     <span class="n">collection</span><span class="o">=</span><span class="n">collection</span><span class="p">,</span>
+     <span class="n">time_start</span><span class="o">=</span><span class="n">time_start</span><span class="p">,</span>
+     <span class="n">time_end</span><span class="o">=</span><span class="n">time_end</span><span class="p">,</span>
+     <span class="n">feature</span><span class="o">=</span><span class="n">feature</span><span class="p">,</span>
+     <span class="n">metadata_filters</span><span class="o">=</span><span class="n">metadata_filters</span>
+ <span class="p">)</span>
+
+ <span class="c1"># now, a new Mapper instance is created</span>
+ <span class="n">mapper</span> <span class="o">=</span> <span class="n">Mapper</span><span class="p">(</span><span class="n">mapper_configs</span><span class="p">)</span>
+ <span class="c1"># query the metadata (i.e., available scenes) first</span>
+ <span class="n">mapper</span><span class="o">.</span><span class="n">query_scenes</span><span class="p">()</span>
+
+ <span class="c1"># load the scenes available from STAC (reading bands B02 &quot;blue&quot;, B03 &quot;green&quot;, B04 &quot;red&quot;)</span>
+ <span class="n">scene_kwargs</span> <span class="o">=</span> <span class="p">{</span>
+     <span class="s1">&#39;scene_constructor&#39;</span><span class="p">:</span> <span class="n">Sentinel2</span><span class="o">.</span><span class="n">from_safe</span><span class="p">,</span>
+     <span class="s1">&#39;scene_constructor_kwargs&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;band_selection&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;B02&#39;</span><span class="p">,</span> <span class="s1">&#39;B03&#39;</span><span class="p">,</span> <span class="s1">&#39;B04&#39;</span><span class="p">],</span> <span class="s1">&#39;read_scl&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">}</span>
+ <span class="p">}</span>
+ <span class="n">mapper</span><span class="o">.</span><span class="n">load_scenes</span><span class="p">(</span><span class="n">scene_kwargs</span><span class="o">=</span><span class="n">scene_kwargs</span><span class="p">)</span>
+
+ <span class="c1"># the data loaded into `mapper.data` as a EOdal SceneCollection</span>
+ <span class="n">mapper</span><span class="o">.</span><span class="n">data</span>
+</pre></div>
+</div>
+</div>
+<p>A truely open-source package for unified analysis of Earth Observation (EO) data.</p>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="packages/modules.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="packages/eodal.html">eodal package</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="source/changelog.html">Changelog</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="source/changelog.html#version-0-2-2-https-github-com-eoa-team-eodal-releases-tag-v0-2-2">Version `0.2.2 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.2.2&gt;`__</a></li>
+<li class="toctree-l2"><a class="reference internal" href="source/changelog.html#version-0-2-1-https-github-com-eoa-team-eodal-releases-tag-v0-2-1">Version `0.2.1 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.2.1&gt;`__</a></li>
+<li class="toctree-l2"><a class="reference internal" href="source/changelog.html#version-0-2-0-https-github-com-eoa-team-eodal-releases-tag-v0-2-0">Version `0.2.0 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.2.0&gt;`__</a></li>
+<li class="toctree-l2"><a class="reference internal" href="source/changelog.html#version-0-1-1-https-github-com-eoa-team-eodal-releases-tag-v0-1-1">Version `0.1.1 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.1.1&gt;`__</a></li>
+<li class="toctree-l2"><a class="reference internal" href="source/changelog.html#version-0-1-0-https-github-com-eoa-team-eodal-releases-tag-v0-1-0">Version `0.1.0 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.1.0&gt;`__</a></li>
+<li class="toctree-l2"><a class="reference internal" href="source/changelog.html#version-0-0-1-https-github-com-eoa-team-eodal-releases-tag-v0-0-1">Version `0.0.1 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.0.1&gt;`__</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="genindex.html">Index</a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="#">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="packages/modules.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#">Documentation overview</a><ul>
+      <li>Next: <a href="packages/modules.html" title="next chapter">API Reference</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/index.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

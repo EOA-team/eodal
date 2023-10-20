@@ -1,0 +1,914 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.core.raster module &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="eodal.core.scene module" href="eodal.core.scene.html" />
+    <link rel="prev" title="eodal.core.operators module" href="eodal.core.operators.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-eodal.core.raster">
+<span id="eodal-core-raster-module"></span><h1>eodal.core.raster module<a class="headerlink" href="#module-eodal.core.raster" title="Permalink to this heading">¶</a></h1>
+<p>This module defines the <code class="docutils literal notranslate"><span class="pre">RasterCollection</span></code> class which is the basic class for reading,
+plotting, transforming, manipulating and writing (geo-referenced) raster data in an
+intuitive, object-oriented way (in terms of software philosophy).</p>
+<p>A <code class="docutils literal notranslate"><span class="pre">RasterCollection</span></code> is collection of to zero to N <cite>~eodal.core.band.Band</cite> instances,
+in which each band denotes a two-dimensional array at its core. The <code class="docutils literal notranslate"><span class="pre">RasterCollection</span></code>
+class allows thereby to handle <code class="docutils literal notranslate"><span class="pre">Band</span></code> instances with different spatial reference
+systems, spatial resolutions (i.e., grid cell sizes) and spatial extents.</p>
+<p>Besides that, <code class="docutils literal notranslate"><span class="pre">RasterCollection</span></code> is a super class from which sensor-specific classes
+for reading (satellite) raster image data inherit.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">eodal.core.raster</span> <span class="kn">import</span> <span class="n">RasterCollection</span>
+<span class="kn">from</span> <span class="nn">eodal.core.band</span> <span class="kn">import</span> <span class="n">Band</span>
+<span class="kn">from</span> <span class="nn">eodal.core.band</span> <span class="kn">import</span> <span class="n">GeoInfo</span>
+
+<span class="c1"># New collection from `numpy.ndarray`</span>
+<span class="c1"># Define GeoInfo and Array first and use them to initialize a new RasterCollection</span>
+<span class="c1"># instance:</span>
+
+<span class="c1"># provide EPSG code</span>
+<span class="n">epsg</span> <span class="o">=</span> <span class="mi">32633</span>
+<span class="c1"># provide upper left (ul) x and y coordinate (in units of the coordinate system</span>
+<span class="c1"># given by the EPSG code defined above)</span>
+<span class="n">ulx</span><span class="p">,</span> <span class="n">uly</span> <span class="o">=</span> <span class="mi">300000</span><span class="p">,</span> <span class="mi">5100000</span>
+<span class="c1"># provide pixel size (spatial resolution). Note that resolution in y direction is</span>
+<span class="c1"># negative because we start at the upper left corner</span>
+<span class="n">pixres_x</span><span class="p">,</span> <span class="n">pixres_y</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span> <span class="o">-</span><span class="mi">10</span>
+
+<span class="c1"># get a new GeoInfo object</span>
+<span class="n">geo_info</span> <span class="o">=</span> <span class="n">GeoInfo</span><span class="p">(</span><span class="n">epsg</span><span class="o">=</span><span class="n">epsg</span><span class="p">,</span><span class="n">ulx</span><span class="o">=</span><span class="n">ulx</span><span class="p">,</span><span class="n">uly</span><span class="o">=</span><span class="n">uly</span><span class="p">,</span><span class="n">pixres_x</span><span class="o">=</span><span class="n">pixres_x</span><span class="p">,</span><span class="n">pixres_y</span><span class="o">=</span><span class="n">pixres_y</span><span class="p">)</span>
+
+<span class="c1"># define a band name for the band data to add</span>
+<span class="n">band_name</span> <span class="o">=</span> <span class="s1">&#39;random&#39;</span>
+<span class="c1"># optionally, you can also asign a `band_alias` (e.g., color name)</span>
+<span class="n">band_alias</span> <span class="o">=</span> <span class="s1">&#39;blue&#39;</span>
+
+<span class="c1"># let&#39;s define some random numbers in a 2-d array</span>
+<span class="n">values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span><span class="mi">120</span><span class="p">))</span>
+
+<span class="c1"># get the RasterCollection object</span>
+<span class="n">raster</span> <span class="o">=</span> <span class="n">RasterCollection</span><span class="p">(</span>
+         <span class="n">band_constructor</span><span class="o">=</span><span class="n">Band</span><span class="p">,</span>
+         <span class="n">band_name</span><span class="o">=</span><span class="n">band_name</span><span class="p">,</span>
+         <span class="n">values</span><span class="o">=</span><span class="n">values</span><span class="p">,</span>
+         <span class="n">band_alias</span><span class="o">=</span><span class="n">band_alias</span><span class="p">,</span>
+         <span class="n">geo_info</span><span class="o">=</span><span class="n">geo_info</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Copyright (C) 2022 Lukas Valentin Graf</p>
+<p>This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.</p>
+<p>This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.</p>
+<p>You should have received a copy of the GNU General Public License
+along with this program.  If not, see &lt;<a class="reference external" href="http://www.gnu.org/licenses/">http://www.gnu.org/licenses/</a>&gt;.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">eodal.core.raster.</span></span><span class="sig-name descname"><span class="pre">RasterCollection</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">band_constructor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.12)"><span class="pre">Callable</span></a><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="eodal.core.band.html#eodal.core.band.Band" title="eodal.core.band.Band"><span class="pre">Band</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scene_properties</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#eodal.core.raster.SceneProperties" title="eodal.core.raster.SceneProperties"><span class="pre">SceneProperties</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.MutableMapping" title="(in Python v3.12)"><code class="xref py py-class docutils literal notranslate"><span class="pre">MutableMapping</span></code></a></p>
+<p>Basic class for storing and handling single and multi-band raster
+data from which sensor- or application-specific classes inherit.</p>
+<p>A <code class="docutils literal notranslate"><span class="pre">RasterDataHandler</span></code> contains zero to N instances of
+<cite>~eodal.core.Band</cite>. Bands are always indexed using their band
+name, therefore the band name must be <strong>unique</strong>!</p>
+<dl class="field-list simple">
+<dt class="field-odd">Attrib scene_properties</dt>
+<dd class="field-odd"><p>instance of <cite>SceneProperties</cite> for storing scene (i.e., dataset-wide)
+metadata. Designed for the usage with remote sensing data.</p>
+</dd>
+<dt class="field-even">Attrib band_names</dt>
+<dd class="field-even"><p>names of the bands currently loaded into the collection</p>
+</dd>
+<dt class="field-odd">Attrib band_aliases</dt>
+<dd class="field-odd"><p>optional aliases of the band names. Thus, a band can be accessed either
+by its name or its alias.</p>
+</dd>
+<dt class="field-even">Attrib empty</dt>
+<dd class="field-even"><p>True if no bands are loaded into the collection, False if bands
+are available</p>
+</dd>
+<dt class="field-odd">Attrib has_band_aliases</dt>
+<dd class="field-odd"><p>True if the band aliases are provided, False otherwise</p>
+</dd>
+<dt class="field-even">Attrib collection</dt>
+<dd class="field-even"><p>dictionary-like collection of loaded raster <code class="docutils literal notranslate"><span class="pre">Band</span></code> instances</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">band_constructor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.12)"><span class="pre">Callable</span></a><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="eodal.core.band.html#eodal.core.band.Band" title="eodal.core.band.Band"><span class="pre">Band</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scene_properties</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#eodal.core.raster.SceneProperties" title="eodal.core.raster.SceneProperties"><span class="pre">SceneProperties</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initializes a new <cite>RasterCollection</cite> with 0 up to n bands</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>band_constructor</strong> – optional callable returning an <cite>~eodal.core.Band</cite>
+instance.</p></li>
+<li><p><strong>scene_properties</strong> – optional scene properties of the dataset handled by the
+current <code class="docutils literal notranslate"><span class="pre">RasterCollection</span></code> instance</p></li>
+<li><p><strong>args</strong> – arguments to pass to <cite>band_constructor</cite> or one of its
+class methods (<cite>Band.from_rasterio</cite>, <cite>Band.from_vector</cite>)</p></li>
+<li><p><strong>kwargs</strong> – key-word arguments to pass to <cite>band_constructor</cite>  or one of its
+class methods (<cite>Band.from_rasterio</cite>, <cite>Band.from_vector</cite>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.add_band">
+<span class="sig-name descname"><span class="pre">add_band</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">band_constructor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.12)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.12)"><span class="pre">Callable</span></a><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="eodal.core.band.html#eodal.core.band.Band" title="eodal.core.band.Band"><span class="pre">Band</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="eodal.core.band.html#eodal.core.band.Band" title="eodal.core.band.Band"><span class="pre">Band</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.add_band"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.add_band" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds a band to the collection of raster bands.</p>
+<p>Raises an error if a band with the same name already exists (unique
+name constraint)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>band_constructor</strong> – callable returning a <cite>~eodal.core.Band</cite> instance or existing
+<cite>Band</cite> instance</p></li>
+<li><p><strong>args</strong> – arguments to pass to <cite>band_constructor</cite> or one of its
+class methods (<cite>Band.from_rasterio</cite>, <cite>Band.from_vector</cite>)</p></li>
+<li><p><strong>kwargs</strong> – key-word arguments to pass to <cite>band_constructor</cite>  or one of its
+class methods (<cite>Band.from_rasterio</cite>, <cite>Band.from_vector</cite>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.apply">
+<span class="sig-name descname"><span class="pre">apply</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">func</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.12)"><span class="pre">Callable</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.12)"><span class="pre">Any</span></a></span></span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.apply"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.apply" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply a custom function to a <code class="docutils literal notranslate"><span class="pre">RasterCollection</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>func</strong> – custom callable taking the <code class="docutils literal notranslate"><span class="pre">RasterCollection</span></code> as first
+argument</p></li>
+<li><p><strong>args</strong> – optional arguments to pass to <cite>func</cite></p></li>
+<li><p><strong>kwargs</strong> – optional keyword arguments to pass to <cite>func</cite></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>results of <cite>func</cite></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.band_aliases">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">band_aliases</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#eodal.core.raster.RasterCollection.band_aliases" title="Permalink to this definition">¶</a></dt>
+<dd><p>band aliases in collection</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.band_names">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">band_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#eodal.core.raster.RasterCollection.band_names" title="Permalink to this definition">¶</a></dt>
+<dd><p>band names in collection</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.band_summaries">
+<span class="sig-name descname"><span class="pre">band_summaries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">band_selection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">GeoDataFrame</span></span></span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.band_summaries"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.band_summaries" title="Permalink to this definition">¶</a></dt>
+<dd><p>Descriptive band statistics by calling <cite>Band.reduce</cite> for bands in a collection.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>band_selection</strong> – selection of bands to process. If not provided uses all
+bands</p></li>
+<li><p><strong>kwargs</strong> – optional keyword arguments to pass to <cite>~eodal.core.band.Band.reduce</cite>. Use
+<cite>by</cite> to get descriptive statistics by selected geometry features (e.g.,
+single polygons).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">GeoDataFrame</span></code> with descriptive statistics for all bands selected and
+geometry features passed (optional)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.calc_si">
+<span class="sig-name descname"><span class="pre">calc_si</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">si_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">inplace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">band_mapping</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.12)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">{}</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.12)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><span class="pre">ndarray</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">MaskedArray</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.calc_si"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.calc_si" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates a spectral index based on color-names (set as band aliases)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>si_name</strong> – name of the spectral index to calculate (e.g., ‘NDVI’).</p></li>
+<li><p><strong>inplace</strong> – if False, returns the calculated SI as numpy array (default), else
+adds the calculated SI as a new band to the RasterCollection
+object.</p></li>
+<li><p><strong>band_mapping</strong> – ..versionadd 0.2.2::
+optional band mapping to use different color names instead
+of the default ones (e.g., nir_2 instead of nir_1 as default
+near-infrared band, which might be helpful for some sensor
+with more than one NIR band such as Sentinel-2 MSI).
+See ~`eodal.core.spectral_indices.SpectralIndices` how
+<cite>band_mapping</cite> must look like.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">np.ndarray</span></code> or <code class="docutils literal notranslate"><span class="pre">np.ma.MaskedArray</span></code> if inplace is False, None
+otherwise (is added as band to the collection)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.clip_bands">
+<span class="sig-name descname"><span class="pre">clip_bands</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">band_selection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inplace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.clip_bands"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.clip_bands" title="Permalink to this definition">¶</a></dt>
+<dd><p>Clip bands in RasterCollection to a user-defined spatial bounds.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>band_selection</strong> – optional list of bands to clip. If not provided takes all available
+bands.</p></li>
+<li><p><strong>inplace</strong> – if False (default) returns a copy of the <code class="docutils literal notranslate"><span class="pre">RasterCollection</span></code> instance
+with the changes applied. If True overwrites the values
+in the current instance.</p></li>
+<li><p><strong>**kwargs</strong> – <p>key-word arguments to pass to <cite>Band.clip</cite> method.</p>
+</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.collection">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">collection</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.MutableMapping" title="(in Python v3.12)"><span class="pre">MutableMapping</span></a></em><a class="headerlink" href="#eodal.core.raster.RasterCollection.collection" title="Permalink to this definition">¶</a></dt>
+<dd><p>collection of the bands currently loaded</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.copy">
+<span class="sig-name descname"><span class="pre">copy</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.copy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.copy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a copy of the current <code class="docutils literal notranslate"><span class="pre">RasterCollection</span></code></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.drop_band">
+<span class="sig-name descname"><span class="pre">drop_band</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">band_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.drop_band"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.drop_band" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deletes a band from the current collection</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>band_name</strong> – name of the band to drop</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.empty">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">empty</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a></em><a class="headerlink" href="#eodal.core.raster.RasterCollection.empty" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handler has bands loaded</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.from_multi_band_raster">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_multi_band_raster</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fpath_raster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">band_idxs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">band_names_src</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">band_names_dst</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">band_aliases</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.from_multi_band_raster"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.from_multi_band_raster" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads bands from a multi-band raster file into a new
+<cite>RasterCollection</cite> instance.</p>
+<p>Wrapper around <cite>~eodal.core.Band.from_rasterio</cite> for
+1 to N raster bands.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fpath_raster</strong> – file-path to the raster file (technically spoken, this
+can also have just a single band)</p></li>
+<li><p><strong>band_idxs</strong> – optional list of band indices in the raster dataset
+to read. If not provided (default) all bands are loaded.
+Ignored if <cite>band_names_src</cite> is provided.</p></li>
+<li><p><strong>band_names_src</strong> – optional list of band names in the raster dataset to
+read. If not provided (default) all bands are loaded. If
+<cite>band_idxs</cite> and <cite>band_names_src</cite> are provided, the former
+is ignored.</p></li>
+<li><p><strong>band_names_dst</strong> – optional list of band names in the resulting collection.
+Must match the length and order of <cite>band_idxs</cite> or
+<cite>band_names_src</cite></p></li>
+<li><p><strong>band_aliases</strong> – optional list of aliases to use for <em>aliasing</em> of band names</p></li>
+<li><p><strong>kwargs</strong> – optional key-word arguments accepted by
+<cite>~eodal.core.Band.from_rasterio</cite></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><cite>RasterCollection</cite> instance with loaded bands from the
+input raster data set.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.get_band">
+<span class="sig-name descname"><span class="pre">get_band</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">band_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="eodal.core.band.html#eodal.core.band.Band" title="eodal.core.band.Band"><span class="pre">Band</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.get_band"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.get_band" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a single band from the collection or None
+if the band is not found.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>band_name</strong> – band name (or its alias) to return</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">Band</span></code> instance from band name</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.get_band_alias">
+<span class="sig-name descname"><span class="pre">get_band_alias</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">band_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.12)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.get_band_alias"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.get_band_alias" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retuns the band_name-alias mapper of a given band
+in collection if the band has an alias, None instead</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>band_name</strong> – name of the band for which to return the alias or
+its name if the alias is provided</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>mapping of band_name:band_alias (band name is always the
+key and band_alias is the value)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.get_pixels">
+<span class="sig-name descname"><span class="pre">get_pixels</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vector_features</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.12)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">GeoDataFrame</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">band_selection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">GeoDataFrame</span></span></span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.get_pixels"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.get_pixels" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns pixel values from bands in the collection as <code class="docutils literal notranslate"><span class="pre">GeoDataFrame</span></code>.</p>
+<p>Since a pixel is a dimensionless object (<code class="docutils literal notranslate"><span class="pre">Point</span></code>) the extraction
+method works for raster bands with different pixel sizes, spatial
+extent and coordinate systems. If a pixel cannot be extracted from a
+raster band, the band’s nodata value is inserted.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>band_selection</strong> – optional selection of bands to return</p></li>
+<li><p><strong>vector_features</strong> – file-path or <code class="docutils literal notranslate"><span class="pre">GeoDataFrame</span></code> to features defining the pixels to read
+from the raster bands selected. The geometries can be of type <code class="docutils literal notranslate"><span class="pre">Point</span></code>,
+<code class="docutils literal notranslate"><span class="pre">Polygon</span></code> or <code class="docutils literal notranslate"><span class="pre">MultiPolygon</span></code>. In the latter two cases the centroids
+are used to extract pixel values, whereas for point features the
+closest raster grid cell is selected.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">GeoDataFrame</span></code> with extracted raster values per pixel or
+Polygon centroid.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.get_values">
+<span class="sig-name descname"><span class="pre">get_values</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">band_selection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.12)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><span class="pre">MaskedArray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><span class="pre">ndarray</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.get_values"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.get_values" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns raster values as stacked array in collection.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The selection of bands to return as stacked array
+<strong>must</strong> share the same spatial extent, pixel size
+and coordinate system</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>band_selection</strong> – optional selection of bands to return</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>raster band values in their underlying storage
+type (<code class="docutils literal notranslate"><span class="pre">numpy.ndarray</span></code>, <code class="docutils literal notranslate"><span class="pre">numpy.ma.MaskedArray</span></code>,
+<code class="docutils literal notranslate"><span class="pre">zarr</span></code>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.has_band_aliases">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">has_band_aliases</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a></em><a class="headerlink" href="#eodal.core.raster.RasterCollection.has_band_aliases" title="Permalink to this definition">¶</a></dt>
+<dd><p>collection supports aliasing</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.is_bandstack">
+<span class="sig-name descname"><span class="pre">is_bandstack</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">band_selection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.is_bandstack"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.is_bandstack" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks if the rasters handled in the collection fulfill the bandstack
+criteria.</p>
+<dl class="simple">
+<dt>These criteria are:</dt><dd><ul class="simple">
+<li><p>all bands have the same CRS</p></li>
+<li><p>all bands have the same x and y dimension (number of rows and columns)</p></li>
+<li><p>all bands must have the same upper left corner coordinates</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>band_selection</strong> – if not None, checks only a list of selected bands. By default,
+all bands of the current object are checked.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>True if the current object fulfills the criteria else False;
+None if no bands are loaded into the handler’s collection.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.is_scene">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_scene</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a></em><a class="headerlink" href="#eodal.core.raster.RasterCollection.is_scene" title="Permalink to this definition">¶</a></dt>
+<dd><p>is the RasterCollection a scene</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.join">
+<span class="sig-name descname"><span class="pre">join</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">other</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.join"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.join" title="Permalink to this definition">¶</a></dt>
+<dd><p>Spatial join of one <code class="docutils literal notranslate"><span class="pre">RasterCollection</span></code> instance with another
+instance</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.mask">
+<span class="sig-name descname"><span class="pre">mask</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.12)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><span class="pre">ndarray</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="eodal.core.band.html#eodal.core.band.Band" title="eodal.core.band.Band"><span class="pre">Band</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.12)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_mask_values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bands_to_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inplace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.mask"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.mask" title="Permalink to this definition">¶</a></dt>
+<dd><p>Masks pixels of bands in the collection using a boolean array.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>The mask band (or mask array) and the bands to mask <strong>must</strong>
+have the same shape!</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mask</strong> – either a band out of the collection (identified through its
+band name) or a <code class="docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> of datatype boolean or
+another <cite>Band</cite> object</p></li>
+<li><p><strong>mask_values</strong> – if <cite>mask</cite> is a band out of the collection, a list of values
+<strong>must</strong> be specified to create a boolean mask. Ignored if <cite>mask</cite>
+is already a boolean <code class="docutils literal notranslate"><span class="pre">numpy.ndarray</span></code></p></li>
+<li><p><strong>keep_mask_values</strong> – if False (default), pixels in <cite>mask</cite> corresponding to <cite>mask_values</cite>
+are masked, otherwise all other pixel values are masked.
+Ignored if <cite>mask</cite> is already a boolean <code class="docutils literal notranslate"><span class="pre">numpy.ndarray</span></code>.</p></li>
+<li><p><strong>bands_to_mask</strong> – bands in the collection to mask based on <cite>mask</cite>. If not provided,
+all bands are masked</p></li>
+<li><p><strong>inplace</strong> – if False returns a new <cite>RasterCollection</cite> (default) otherwise
+overwrites existing raster band entries</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>new RasterCollection if <cite>inplace==False</cite>, None otherwise</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.plot_band">
+<span class="sig-name descname"><span class="pre">plot_band</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">band_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://matplotlib.org/stable/api/figure_api.html#matplotlib.figure.Figure" title="(in Matplotlib v3.8.0)"><span class="pre">Figure</span></a></span></span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.plot_band"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.plot_band" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots a band in the collection of raster bands.</p>
+<p>Wrapper method around <cite>~eodal.core.Band.plot</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>band_name</strong> – name of the band to plot. Aliasing is supported.</p></li>
+<li><p><strong>kwargs</strong> – key-word arguments to pass to <cite>~eodal.core.Band.plot</cite></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><cite>~matplotlib.pyplot.Figure</cite> with band plotted as map</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.plot_multiple_bands">
+<span class="sig-name descname"><span class="pre">plot_multiple_bands</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">band_selection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.html#matplotlib.axes.Axes" title="(in Matplotlib v3.8.0)"><span class="pre">Axes</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nodata_color</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'white'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.plot_multiple_bands"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.plot_multiple_bands" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots three selected bands in a pseudo RGB with 8bit color-depth.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>The bands to plot <strong>must</strong> have the same spatial resolution,
+extent and CRS</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>band_selection</strong> – optional list of bands to plot. If not provided takes the
+first three bands (or less) to plot</p></li>
+<li><p><strong>ax</strong> – optional <cite>matplotlib.axes</cite> object to plot onto</p></li>
+<li><p><strong>nodata_color</strong> – ..versionadd:: 0.2.1
+Color no-data (masked) pixels should take in the RGB plot.
+Default is ‘white’. All color names supported by
+<cite>~matplotlib.colors</cite> can be passed.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><cite>~matplotlib.pyplot.Figure</cite> with band plotted as map in
+8bit color depth</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.read_pixels">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">read_pixels</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fpath_raster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">vector_features</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.12)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">GeoDataFrame</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">band_idxs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">band_names_src</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">band_names_dst</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">GeoDataFrame</span></span></span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.read_pixels"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.read_pixels" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wrapper around <cite>~eodal.core.band.read_pixels</cite> for raster datasets
+with multiple bands</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The pixels to read are defined by a <code class="docutils literal notranslate"><span class="pre">GeoDataFrame</span></code> or file with
+vector features understood by <code class="docutils literal notranslate"><span class="pre">fiona</span></code>. If the geometry type is not
+<code class="docutils literal notranslate"><span class="pre">Point</span></code> the centroids will be used for extracting the closest
+grid cell value.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fpath_raster</strong> – file-path to the raster dataset from which to extract pixel values</p></li>
+<li><p><strong>vector_features</strong> – file-path or <code class="docutils literal notranslate"><span class="pre">GeoDataFrame</span></code> to features defining the pixels to read
+from a raster dataset. The geometries can be of type <code class="docutils literal notranslate"><span class="pre">Point</span></code>,
+<code class="docutils literal notranslate"><span class="pre">Polygon</span></code> or <code class="docutils literal notranslate"><span class="pre">MultiPolygon</span></code>. In the latter two cases the centroids
+are used to extract pixel values, whereas for point features the
+closest raster grid cell is selected.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple">
+<dt>::param band_idxs:</dt><dd><p>optional list of band indices in the raster dataset to read. If not
+provided (default) all bands are loaded. Ignored if <cite>band_names_src</cite> is
+provided.</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>band_names_src</strong> – optional list of band names in the raster dataset to read. If not provided
+(default) all bands are loaded. If <cite>band_idxs</cite> and <cite>band_names_src</cite> are
+provided, the former is ignored.</p></li>
+<li><p><strong>band_names_dst</strong> – optional list of band names in the resulting collection.Must match the
+length and order of <cite>band_idxs</cite> or <cite>band_names_src</cite>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">GeoDataFrame</span></code> with extracted pixel values. If the vector features
+defining the sampling points are not within the spatial extent of the
+raster dataset the pixel values are set to nodata (inferred from
+the raster source)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.reproject">
+<span class="sig-name descname"><span class="pre">reproject</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">band_selection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inplace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.reproject"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.reproject" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reprojects band in the collection from one coordinate system
+into another</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>band_selection</strong> – selection of bands to process. If not provided uses all
+bands</p></li>
+<li><p><strong>inplace</strong> – if False returns a new <cite>RasterCollection</cite> (default) otherwise
+overwrites existing raster band entries</p></li>
+<li><p><strong>kwargs</strong> – key-word arguments to pass to <cite>~eodal.core.Band.reproject</cite></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>new RasterCollection if <cite>inplace==False</cite>, None otherwise</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.resample">
+<span class="sig-name descname"><span class="pre">resample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">band_selection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inplace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.resample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.resample" title="Permalink to this definition">¶</a></dt>
+<dd><p>Resamples band in the collection into a different spatial resolution</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>band_selection</strong> – selection of bands to process. If not provided uses all
+bands</p></li>
+<li><p><strong>inplace</strong> – if False returns a new <cite>RasterCollection</cite> (default) otherwise
+overwrites existing raster band entries</p></li>
+<li><p><strong>kwargs</strong> – key-word arguments to pass to <cite>~eodal.core.Band.resample</cite></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>new RasterCollection if <cite>inplace==False</cite>, None otherwise</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.scale">
+<span class="sig-name descname"><span class="pre">scale</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">band_selection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inplace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.scale"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.scale" title="Permalink to this definition">¶</a></dt>
+<dd><p>Applies gain and offset factors to bands in collection</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>band_selection</strong> – selection of bands to process. If not provided uses all
+bands</p></li>
+<li><p><strong>inplace</strong> – if False returns a new <cite>RasterCollection</cite> (default) otherwise
+overwrites existing raster band entries</p></li>
+<li><p><strong>kwargs</strong> – optional kwargs to pass to <cite>~eodal.core.band.Band.scale_data</cite></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><cite>RasterCollection</cite> if <cite>inplace == False</cite>, None otherwise</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.to_dataframe">
+<span class="sig-name descname"><span class="pre">to_dataframe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">band_selection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">GeoDataFrame</span></span></span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.to_dataframe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.to_dataframe" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts the bands in collection to a <code class="docutils literal notranslate"><span class="pre">GeoDataFrame</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>band_selection</strong> – selection of bands to process. If not provided uses all
+bands</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">GeoDataFrame</span></code> with point-like features denoting single
+pixel values across bands in the collection</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.to_rasterio">
+<span class="sig-name descname"><span class="pre">to_rasterio</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fpath_raster</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">band_selection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_band_aliases</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.to_rasterio"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.to_rasterio" title="Permalink to this definition">¶</a></dt>
+<dd><p>Writes bands in collection to a raster dataset on disk using
+<code class="docutils literal notranslate"><span class="pre">rasterio</span></code> drivers</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fpath_raster</strong> – file-path to the raster dataset (existing ones will be
+overwritten!)</p></li>
+<li><p><strong>band_selection</strong> – selection of bands to process. If not provided uses all
+bands</p></li>
+<li><p><strong>use_band_aliases</strong> – use band aliases instead of band names for setting raster
+band descriptions to the output dataset</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterCollection.to_xarray">
+<span class="sig-name descname"><span class="pre">to_xarray</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">band_selection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataArray</span></span></span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterCollection.to_xarray"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterCollection.to_xarray" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts bands in collection a <code class="docutils literal notranslate"><span class="pre">xarray.DataArray</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>band_selection</strong> – selection of bands to process. If not provided uses all
+bands</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><cite>xarray.DataArray</cite> created from RasterCollection.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterOperator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">eodal.core.raster.</span></span><span class="sig-name descname"><span class="pre">RasterOperator</span></span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterOperator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterOperator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="eodal.core.operators.html#eodal.core.operators.Operator" title="eodal.core.operators.Operator"><code class="xref py py-class docutils literal notranslate"><span class="pre">Operator</span></code></a></p>
+<p>Band operator supporting basic algebraic operations on
+<cite>RasterCollection</cite> objects</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.RasterOperator.calc">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">calc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">a</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">other</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="eodal.core.band.html#eodal.core.band.Band" title="eodal.core.band.Band"><span class="pre">Band</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Number</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">np.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">operator</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">inplace</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">band_selection</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">right_sided</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">np.ndarray</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/eodal/core/raster.html#RasterOperator.calc"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.RasterOperator.calc" title="Permalink to this definition">¶</a></dt>
+<dd><p>executes a custom algebraic operator on <cite>RasterCollection</cite> objects</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>a</strong> – <cite>RasterCollection</cite> object with values (non-empty)</p></li>
+<li><p><strong>other</strong> – <cite>Band</cite> object, scalar, 3-dimensional <cite>numpy.array</cite>, or RasterCollection to
+use on the right-hand side of the operator. If a <cite>numpy.array</cite> is passed
+the array must have either shape <cite>(1,nrows,ncols)</cite> or <cite>(nband,nrows,ncols)</cite>
+where <cite>nrows</cite> is the number of rows in <cite>a</cite>, ncols the number of columns
+in <cite>a</cite> and <cite>nbands</cite> the number of bands in a or the selection thereof.
+The latter method does <em>not</em> work if the bands in <cite>a</cite> selected differ
+in their shape.</p></li>
+<li><p><strong>operator</strong> – symbolic representation of the operator (e.g., ‘+’
+for addition)</p></li>
+<li><p><strong>inplace</strong> – returns a new <cite>RasterCollection</cite> object if False (default) otherwise
+overwrites the current <cite>RasterCollection</cite> data in <cite>a</cite></p></li>
+<li><p><strong>band_selection</strong> – optional selection of bands in <cite>a</cite> to which apply the operation</p></li>
+<li><p><strong>right_sided</strong> – optional flag indicated that the order of <cite>a</cite> and <cite>other</cite> has to be
+switched. <cite>False</cite> by default. Set to <cite>True</cite> if the order of argument
+matters, i.e., for right-hand sided expression in case of subtraction,
+division and power.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><cite>numpy.ndarray</cite> if inplace is False, None instead</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="eodal.core.raster.SceneProperties">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">eodal.core.raster.</span></span><span class="sig-name descname"><span class="pre">SceneProperties</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">acquisition_time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.12)"><span class="pre">datetime.datetime</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Number</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">platform</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sensor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">processing_level</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="eodal.utils.constants.html#eodal.utils.constants.ProcessingLevels" title="eodal.utils.constants.ProcessingLevels"><span class="pre">ProcessingLevels</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">ProcessingLevels.UNKNOWN</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">product_uri</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/raster.html#SceneProperties"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.SceneProperties" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.12)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>A class for storing scene-relevant properties</p>
+<dl class="field-list simple">
+<dt class="field-odd">Attribute acquisition_time</dt>
+<dd class="field-odd"><p>image acquisition time</p>
+</dd>
+<dt class="field-even">Attribute platform</dt>
+<dd class="field-even"><p>name of the imaging platform</p>
+</dd>
+<dt class="field-odd">Attribute sensor</dt>
+<dd class="field-odd"><p>name of the imaging sensor</p>
+</dd>
+<dt class="field-even">Attribute processing_level</dt>
+<dd class="field-even"><p>processing level of the remotely sensed data (if
+known and applicable)</p>
+</dd>
+<dt class="field-odd">Attribute product_uri</dt>
+<dd class="field-odd"><p>unique product (scene) identifier</p>
+</dd>
+<dt class="field-even">Attribute mode</dt>
+<dd class="field-even"><p>imaging mode of SAR sensors</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.SceneProperties.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">acquisition_time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.12)"><span class="pre">datetime.datetime</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Number</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">platform</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sensor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">processing_level</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="eodal.utils.constants.html#eodal.utils.constants.ProcessingLevels" title="eodal.utils.constants.ProcessingLevels"><span class="pre">ProcessingLevels</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">ProcessingLevels.UNKNOWN</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">product_uri</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/raster.html#SceneProperties.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.SceneProperties.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class constructor</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>acquisition_time</strong> – image acquisition time. Can be a timestamp or any kind of numeric
+index.</p></li>
+<li><p><strong>platform</strong> – name of the imaging platform</p></li>
+<li><p><strong>sensor</strong> – name of the imaging sensor</p></li>
+<li><p><strong>processing_level</strong> – processing level of the remotely sensed data (if
+known and applicable)</p></li>
+<li><p><strong>product_uri</strong> – unique product (scene) identifier</p></li>
+</ul>
+</dd>
+<dt class="field-even">Attribute mode</dt>
+<dd class="field-even"><p>imaging mode of SAR sensors</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.core.raster.SceneProperties.acquisition_time">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">acquisition_time</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.datetime" title="(in Python v3.12)"><span class="pre">datetime</span></a></em><a class="headerlink" href="#eodal.core.raster.SceneProperties.acquisition_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>acquisition time of the scene</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.raster.SceneProperties.are_populated">
+<span class="sig-name descname"><span class="pre">are_populated</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="../_modules/eodal/core/raster.html#SceneProperties.are_populated"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.raster.SceneProperties.are_populated" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns a Boolean flag indicating if the class attributes
+have been populated with actual data or still equal defaults.</p>
+<p>A scene must have at least a time stamp.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.core.raster.SceneProperties.mode">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></em><a class="headerlink" href="#eodal.core.raster.SceneProperties.mode" title="Permalink to this definition">¶</a></dt>
+<dd><p>imaging mode of SAR sensors</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.core.raster.SceneProperties.platform">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">platform</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></em><a class="headerlink" href="#eodal.core.raster.SceneProperties.platform" title="Permalink to this definition">¶</a></dt>
+<dd><p>name of the imaging platform</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.core.raster.SceneProperties.processing_level">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">processing_level</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="eodal.utils.constants.html#eodal.utils.constants.ProcessingLevels" title="eodal.utils.constants.ProcessingLevels"><span class="pre">ProcessingLevels</span></a></em><a class="headerlink" href="#eodal.core.raster.SceneProperties.processing_level" title="Permalink to this definition">¶</a></dt>
+<dd><p>current processing level</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.core.raster.SceneProperties.product_uri">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">product_uri</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></em><a class="headerlink" href="#eodal.core.raster.SceneProperties.product_uri" title="Permalink to this definition">¶</a></dt>
+<dd><p>unique product (scene) identifier</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="eodal.core.raster.SceneProperties.sensor">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">sensor</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.12)"><span class="pre">None</span></a></em><a class="headerlink" href="#eodal.core.raster.SceneProperties.sensor" title="Permalink to this definition">¶</a></dt>
+<dd><p>name of the sensor</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="eodal.html">eodal package</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">API Reference</a><ul>
+  <li><a href="eodal.html">eodal package</a><ul>
+  <li><a href="eodal.core.html">eodal.core package</a><ul>
+      <li>Previous: <a href="eodal.core.operators.html" title="previous chapter">eodal.core.operators module</a></li>
+      <li>Next: <a href="eodal.core.scene.html" title="next chapter">eodal.core.scene module</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/packages/eodal.core.raster.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,419 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.utils.sentinel2 &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for eodal.utils.sentinel2</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Sentinel-2 specific helper functions to interact with datasets organized</span>
+<span class="sd">in .SAFE structure.</span>
+
+<span class="sd">Copyright (C) 2022 Lukas Valentin Graf</span>
+
+<span class="sd">This program is free software: you can redistribute it and/or modify</span>
+<span class="sd">it under the terms of the GNU General Public License as published by</span>
+<span class="sd">the Free Software Foundation, either version 3 of the License, or</span>
+<span class="sd">(at your option) any later version.</span>
+
+<span class="sd">This program is distributed in the hope that it will be useful,</span>
+<span class="sd">but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="sd">MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="sd">GNU General Public License for more details.</span>
+
+<span class="sd">You should have received a copy of the GNU General Public License</span>
+<span class="sd">along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">planetary_computer</span>
+
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">date</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">from</span> <span class="nn">eodal.config</span> <span class="kn">import</span> <span class="n">get_settings</span>
+<span class="kn">from</span> <span class="nn">eodal.config.stac_providers</span> <span class="kn">import</span> <span class="n">STAC_Providers</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.exceptions</span> <span class="kn">import</span> <span class="n">BandNotFoundError</span><span class="p">,</span> <span class="n">MetadataNotFoundError</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.constants.sentinel2</span> <span class="kn">import</span> <span class="n">ProcessingLevels</span>
+
+<span class="n">Settings</span> <span class="o">=</span> <span class="n">get_settings</span><span class="p">()</span>
+
+
+<span class="k">def</span> <span class="nf">_url_to_safe_name</span><span class="p">(</span><span class="n">stac_asset</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    extracts the .SAFE name from the asset returned by the STAC query</span>
+
+<span class="sd">    :param url:</span>
+<span class="sd">        asset containing hyperlink reference to Sentinel-2 dataset</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        .SAFE dataset name extracted from the URL of B01</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stac_asset</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="n">stac_asset</span> <span class="o">=</span> <span class="n">stac_asset</span><span class="p">[</span><span class="s2">&quot;B01&quot;</span><span class="p">][</span><span class="s2">&quot;href&quot;</span><span class="p">]</span>
+    <span class="n">url_parts</span> <span class="o">=</span> <span class="n">stac_asset</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+    <span class="n">dot_safe_name</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">url_parts</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;S2&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">x</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.SAFE&quot;</span><span class="p">)</span>
+    <span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">dot_safe_name</span>
+
+
+<div class="viewcode-block" id="get_S2_processing_level"><a class="viewcode-back" href="../../../packages/eodal.utils.sentinel2.html#eodal.utils.sentinel2.get_S2_processing_level">[docs]</a><span class="k">def</span> <span class="nf">get_S2_processing_level</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">ProcessingLevels</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Determines the processing level of a dataset in .SAFE format</span>
+<span class="sd">    based on the file naming</span>
+
+<span class="sd">    :param dot_safe_name:</span>
+<span class="sd">        name of the .SAFE dataset</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        processing level of the dataset</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+        <span class="n">dot_safe_name</span> <span class="o">=</span> <span class="n">dot_safe_name</span><span class="o">.</span><span class="n">name</span>
+    <span class="k">elif</span> <span class="n">Settings</span><span class="o">.</span><span class="n">USE_STAC</span><span class="p">:</span>
+        <span class="n">dot_safe_name</span> <span class="o">=</span> <span class="n">_url_to_safe_name</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">dot_safe_name</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;MSIL1C&quot;</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">dot_safe_name</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;l1c&quot;</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">ProcessingLevels</span><span class="o">.</span><span class="n">L1C</span>
+    <span class="k">elif</span> <span class="n">dot_safe_name</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;MSIL2A&quot;</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">dot_safe_name</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;l2a&quot;</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">ProcessingLevels</span><span class="o">.</span><span class="n">L2A</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not determine processing level for </span><span class="si">{</span><span class="n">dot_safe_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_S2_acquistion_time_from_safe"><a class="viewcode-back" href="../../../packages/eodal.utils.sentinel2.html#eodal.utils.sentinel2.get_S2_acquistion_time_from_safe">[docs]</a><span class="k">def</span> <span class="nf">get_S2_acquistion_time_from_safe</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">date</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Determines the image acquisition time of a dataset in .SAFE format</span>
+<span class="sd">    based on the file naming</span>
+
+<span class="sd">    :param dot_safe_name:</span>
+<span class="sd">        name of the .SAFE dataset</span>
+<span class="sd">    :return:</span>
+<span class="sd">        image acquistion time (full timestamp)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+        <span class="n">dot_safe_name</span> <span class="o">=</span> <span class="n">dot_safe_name</span><span class="o">.</span><span class="n">name</span>
+    <span class="k">elif</span> <span class="n">Settings</span><span class="o">.</span><span class="n">USE_STAC</span><span class="p">:</span>
+        <span class="n">dot_safe_name</span> <span class="o">=</span> <span class="n">_url_to_safe_name</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)[</span><span class="mi">2</span><span class="p">],</span> <span class="s2">&quot;%Y%m</span><span class="si">%d</span><span class="s2">T%H%M%S&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_S2_acquistion_date_from_safe"><a class="viewcode-back" href="../../../packages/eodal.utils.sentinel2.html#eodal.utils.sentinel2.get_S2_acquistion_date_from_safe">[docs]</a><span class="k">def</span> <span class="nf">get_S2_acquistion_date_from_safe</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">date</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Determines the image acquisition date of a dataset in .SAFE format</span>
+<span class="sd">    based on the file naming</span>
+
+<span class="sd">    :param dot_safe_name:</span>
+<span class="sd">        name of the .SAFE dataset</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        image acquistion date</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">get_S2_acquistion_time_from_safe</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="p">)</span><span class="o">.</span><span class="n">date</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="get_S2_processing_baseline_from_safe"><a class="viewcode-back" href="../../../packages/eodal.utils.sentinel2.html#eodal.utils.sentinel2.get_S2_processing_baseline_from_safe">[docs]</a><span class="k">def</span> <span class="nf">get_S2_processing_baseline_from_safe</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Determines the PDGS processing baseline of a dataset in .SAFE format</span>
+<span class="sd">    based on the file naming</span>
+
+<span class="sd">    :param dot_safe_name:</span>
+<span class="sd">        name of the .SAFE dataset</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        PDGS baseline (e.g., N0400 -&gt; 400)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+        <span class="n">dot_safe_name</span> <span class="o">=</span> <span class="n">dot_safe_name</span><span class="o">.</span><span class="n">name</span>
+    <span class="k">elif</span> <span class="n">Settings</span><span class="o">.</span><span class="n">USE_STAC</span><span class="p">:</span>
+        <span class="n">dot_safe_name</span> <span class="o">=</span> <span class="n">_url_to_safe_name</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)[</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;N&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="get_S2_platform_from_safe"><a class="viewcode-back" href="../../../packages/eodal.utils.sentinel2.html#eodal.utils.sentinel2.get_S2_platform_from_safe">[docs]</a><span class="k">def</span> <span class="nf">get_S2_platform_from_safe</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Determines the platform (e.g., S2A) from the dataset in .SAFE format</span>
+<span class="sd">    based on the file naming</span>
+
+<span class="sd">    :param dot_safe_name:</span>
+<span class="sd">        name of the .SAFE dataset</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        platform name</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+        <span class="n">dot_safe_name</span> <span class="o">=</span> <span class="n">dot_safe_name</span><span class="o">.</span><span class="n">name</span>
+    <span class="k">elif</span> <span class="n">Settings</span><span class="o">.</span><span class="n">USE_STAC</span><span class="p">:</span>
+        <span class="n">dot_safe_name</span> <span class="o">=</span> <span class="n">_url_to_safe_name</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">dot_safe_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="get_S2_bandfiles"><a class="viewcode-back" href="../../../packages/eodal.utils.sentinel2.html#eodal.utils.sentinel2.get_S2_bandfiles">[docs]</a><span class="k">def</span> <span class="nf">get_S2_bandfiles</span><span class="p">(</span>
+    <span class="n">in_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">resolution</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">is_L2A</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Path</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    returns all JPEG-2000 files (*.jp2) found in a dataset directory</span>
+<span class="sd">    (.SAFE).</span>
+
+<span class="sd">    TODO:</span>
+<span class="sd">        This seems to be a duplicate of ``get_S2_bandfiles_with_res``</span>
+
+<span class="sd">    :param search_dir:</span>
+<span class="sd">        directory containing the JPEG2000 band files</span>
+<span class="sd">    :param resolution:</span>
+<span class="sd">        select only spectral bands with a certain spatial resolution.</span>
+<span class="sd">        Works currently on Sentinel-2 Level-2A data, only.</span>
+<span class="sd">    :return files:</span>
+<span class="sd">        list of Sentinel-2 single band files</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">resolution</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">search_pattern</span> <span class="o">=</span> <span class="s2">&quot;GRANULE/*/IM*/*/*B*.jp2&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">is_L2A</span><span class="p">:</span>
+            <span class="n">search_pattern</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;GRANULE/*/IM*/R</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">resolution</span><span class="p">)</span><span class="si">}</span><span class="s2">m/*B*.jp2&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">search_pattern</span> <span class="o">=</span> <span class="s2">&quot;GRANULE/*/IM*/*B*.jp2&quot;</span>
+    <span class="n">files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">in_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">search_pattern</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">Path</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">files</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="get_S2_sclfile"><a class="viewcode-back" href="../../../packages/eodal.utils.sentinel2.html#eodal.utils.sentinel2.get_S2_sclfile">[docs]</a><span class="k">def</span> <span class="nf">get_S2_sclfile</span><span class="p">(</span>
+    <span class="n">in_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+    <span class="n">from_bandstack</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">in_file_bandstack</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    return the path to the S2 SCL (scene classification file). The method</span>
+<span class="sd">    either searches for the SCL file in .SAFE structure (default, returning</span>
+<span class="sd">    SCL file in 20m spatial resolution) or the resampled SCL file in case</span>
+<span class="sd">    a ``eodal.operational.resampling`` derived band-stack was passed.</span>
+
+<span class="sd">    :param in_dir:</span>
+<span class="sd">        either .SAFE directory (default use case) or the the directory</span>
+<span class="sd">        containing the band-stacked geoTiff files (must have a sub-directory</span>
+<span class="sd">        where the SCL files are stored)</span>
+<span class="sd">    :param from_bandstack:</span>
+<span class="sd">        if False (Default) assumes the data to be in .SAFE format. If True</span>
+<span class="sd">        the data must be band-stacked resampled geoTiffs derived from</span>
+<span class="sd">        eodal&#39;s processing pipeline</span>
+<span class="sd">    :param in_file_bandstack:</span>
+<span class="sd">        file name of the bandstack for which to search the SCL file. Must be</span>
+<span class="sd">        passed if ``from_bandstack=True``</span>
+<span class="sd">    :returns scl_file:</span>
+<span class="sd">        SCL file-path</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">from_bandstack</span><span class="p">:</span>
+        <span class="c1"># take SCL file in 20m spatial resolution</span>
+        <span class="n">search_pattern</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">in_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;GRANULE/*/IM*/*/*_SCL_20m.jp2&quot;</span><span class="p">))</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># check if bandstack file was passed correctly</span>
+        <span class="k">if</span> <span class="n">in_file_bandstack</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;If from_banstack then `in_file_bandstack` must not be None&quot;</span>
+            <span class="p">)</span>
+        <span class="n">fname_splitted</span> <span class="o">=</span> <span class="n">in_file_bandstack</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)</span>
+        <span class="n">file_pattern_date</span> <span class="o">=</span> <span class="n">fname_splitted</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">file_pattern_tile</span> <span class="o">=</span> <span class="n">fname_splitted</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="c1"># platform_level = fname_splitted[2]</span>
+        <span class="n">sensor</span> <span class="o">=</span> <span class="n">fname_splitted</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+        <span class="n">file_pattern</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">file_pattern_date</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">file_pattern_tile</span><span class="si">}</span><span class="s2">*</span><span class="si">{</span><span class="n">sensor</span><span class="si">}</span><span class="s2">*SCL*tiff&quot;</span>
+        <span class="n">search_pattern</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span>
+            <span class="n">in_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">Settings</span><span class="o">.</span><span class="n">SUBDIR_SCL_FILES</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">file_pattern</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">scl_file</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">search_pattern</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">BandNotFoundError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;Could not find SCL file based on &quot;</span><span class="si">{</span><span class="n">search_pattern</span><span class="si">}</span><span class="s1">&quot;: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">Path</span><span class="p">(</span><span class="n">scl_file</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_S2_bandfiles_with_res"><a class="viewcode-back" href="../../../packages/eodal.utils.sentinel2.html#eodal.utils.sentinel2.get_S2_bandfiles_with_res">[docs]</a><span class="k">def</span> <span class="nf">get_S2_bandfiles_with_res</span><span class="p">(</span>
+    <span class="n">in_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+    <span class="n">band_selection</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]],</span>
+    <span class="n">is_l2a</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns the file-paths to the jp2 files with the spectral band data</span>
+<span class="sd">    from a .SAFE Sentinel-2 dataset. Supports .SAFE datasets in L1C and</span>
+<span class="sd">    L2A processing level.</span>
+
+<span class="sd">    :param in_dir:</span>
+<span class="sd">        Directory where the search_string is applied. Here - for Sentinel-2 - the</span>
+<span class="sd">        it is the .SAFE directory of S2 rawdata files.</span>
+<span class="sd">    :param band_selection:</span>
+<span class="sd">        list of tuples. Each tuple contains the name of Sentinel-2 band and</span>
+<span class="sd">        its spatial resolution in meters.</span>
+<span class="sd">    :param is_l2a:</span>
+<span class="sd">        if True (default), assumes that the data is in Sentinel-2 L2A processing</span>
+<span class="sd">        level. If False, assumes L1C processing level.</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        pandas dataframe of jp2 files</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># L1C and L2A data are organized in a slightly different manner</span>
+    <span class="c1"># by looping over the list of tuples provided the file-paths can be extracted</span>
+    <span class="n">band_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">band_selection</span><span class="p">:</span>
+        <span class="c1"># unpack tuple</span>
+        <span class="n">band_name</span><span class="p">,</span> <span class="n">band_res</span> <span class="o">=</span> <span class="n">item</span>
+        <span class="c1"># save returned values to dict</span>
+        <span class="n">band_props</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">Settings</span><span class="o">.</span><span class="n">USE_STAC</span><span class="p">:</span>
+            <span class="c1"># extract URL from asset</span>
+            <span class="c1"># if the STAC provider is Microsoft, sign the request</span>
+            <span class="k">if</span> <span class="n">Settings</span><span class="o">.</span><span class="n">STAC_BACKEND</span> <span class="o">==</span> <span class="n">STAC_Providers</span><span class="o">.</span><span class="n">MSPC</span><span class="p">:</span>
+                <span class="n">band_fpath</span> <span class="o">=</span> <span class="n">planetary_computer</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">in_dir</span><span class="p">[</span><span class="n">band_name</span><span class="p">][</span><span class="s2">&quot;href&quot;</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">band_fpath</span> <span class="o">=</span> <span class="n">in_dir</span><span class="p">[</span><span class="n">band_name</span><span class="p">][</span><span class="s2">&quot;href&quot;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># search expression for the file depends on the processing level</span>
+            <span class="k">if</span> <span class="n">is_l2a</span><span class="p">:</span>
+                <span class="n">search_expr</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;GRANULE/*/IMG_DATA/R</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">band_res</span><span class="p">)</span><span class="si">}</span><span class="s2">m/*_&quot;</span> <span class="o">+</span> \
+                                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">band_name</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">band_res</span><span class="p">)</span><span class="si">}</span><span class="s2">m.jp2&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">search_expr</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;GRANULE/*/IMG_DATA/T*_</span><span class="si">{</span><span class="n">band_name</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="si">}</span><span class="s2">.jp2&quot;</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">band_fpath</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">in_dir</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">search_expr</span><span class="p">))</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">BandNotFoundError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Could not determine file-path of </span><span class="si">{</span><span class="n">band_name</span><span class="si">}</span><span class="s2"> &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;from </span><span class="si">{</span><span class="n">in_dir</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+        <span class="n">band_props</span><span class="p">[</span><span class="s2">&quot;band_name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">band_name</span>
+        <span class="n">band_props</span><span class="p">[</span><span class="s2">&quot;band_path&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">band_fpath</span>
+        <span class="n">band_props</span><span class="p">[</span><span class="s2">&quot;band_resolution&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">band_res</span>
+        <span class="n">band_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">band_props</span><span class="p">)</span>
+
+    <span class="c1"># construct pandas DataFrame with all band entries and return</span>
+    <span class="n">band_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">band_list</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">band_df</span></div>
+
+
+<div class="viewcode-block" id="get_S2_tci"><a class="viewcode-back" href="../../../packages/eodal.utils.sentinel2.html#eodal.utils.sentinel2.get_S2_tci">[docs]</a><span class="k">def</span> <span class="nf">get_S2_tci</span><span class="p">(</span>
+    <span class="n">in_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+    <span class="n">is_L2A</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns path to S2 TCI (quicklook) img (10m resolution). Works for both</span>
+<span class="sd">    Sentinel-2 processing levels (&#39;L2A&#39; and &#39;L1C&#39;).</span>
+
+<span class="sd">    :param in_dir:</span>
+<span class="sd">        .SAFE folder which contains Sentinel-2 data</span>
+<span class="sd">    :param is_L2A:</span>
+<span class="sd">        if False, it is assumed that the data is organized in L1C .SAFE folder</span>
+<span class="sd">        structure. The default is True.</span>
+<span class="sd">    :returns file_tci:</span>
+<span class="sd">        file path to the quicklook image</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">file_tci</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">is_L2A</span><span class="p">:</span>
+        <span class="n">file_tci</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">in_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;GRANULE/*/IM*/*10*/*TCI*&quot;</span><span class="p">)))[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">file_tci</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">in_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;GRANULE/*/IM*/*TCI*&quot;</span><span class="p">)))[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">Path</span><span class="p">(</span><span class="n">file_tci</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../packages/modules.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

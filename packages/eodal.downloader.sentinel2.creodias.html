@@ -1,0 +1,175 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.downloader.sentinel2.creodias module &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="eodal.downloader.utils package" href="eodal.downloader.utils.html" />
+    <link rel="prev" title="eodal.downloader.sentinel2.copernicus module" href="eodal.downloader.sentinel2.copernicus.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-eodal.downloader.sentinel2.creodias">
+<span id="eodal-downloader-sentinel2-creodias-module"></span><h1>eodal.downloader.sentinel2.creodias module<a class="headerlink" href="#module-eodal.downloader.sentinel2.creodias" title="Permalink to this heading">¶</a></h1>
+<p>REST-API based downloading of Sentinel-2 datasets from CREODIAS.</p>
+<p>Make sure to have a valid CREODIAS account and provide your username and password
+as environmental variables:</p>
+<p>On a Linux system you can specify your credentials in the current Python environment
+by:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">CREODIAS_USER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&lt;your-user-name&gt;&quot;</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">CREODIAS_PASSWORD</span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&lt;your-password&gt;&quot;</span>
+</pre></div>
+</div>
+<p>Copyright (C) 2022 Lukas Valentin Graf</p>
+<p>This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.</p>
+<p>This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.</p>
+<p>You should have received a copy of the GNU General Public License
+along with this program.  If not, see &lt;<a class="reference external" href="http://www.gnu.org/licenses/">http://www.gnu.org/licenses/</a>&gt;.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.downloader.sentinel2.creodias.query_creodias">
+<span class="sig-prename descclassname"><span class="pre">eodal.downloader.sentinel2.creodias.</span></span><span class="sig-name descname"><span class="pre">query_creodias</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_date</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.date" title="(in Python v3.12)"><span class="pre">date</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_date</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/datetime.html#datetime.date" title="(in Python v3.12)"><span class="pre">date</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_records</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">processing_level</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="eodal.utils.constants.sentinel2.html#eodal.utils.constants.sentinel2.ProcessingLevels" title="eodal.utils.constants.sentinel2.ProcessingLevels"><span class="pre">ProcessingLevels</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">bounding_box</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Polygon</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cloud_cover_threshold</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.12)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">100</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v2.1.1)"><span class="pre">DataFrame</span></a></span></span><a class="reference internal" href="../_modules/eodal/downloader/sentinel2/creodias.html#query_creodias"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.downloader.sentinel2.creodias.query_creodias" title="Permalink to this definition">¶</a></dt>
+<dd><p>queries the CREODIAS Finder API to obtain available
+datasets for a given geographic region, date range and
+Sentinel-2 processing level (L1C or L2A).</p>
+<p>NO AUTHENTICATION is required for running this query.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>start_date</strong> – start date of the queried time period (inclusive)</p></li>
+<li><p><strong>end_date</strong> – end date of the queried time period (inclusive)</p></li>
+<li><p><strong>max_records</strong> – maximum number of items returned. NOTE that
+CREODIAS might limit this number!</p></li>
+<li><p><strong>processing_level</strong> – queried Sentinel-2 processing level</p></li>
+<li><p><strong>bounding_box</strong> – polygon in geographic coordinates (WGS84) denoting
+the queried region</p></li>
+<li><p><strong>cloud_cover_threshold</strong> – cloudy pixel percentage threshold (0-100%) for filtering
+mapper too cloudy for processing. All mapper with a cloud
+cover lower than the threshold specified will be downloaded.
+Per default all mapper are downloaded.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>results of the CREODIAS query (no downloaded data!)
+as pandas DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="eodal.html">eodal package</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">API Reference</a><ul>
+  <li><a href="eodal.html">eodal package</a><ul>
+  <li><a href="eodal.downloader.html">eodal.downloader package</a><ul>
+  <li><a href="eodal.downloader.sentinel2.html">eodal.downloader.sentinel2 package</a><ul>
+      <li>Previous: <a href="eodal.downloader.sentinel2.copernicus.html" title="previous chapter">eodal.downloader.sentinel2.copernicus module</a></li>
+      <li>Next: <a href="eodal.downloader.utils.html" title="next chapter">eodal.downloader.utils package</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/packages/eodal.downloader.sentinel2.creodias.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

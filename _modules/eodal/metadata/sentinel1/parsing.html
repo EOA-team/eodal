@@ -1,0 +1,389 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.metadata.sentinel1.parsing &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/alabaster.css" />
+    <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
+    <script src="../../../../_static/jquery.js"></script>
+    <script src="../../../../_static/underscore.js"></script>
+    <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../../_static/doctools.js"></script>
+    <script src="../../../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for eodal.metadata.sentinel1.parsing</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module contains functions to extract relevant scene-specific</span>
+<span class="sd">Sentinel-1 metadata</span>
+
+<span class="sd">Copyright (C) 2022 Gregor Perich</span>
+
+<span class="sd">This program is free software: you can redistribute it and/or modify</span>
+<span class="sd">it under the terms of the GNU General Public License as published by</span>
+<span class="sd">the Free Software Foundation, either version 3 of the License, or</span>
+<span class="sd">(at your option) any later version.</span>
+
+<span class="sd">This program is distributed in the hope that it will be useful,</span>
+<span class="sd">but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="sd">MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="sd">GNU General Public License for more details.</span>
+
+<span class="sd">You should have received a copy of the GNU General Public License</span>
+<span class="sd">along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">time</span>
+
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">date</span><span class="p">,</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">shapely.geometry</span> <span class="kn">import</span> <span class="n">Polygon</span>
+<span class="kn">from</span> <span class="nn">shapely.geometry.polygon</span> <span class="kn">import</span> <span class="n">LinearRing</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Optional</span>
+<span class="kn">from</span> <span class="nn">xml.dom</span> <span class="kn">import</span> <span class="n">minidom</span>
+
+<span class="kn">from</span> <span class="nn">eodal.config</span> <span class="kn">import</span> <span class="n">get_settings</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.exceptions</span> <span class="kn">import</span> <span class="n">DataNotFoundError</span><span class="p">,</span> <span class="n">InputError</span>
+
+<span class="n">Settings</span> <span class="o">=</span> <span class="n">get_settings</span><span class="p">()</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">Settings</span><span class="o">.</span><span class="n">logger</span>
+
+
+<div class="viewcode-block" id="parse_s1_metadata"><a class="viewcode-back" href="../../../../packages/eodal.metadata.sentinel1.parsing.html#eodal.metadata.sentinel1.parsing.parse_s1_metadata">[docs]</a><span class="k">def</span> <span class="nf">parse_s1_metadata</span><span class="p">(</span><span class="n">in_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Parses the metadata found in the &quot;manifest.safe&quot; document of S1_IW_GRDH Level-1</span>
+<span class="sd">    products and writes them into a Python dictionary</span>
+
+<span class="sd">    :param in_dir:</span>
+<span class="sd">        file-path of the file you want to extract the metadata from</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        Dictionary containing the metadata of the passed S1 scene ready for DB ingestion</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">in_file</span> <span class="o">=</span> <span class="n">in_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;manifest.safe&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
+
+    <span class="c1"># parse Document Object Model (DOM) file from xml</span>
+    <span class="n">domfile</span> <span class="o">=</span> <span class="n">minidom</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">in_file</span><span class="p">)</span>
+    <span class="n">metadata</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+
+    <span class="c1"># extract uid from SAFE filename</span>
+    <span class="n">safe_file</span> <span class="o">=</span> <span class="n">in_dir</span><span class="o">.</span><span class="n">name</span>
+    <span class="n">uid_str</span> <span class="o">=</span> <span class="n">safe_file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;scene_id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">uid_str</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;product_uri&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">safe_file</span>
+
+    <span class="c1"># =============== variables to fill from the xml =======================</span>
+    <span class="c1"># spacecraft_name</span>
+    <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">domfile</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;safe:platform&quot;</span><span class="p">):</span>
+        <span class="n">s1_name</span> <span class="o">=</span> <span class="n">elem</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;safe:familyName&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+        <span class="n">s1_num</span> <span class="o">=</span> <span class="n">elem</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;safe:number&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;spacecraft_name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">s1_name</span> <span class="o">+</span> <span class="n">s1_num</span>
+
+    <span class="c1"># sensing_orbit_number</span>
+    <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">domfile</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;safe:orbitNumber&quot;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">elem</span><span class="o">.</span><span class="n">getAttributeNode</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">nodeValue</span> <span class="o">==</span> <span class="s2">&quot;start&quot;</span><span class="p">:</span>
+            <span class="n">start_orbit</span> <span class="o">=</span> <span class="n">elem</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+        <span class="k">if</span> <span class="n">elem</span><span class="o">.</span><span class="n">getAttributeNode</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">nodeValue</span> <span class="o">==</span> <span class="s2">&quot;stop&quot;</span><span class="p">:</span>
+            <span class="n">stop_orbit</span> <span class="o">=</span> <span class="n">elem</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;sensing_orbit_start&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">start_orbit</span><span class="p">)</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;sensing_orbit_stop&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">stop_orbit</span><span class="p">)</span>
+
+    <span class="c1"># relative_orbit_number</span>
+    <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">domfile</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;safe:relativeOrbitNumber&quot;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">elem</span><span class="o">.</span><span class="n">getAttributeNode</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">nodeValue</span> <span class="o">==</span> <span class="s2">&quot;start&quot;</span><span class="p">:</span>
+            <span class="n">start_orbit</span> <span class="o">=</span> <span class="n">elem</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+        <span class="k">if</span> <span class="n">elem</span><span class="o">.</span><span class="n">getAttributeNode</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">nodeValue</span> <span class="o">==</span> <span class="s2">&quot;stop&quot;</span><span class="p">:</span>
+            <span class="n">stop_orbit</span> <span class="o">=</span> <span class="n">elem</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;relative_orbit_start&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">start_orbit</span><span class="p">)</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;relative_orbit_stop&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">stop_orbit</span><span class="p">)</span>
+
+    <span class="c1"># sensing_orbit_direction</span>
+    <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">domfile</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;s1:pass&quot;</span><span class="p">):</span>
+        <span class="n">direction</span> <span class="o">=</span> <span class="n">elem</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;sensing_orbit_direction&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">direction</span><span class="p">)</span>
+
+    <span class="c1"># sensing_time &amp; sensing_date</span>
+    <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">domfile</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;safe:startTime&quot;</span><span class="p">):</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="n">elem</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;sensing_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">start_time</span><span class="p">,</span> <span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">T%H:%M:%S.</span><span class="si">%f</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;sensing_date&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span>
+        <span class="n">start_time</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;T&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">date</span><span class="p">()</span>
+
+    <span class="c1"># instrument_mode</span>
+    <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">domfile</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;s1sarl1:mode&quot;</span><span class="p">):</span>
+        <span class="n">instrument_mode</span> <span class="o">=</span> <span class="n">elem</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;instrument_mode&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">instrument_mode</span>
+
+    <span class="c1"># product_type</span>
+    <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">domfile</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;s1sarl1:productType&quot;</span><span class="p">):</span>
+        <span class="n">product_type</span> <span class="o">=</span> <span class="n">elem</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;product_type&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">product_type</span>
+
+    <span class="c1"># product_class</span>
+    <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">domfile</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;s1sarl1:productClass&quot;</span><span class="p">):</span>
+        <span class="n">product_class</span> <span class="o">=</span> <span class="n">elem</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;product_class&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">product_class</span>
+
+    <span class="c1"># processing_software_name &amp; version</span>
+    <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">domfile</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;safe:software&quot;</span><span class="p">):</span>
+        <span class="n">processing_software_name</span> <span class="o">=</span> <span class="n">elem</span><span class="o">.</span><span class="n">getAttributeNode</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">nodeValue</span>
+        <span class="n">processing_software_version</span> <span class="o">=</span> <span class="n">elem</span><span class="o">.</span><span class="n">getAttributeNode</span><span class="p">(</span><span class="s2">&quot;version&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">nodeValue</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;processing_software_name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">processing_software_name</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;processing_software_version&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">processing_software_version</span>
+
+    <span class="c1"># mission_data_take_id</span>
+    <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">domfile</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;s1sarl1:missionDataTakeID&quot;</span><span class="p">):</span>
+        <span class="n">mission_data_take_id</span> <span class="o">=</span> <span class="n">elem</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;mission_data_take_id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">mission_data_take_id</span><span class="p">)</span>
+
+    <span class="c1"># scene footprint</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;geom&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">extract_s1_footprint</span><span class="p">(</span><span class="n">in_dir</span><span class="o">=</span><span class="n">in_dir</span><span class="p">)</span>
+
+    <span class="c1"># add storage information</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;storage_device_ip&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;storage_device_ip_alias&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;storage_share&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="n">metadata</span></div>
+
+
+<div class="viewcode-block" id="extract_s1_footprint"><a class="viewcode-back" href="../../../../packages/eodal.metadata.sentinel1.parsing.html#eodal.metadata.sentinel1.parsing.extract_s1_footprint">[docs]</a><span class="k">def</span> <span class="nf">extract_s1_footprint</span><span class="p">(</span><span class="n">in_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">use_gml</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Extract the Footprint of the S1 scene from the metadata.safe document</span>
+
+<span class="sd">    :param in_dir:</span>
+<span class="sd">        Filepath to the S1 raw data .SAFE folder</span>
+<span class="sd">    :param use_gml:</span>
+<span class="sd">        Should the GML coordinates (from the manifest.safe) be used, or the KML</span>
+<span class="sd">        coordinates (from the ./preview/map-overlay.kml)</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        Well-known-text (WKT) of the S1 mapper&#39; footprint in geographic coordinates</span>
+<span class="sd">        (WGS84, EPSG:4326).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">in_file</span> <span class="o">=</span> <span class="n">in_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;manifest.safe&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
+    <span class="c1"># parse Document Object Model (DOM) file from xml</span>
+    <span class="n">domfile</span> <span class="o">=</span> <span class="n">minidom</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">in_file</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">use_gml</span><span class="p">:</span>
+        <span class="c1"># get gml coordinates from manifest.safe file</span>
+        <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">domfile</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;gml:coordinates&quot;</span><span class="p">):</span>
+            <span class="n">gml_coords</span> <span class="o">=</span> <span class="n">elem</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+
+        <span class="c1"># descrption of gml coords from the S1 product specification document states:</span>
+        <span class="c1"># &quot;lon,lat of near and far range at start and stop time of the image&quot;</span>
+        <span class="n">gml_list</span> <span class="o">=</span> <span class="n">gml_coords</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
+        <span class="n">coord_tuples</span> <span class="o">=</span> <span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">gml_list</span><span class="p">)]</span>
+        <span class="n">coord_tuples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">coord_tuples</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="c1"># These coords are NOT in lon/lat, but rather in lat/long -&gt; invert coordinates</span>
+        <span class="n">invert_coords</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">coord_tuples</span><span class="p">:</span>
+            <span class="n">invert_coords</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">tuple</span><span class="p">([</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]]))</span>
+        <span class="n">invert_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">invert_coords</span><span class="p">)</span>
+        <span class="n">invert_poly</span> <span class="o">=</span> <span class="n">Polygon</span><span class="p">(</span><span class="n">LinearRing</span><span class="p">(</span><span class="n">invert_coords</span><span class="p">))</span>
+        <span class="n">wkt</span> <span class="o">=</span> <span class="n">invert_poly</span><span class="o">.</span><span class="n">wkt</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># read from KML file</span>
+        <span class="n">kml_file</span> <span class="o">=</span> <span class="n">in_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;preview&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;map-overlay.kml&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
+        <span class="n">dom_kml</span> <span class="o">=</span> <span class="n">minidom</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">kml_file</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">dom_kml</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;coordinates&quot;</span><span class="p">):</span>
+            <span class="n">kml_coords</span> <span class="o">=</span> <span class="n">elem</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+        <span class="n">kml_coords</span> <span class="o">=</span> <span class="n">kml_coords</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
+        <span class="n">kml_coords</span> <span class="o">=</span> <span class="p">[</span><span class="nb">tuple</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">kml_coords</span><span class="p">)]</span>
+        <span class="n">kml_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">kml_coords</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">kml_poly</span> <span class="o">=</span> <span class="n">Polygon</span><span class="p">(</span><span class="n">LinearRing</span><span class="p">(</span><span class="n">kml_coords</span><span class="p">))</span>
+        <span class="n">wkt</span> <span class="o">=</span> <span class="n">kml_poly</span><span class="o">.</span><span class="n">wkt</span>
+
+    <span class="n">out_wkt</span> <span class="o">=</span> <span class="s2">&quot;SRID=4326;&quot;</span>
+    <span class="n">out_wkt</span> <span class="o">+=</span> <span class="n">wkt</span>
+
+    <span class="k">return</span> <span class="n">out_wkt</span></div>
+
+
+<div class="viewcode-block" id="loop_s1_archive"><a class="viewcode-back" href="../../../../packages/eodal.metadata.sentinel1.parsing.html#eodal.metadata.sentinel1.parsing.loop_s1_archive">[docs]</a><span class="k">def</span> <span class="nf">loop_s1_archive</span><span class="p">(</span>
+    <span class="n">in_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+    <span class="n">get_newest_datasets</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">last_execution_date</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">date</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    wrapper function to loop over an entire archive (i.e., collection) of</span>
+<span class="sd">    Sentinel-2 mapper in either L1C or L2A processing level or a mixture</span>
+<span class="sd">    thereof.</span>
+
+<span class="sd">    The function returns a pandas dataframe for all found entries in the</span>
+<span class="sd">    archive (i.e., directory). Each row in the dataframe denotes one scene.</span>
+
+<span class="sd">    :param in_dir:</span>
+<span class="sd">        directory containing the Sentinel-2 data (L1C and/or L2A</span>
+<span class="sd">        processing level). Sentinel-2 mapper are assumed to follow ESA&#39;s</span>
+<span class="sd">        .SAFE naming convention and structure</span>
+<span class="sd">    :param extract_datastrip:</span>
+<span class="sd">        If True reads also metadata from the datastrip xml file</span>
+<span class="sd">        (MTD_DS.xml)</span>
+<span class="sd">    :param get_newest_datasets:</span>
+<span class="sd">        if set to True only datasets newer than a user-defined time stamp</span>
+<span class="sd">        will be considered for ingestion into the database. This is particularly</span>
+<span class="sd">        useful for updating the database after new mapper have been downloaded</span>
+<span class="sd">        or processed.</span>
+<span class="sd">    :param last_execution_date:</span>
+<span class="sd">        if get_newest_datasets is True this variable needs to be set. All</span>
+<span class="sd">        datasets younger than that date will be considered for ingestion</span>
+<span class="sd">        into the database.</span>
+<span class="sd">    :return:</span>
+<span class="sd">        dataframe with metadata of all mapper handled by the function</span>
+<span class="sd">        call</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># check inputs if only latest datasets shall be considered</span>
+    <span class="k">if</span> <span class="n">get_newest_datasets</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">last_execution_date</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">InputError</span><span class="p">(</span>
+                <span class="s2">&quot;A timestamp must be provided when the only newest datasets &quot;</span>
+                <span class="s2">&quot;shall be considered&quot;</span>
+            <span class="p">)</span>
+
+    <span class="c1"># search for .SAFE subdirectories identifying the single mapper</span>
+    <span class="c1"># some data providers, however, do not name their products following the</span>
+    <span class="c1"># ESA convention (.SAFE is missing)</span>
+    <span class="n">s1_scenes</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">in_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;*.SAFE&quot;</span><span class="p">)))</span>
+    <span class="n">n_scenes</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">s1_scenes</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">n_scenes</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">DataNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No .SAFE mapper found in </span><span class="si">{</span><span class="n">in_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># if only mapper after a specific timestamp shall be considered drop</span>
+    <span class="c1"># those from the list which are &quot;too old&quot;</span>
+    <span class="k">if</span> <span class="n">get_newest_datasets</span><span class="p">:</span>
+        <span class="n">filtered_scenes</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># convert date to Unix timestamp</span>
+        <span class="n">last_execution</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">mktime</span><span class="p">(</span><span class="n">last_execution_date</span><span class="o">.</span><span class="n">timetuple</span><span class="p">())</span>
+        <span class="k">for</span> <span class="n">s1_scene</span> <span class="ow">in</span> <span class="n">s1_scenes</span><span class="p">:</span>
+            <span class="n">s1_scene_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">s1_scene</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">s1_scene_path</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_ctime</span> <span class="o">&gt;=</span> <span class="n">last_execution</span><span class="p">:</span>
+                <span class="n">filtered_scenes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s1_scene</span><span class="p">)</span>
+        <span class="n">s1_scenes</span> <span class="o">=</span> <span class="n">filtered_scenes</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">s1_scenes</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">DataNotFoundError</span><span class="p">(</span>
+                <span class="s1">&#39;No mapper younger than &#39;</span> <span class="o">+</span>
+                <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">datetime</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="n">last_execution_date</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span><span class="si">}</span><span class="s1"> found&#39;</span>
+            <span class="p">)</span>
+
+    <span class="c1"># loop over the mapper</span>
+    <span class="n">metadata_scenes</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">error_file</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">in_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;errored_datasets.txt&quot;</span><span class="p">),</span> <span class="s2">&quot;w+&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">s1_scene</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">s1_scenes</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Extracting metadata of </span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">s1_scene</span><span class="p">)</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">idx</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">n_scenes</span><span class="si">}</span><span class="s2">)&quot;</span>
+        <span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">mtd_scene</span> <span class="o">=</span> <span class="n">parse_s1_metadata</span><span class="p">(</span><span class="n">in_dir</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="n">s1_scene</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">error_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">s1_scene</span><span class="p">)</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="n">error_file</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Extraction of metadata failed </span><span class="si">{</span><span class="n">s1_scene</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="n">metadata_scenes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mtd_scene</span><span class="p">)</span>
+
+    <span class="c1"># convert to pandas dataframe and return</span>
+    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">metadata_scenes</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../packages/modules.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

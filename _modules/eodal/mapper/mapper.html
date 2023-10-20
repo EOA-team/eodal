@@ -1,0 +1,972 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.mapper.mapper &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for eodal.mapper.mapper</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">The EOdal `Mapper` class allows to extract and handle EO data in space and time</span>
+<span class="sd">and bring the data into Analysis-Ready-Format (ARD).</span>
+
+<span class="sd">.. versionadded:: 0.2.0</span>
+
+<span class="sd">Copyright (C) 2022 Lukas Valentin Graf</span>
+
+<span class="sd">This program is free software: you can redistribute it and/or modify</span>
+<span class="sd">it under the terms of the GNU General Public License as published by</span>
+<span class="sd">the Free Software Foundation, either version 3 of the License, or</span>
+<span class="sd">(at your option) any later version.</span>
+
+<span class="sd">This program is distributed in the hope that it will be useful,</span>
+<span class="sd">but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="sd">MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="sd">GNU General Public License for more details.</span>
+
+<span class="sd">You should have received a copy of the GNU General Public License</span>
+<span class="sd">along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">import</span> <span class="nn">eodal</span>
+<span class="kn">import</span> <span class="nn">geopandas</span> <span class="k">as</span> <span class="nn">gpd</span>
+<span class="kn">import</span> <span class="nn">getpass</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">uuid</span>
+<span class="kn">import</span> <span class="nn">yaml</span>
+
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">sqlalchemy.exc</span> <span class="kn">import</span> <span class="n">DatabaseError</span>
+<span class="kn">from</span> <span class="nn">rasterio</span> <span class="kn">import</span> <span class="n">Affine</span>
+<span class="kn">from</span> <span class="nn">shapely.geometry</span> <span class="kn">import</span> <span class="n">box</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="kn">from</span> <span class="nn">eodal.config</span> <span class="kn">import</span> <span class="n">get_settings</span>
+<span class="kn">from</span> <span class="nn">eodal.core.algorithms</span> <span class="kn">import</span> <span class="n">merge_datasets</span>
+<span class="kn">from</span> <span class="nn">eodal.core.raster</span> <span class="kn">import</span> <span class="n">RasterCollection</span>
+<span class="kn">from</span> <span class="nn">eodal.core.scene</span> <span class="kn">import</span> <span class="n">SceneCollection</span>
+<span class="kn">from</span> <span class="nn">eodal.mapper.feature</span> <span class="kn">import</span> <span class="n">Feature</span>
+<span class="kn">from</span> <span class="nn">eodal.mapper.filter</span> <span class="kn">import</span> <span class="n">Filter</span>
+<span class="kn">from</span> <span class="nn">eodal.metadata.database.querying</span> <span class="kn">import</span> <span class="n">find_raw_data_by_bbox</span>
+<span class="kn">from</span> <span class="nn">eodal.metadata.utils</span> <span class="kn">import</span> <span class="n">reconstruct_path</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.exceptions</span> <span class="kn">import</span> <span class="n">STACError</span>
+
+<span class="n">settings</span> <span class="o">=</span> <span class="n">get_settings</span><span class="p">()</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">logger</span>
+
+
+<div class="viewcode-block" id="MapperConfigs"><a class="viewcode-back" href="../../../packages/eodal.mapper.mapper.html#eodal.mapper.mapper.MapperConfigs">[docs]</a><span class="k">class</span> <span class="nc">MapperConfigs</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    global configurations of the Mapper class defining metadata search</span>
+<span class="sd">    criteria (space and time), data collections to search and behavior</span>
+<span class="sd">    for bringing data into analysis-ready-format (ARD)</span>
+
+<span class="sd">    :attrib collection:</span>
+<span class="sd">        name of the collection (&lt;platform&gt;-&lt;sensor&gt;-&lt;processing level&gt;) to use.</span>
+<span class="sd">        E.g., &quot;Sentinel2-MSI-L2A</span>
+<span class="sd">    :attrib feature:</span>
+<span class="sd">        geographic feature(s) for which to extract data from collection</span>
+<span class="sd">    :atrrib time_start:</span>
+<span class="sd">        time stamp from which onwards to extract data from collection</span>
+<span class="sd">    :atrrib time_end:</span>
+<span class="sd">        time stamp till which to extract data from collection</span>
+<span class="sd">    :attrib metadata_filters:</span>
+<span class="sd">        list of custom metadata filters to shrink collection to.</span>
+<span class="sd">        Examples include cloud cover filters in the case of optical data</span>
+<span class="sd">        or filter by incidence angle in the case of SAR observations.</span>
+<span class="sd">    :attrib data_source:</span>
+<span class="sd">        denotes from which resource (local archive, STAC archive) the</span>
+<span class="sd">        data was read from including the STAC API end point URL.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="MapperConfigs.__init__"><a class="viewcode-back" href="../../../packages/eodal.mapper.mapper.html#eodal.mapper.mapper.MapperConfigs.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">collection</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">feature</span><span class="p">:</span> <span class="n">Feature</span><span class="p">,</span>
+        <span class="n">time_start</span><span class="p">:</span> <span class="n">datetime</span><span class="p">,</span>
+        <span class="n">time_end</span><span class="p">:</span> <span class="n">datetime</span><span class="p">,</span>
+        <span class="n">metadata_filters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Filter</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        default class constructor</span>
+
+<span class="sd">        :param collection:</span>
+<span class="sd">            name of the collection (&lt;platform&gt;-&lt;sensor&gt;) to use.</span>
+<span class="sd">            E.g., &quot;sentinel2-msi&quot;. &lt;sensor&gt; is optional and can be omitted</span>
+<span class="sd">            if a platform does not carry more than a single sensor. I.e.,</span>
+<span class="sd">            one could also pass &quot;sentinel2&quot; instead.</span>
+<span class="sd">        :param feature:</span>
+<span class="sd">            geographic feature(s) for which to extract data from collection</span>
+<span class="sd">        :param time_start:</span>
+<span class="sd">            time stamp from which onwards to extract data from collection</span>
+<span class="sd">        :param time_end:</span>
+<span class="sd">            time stamp till which to extract data from collection</span>
+<span class="sd">        :param  metadata_filters:</span>
+<span class="sd">            .. versionadd:: 0.2.1</span>
+<span class="sd">            list of custom metadata filters to shrink collection to.</span>
+<span class="sd">            Examples include cloud cover filters in the case of optical data</span>
+<span class="sd">            or filter by incidence angle in the case of SAR observations.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># check inputs</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">collection</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Collection must be a string&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">collection</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Collections must have at least 3 characters&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">collection</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Collections must obey the format &lt;platform&gt;-&lt;sensor&gt; where &quot;</span> <span class="o">+</span>
+                <span class="s2">&quot;&lt;sensor&gt; is optional&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">feature</span><span class="p">,</span> <span class="n">Feature</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected a Feature object&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">time_start</span><span class="p">,</span> <span class="n">datetime</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">time_end</span><span class="p">,</span> <span class="n">datetime</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected datetime objects&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">metadata_filters</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">Filter</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">metadata_filters</span><span class="p">])</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;All filters must be instances of the Filter class&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_collection</span> <span class="o">=</span> <span class="n">collection</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_feature</span> <span class="o">=</span> <span class="n">feature</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_time_start</span> <span class="o">=</span> <span class="n">time_start</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_time_end</span> <span class="o">=</span> <span class="n">time_end</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_metadata_filters</span> <span class="o">=</span> <span class="n">metadata_filters</span>
+
+        <span class="c1"># set data source (..versionadd::0.2.1)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data_source</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;STAC (</span><span class="si">{</span><span class="n">settings</span><span class="o">.</span><span class="n">STAC_BACKEND</span><span class="o">.</span><span class="n">URL</span><span class="si">}</span><span class="s1">)&#39;</span> <span class="k">if</span> \
+            <span class="n">settings</span><span class="o">.</span><span class="n">USE_STAC</span> <span class="k">else</span> <span class="s1">&#39;local&#39;</span></div>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;EOdal MapperConfig</span><span class="se">\n</span><span class="s2">------------------</span><span class="se">\n</span><span class="s2">Collection: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">collection</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Time Range: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">time_start</span><span class="si">}</span><span class="s2"> - </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">time_end</span><span class="si">}</span><span class="se">\n</span><span class="s2">Feature:</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">feature</span><span class="o">.</span><span class="fm">__repr__</span><span class="p">()</span><span class="si">}</span><span class="se">\n</span><span class="s2">Metadata Filters: &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">metadata_filters</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Data Source: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">data_source</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">collection</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_collection</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">platform</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">sensor</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_collection</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">feature</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Feature</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_feature</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">time_start</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">datetime</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_time_start</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">time_end</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">datetime</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_time_end</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">metadata_filters</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Filter</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_metadata_filters</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">data_source</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_source</span>
+
+    <span class="nd">@data_source</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">data_source</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Expected a string&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data_source</span> <span class="o">=</span> <span class="n">value</span>
+
+<div class="viewcode-block" id="MapperConfigs.from_yaml"><a class="viewcode-back" href="../../../packages/eodal.mapper.mapper.html#eodal.mapper.mapper.MapperConfigs.from_yaml">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_yaml</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">fpath</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load mapping configurations from YAML file</span>
+
+<span class="sd">        :param fpath:</span>
+<span class="sd">            file-path to yaml with Mapper configurations</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            new `MapperConfigs` instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fpath</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">yaml_content</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">yaml</span><span class="o">.</span><span class="n">YAMLError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span>
+        <span class="c1"># reconstruct the Featue object first</span>
+        <span class="k">if</span> <span class="s2">&quot;feature&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">yaml_content</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;&quot;feature&quot; attribute is required&quot;&#39;</span><span class="p">)</span>
+        <span class="n">feature_yaml</span> <span class="o">=</span> <span class="n">yaml_content</span><span class="p">[</span><span class="s2">&quot;feature&quot;</span><span class="p">]</span>
+        <span class="c1"># reconstruct the filter objects</span>
+        <span class="n">filter_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="s2">&quot;metadata_filters&quot;</span> <span class="ow">in</span> <span class="n">yaml_content</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">filters_yaml</span> <span class="o">=</span> <span class="n">yaml_content</span><span class="p">[</span><span class="s2">&quot;metadata_filters&quot;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">filter_yaml</span> <span class="ow">in</span> <span class="n">filters_yaml</span><span class="p">:</span>
+                <span class="n">filter_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Filter</span><span class="p">(</span><span class="o">*</span><span class="n">filter_yaml</span><span class="o">.</span><span class="n">split</span><span class="p">()))</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">feature</span> <span class="o">=</span> <span class="n">Feature</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">feature_yaml</span><span class="p">)</span>
+            <span class="n">configs</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span>
+                <span class="n">collection</span><span class="o">=</span><span class="n">yaml_content</span><span class="p">[</span><span class="s2">&quot;collection&quot;</span><span class="p">],</span>
+                <span class="n">feature</span><span class="o">=</span><span class="n">feature</span><span class="p">,</span>
+                <span class="n">time_start</span><span class="o">=</span><span class="n">yaml_content</span><span class="p">[</span><span class="s2">&quot;time_start&quot;</span><span class="p">],</span>
+                <span class="n">time_end</span><span class="o">=</span><span class="n">yaml_content</span><span class="p">[</span><span class="s2">&quot;time_end&quot;</span><span class="p">],</span>
+                <span class="n">metadata_filters</span><span class="o">=</span><span class="n">filter_list</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="c1"># overwrite data_source attribute with content from</span>
+            <span class="c1"># file in case it is available</span>
+            <span class="n">configs</span><span class="o">.</span><span class="n">data_source</span> <span class="o">=</span> <span class="n">yaml_content</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;data_source&#39;</span><span class="p">,</span> <span class="s1">&#39;UNKNOWN&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">configs</span>
+        <span class="k">except</span> <span class="ne">KeyError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Missing keys in yaml file: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="MapperConfigs.to_yaml"><a class="viewcode-back" href="../../../packages/eodal.mapper.mapper.html#eodal.mapper.mapper.MapperConfigs.to_yaml">[docs]</a>    <span class="k">def</span> <span class="nf">to_yaml</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fpath</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        save MapperConfig and some meta-information to YAML file (*.yml)</span>
+
+<span class="sd">        :param fpath:</span>
+<span class="sd">            file-path where saving the Feature instance to</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mapper_configs_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">mapper_configs_dict</span><span class="p">[</span><span class="s2">&quot;collection&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">collection</span>
+        <span class="n">mapper_configs_dict</span><span class="p">[</span><span class="s2">&quot;feature&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">feature</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+        <span class="n">mapper_configs_dict</span><span class="p">[</span><span class="s2">&quot;time_start&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_start</span>
+        <span class="n">mapper_configs_dict</span><span class="p">[</span><span class="s2">&quot;time_end&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_end</span>
+        <span class="n">mapper_configs_dict</span><span class="p">[</span><span class="s2">&quot;data_source&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_source</span>
+        <span class="n">mapper_configs_dict</span><span class="p">[</span><span class="s2">&quot;metadata_filters&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">x</span><span class="o">.</span><span class="fm">__repr__</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">metadata_filters</span>
+        <span class="p">]</span>
+        <span class="c1"># add some meta-information about creation time and current user</span>
+        <span class="n">mapper_configs_dict</span><span class="p">[</span><span class="s2">&quot;created_at&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+        <span class="n">mapper_configs_dict</span><span class="p">[</span><span class="s2">&quot;created_by&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">getpass</span><span class="o">.</span><span class="n">getuser</span><span class="p">()</span>
+        <span class="n">mapper_configs_dict</span><span class="p">[</span><span class="s2">&quot;eodal_version&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">eodal</span><span class="o">.</span><span class="n">__version__</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fpath</span><span class="p">,</span> <span class="s2">&quot;w+&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">yaml</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">mapper_configs_dict</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">allow_unicode</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="Mapper"><a class="viewcode-back" href="../../../packages/eodal.mapper.mapper.html#eodal.mapper.mapper.Mapper">[docs]</a><span class="k">class</span> <span class="nc">Mapper</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generic class for mapping Earth Observation Data across space and time</span>
+<span class="sd">    and bring them into Analysis-Readay-Format (ARD).</span>
+
+<span class="sd">    The mapper class takes over searching for EO scenes, merging them and</span>
+<span class="sd">    filling eventually occurring black-fill (no-data regions).</span>
+
+<span class="sd">    :attrib mapper_configs:</span>
+<span class="sd">        `MapperConfig` instance defining search criteria</span>
+<span class="sd">    :attrib data:</span>
+<span class="sd">        loaded scene data as EOdal `SceneCollection`</span>
+<span class="sd">    :attrib metadata:</span>
+<span class="sd">        corresponding scene metadata as `GeoDataFrame`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Mapper.__init__"><a class="viewcode-back" href="../../../packages/eodal.mapper.mapper.html#eodal.mapper.mapper.Mapper.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">mapper_configs</span><span class="p">:</span> <span class="n">MapperConfigs</span><span class="p">,</span> <span class="n">time_column</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;sensing_time&quot;</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Class constructor</span>
+
+<span class="sd">        :param mapper_configs:</span>
+<span class="sd">            `MapperConfig` instance defining search criteria</span>
+<span class="sd">        :param time_column:</span>
+<span class="sd">            name of the metadata column denoting the time stamps of the scenes.</span>
+<span class="sd">            `sensing_time` by default.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mapper_configs</span><span class="p">,</span> <span class="n">MapperConfigs</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected a MapperConfigs instance&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mapper_configs</span> <span class="o">=</span> <span class="n">mapper_configs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_time_column</span> <span class="o">=</span> <span class="n">time_column</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapper_configs</span><span class="o">.</span><span class="n">collection</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_geoms_are_points</span> <span class="o">=</span> <span class="kc">False</span></div>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;EOdal Mapper</span><span class="se">\n</span><span class="s2">============</span><span class="se">\n</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mapper_configs</span><span class="o">.</span><span class="fm">__repr__</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">data</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span> <span class="o">|</span> <span class="n">SceneCollection</span> <span class="o">|</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        SceneCollection with scenes found or GeoDataFrame in case</span>
+<span class="sd">        single pixel values are extracted</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span>
+
+    <span class="nd">@data</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scoll</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SceneCollection</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">scoll</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">scoll</span><span class="p">,</span> <span class="n">SceneCollection</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span>
+                <span class="n">scoll</span><span class="p">,</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span>
+            <span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected a EOdal SceneCollection or GeoDataFrame&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="n">scoll</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">mapper_configs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MapperConfigs</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;mapper configurations&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mapper_configs</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span> <span class="o">|</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;scene metadata found&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span>
+
+    <span class="nd">@metadata</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">values</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;set scene metadata&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">values</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Expected a GeoDataFrame&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">sensor</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sensor</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">time_column</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_time_column</span>
+
+    <span class="nd">@time_column</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">time_column</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;..versionadd:: 0.2.2&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;time_column must be a string&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;String must not be empty&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_time_column</span> <span class="o">=</span> <span class="n">value</span>
+
+<div class="viewcode-block" id="Mapper.query_scenes"><a class="viewcode-back" href="../../../packages/eodal.mapper.mapper.html#eodal.mapper.mapper.Mapper.query_scenes">[docs]</a>    <span class="k">def</span> <span class="nf">query_scenes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Query available scenes for the current `MapperConfigs` and loads</span>
+<span class="sd">        into the `observations` attribute.</span>
+
+<span class="sd">        Depending on the settings of EOdal, this method either makes a</span>
+<span class="sd">        query to a STAC resource or to a PostgreSQL/PostGIS database.</span>
+
+<span class="sd">        NOTE:</span>
+<span class="sd">            This method only queries a metadata catalog without reading data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># check for point geometries</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_geoms_are_points</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapper_configs</span><span class="o">.</span><span class="n">feature</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">geom_type</span> <span class="ow">in</span> <span class="p">[</span>
+            <span class="s2">&quot;Point&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;MultiPoint&quot;</span><span class="p">,</span>
+        <span class="p">]</span>
+
+        <span class="c1"># determine bounding box of the feature using</span>
+        <span class="c1"># its representation in geographic coordinates (WGS84, EPSG: 4326)</span>
+        <span class="n">feature_wgs84</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapper_configs</span><span class="o">.</span><span class="n">feature</span><span class="o">.</span><span class="n">to_epsg</span><span class="p">(</span><span class="mi">4326</span><span class="p">)</span>
+        <span class="n">bbox</span> <span class="o">=</span> <span class="n">box</span><span class="p">(</span><span class="o">*</span><span class="n">feature_wgs84</span><span class="o">.</span><span class="n">geometry</span><span class="o">.</span><span class="n">bounds</span><span class="p">)</span>
+
+        <span class="c1"># determine platform and collection</span>
+        <span class="n">platform</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapper_configs</span><span class="o">.</span><span class="n">platform</span>
+        <span class="n">collection</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapper_configs</span><span class="o">.</span><span class="n">collection</span>
+
+        <span class="c1"># put kwargs together</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;collection&quot;</span><span class="p">:</span> <span class="n">collection</span><span class="p">,</span>
+            <span class="s2">&quot;time_start&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapper_configs</span><span class="o">.</span><span class="n">time_start</span><span class="p">,</span>
+            <span class="s2">&quot;time_end&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapper_configs</span><span class="o">.</span><span class="n">time_end</span><span class="p">,</span>
+            <span class="s2">&quot;bounding_box&quot;</span><span class="p">:</span> <span class="n">bbox</span><span class="p">,</span>
+            <span class="s2">&quot;metadata_filters&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapper_configs</span><span class="o">.</span><span class="n">metadata_filters</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="c1"># query the metadata catalog (STAC or database depending on settings)</span>
+        <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">USE_STAC</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">exec</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;from eodal.metadata.stac import </span><span class="si">{</span><span class="n">platform</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">scenes_df</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">platform</span><span class="si">}</span><span class="s2">(**kwargs)&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">STACError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Querying STAC catalog failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">scenes_df</span> <span class="o">=</span> <span class="n">find_raw_data_by_bbox</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">DatabaseError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Querying metadata DB failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># make sure the time column is handled as pandas datetime</span>
+        <span class="c1"># objects</span>
+        <span class="n">scenes_df</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">time_column</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span>
+            <span class="n">scenes_df</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">time_column</span><span class="p">],</span> <span class="n">utc</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># populate the metadata attribute</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span> <span class="o">=</span> <span class="n">scenes_df</span></div>
+
+    <span class="k">def</span> <span class="nf">_process_scene</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">item</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span>
+        <span class="n">scene_constructor</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">RasterCollection</span><span class="p">],</span>
+        <span class="n">scene_constructor_kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+        <span class="n">scene_modifier</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">RasterCollection</span><span class="p">],</span>
+        <span class="n">scene_modifier_kwargs</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+        <span class="n">reprojection_method</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RasterCollection</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Pre-process a scene so it can be added to a SceneCollection.</span>
+<span class="sd">        This includes applying user-defined reading and modification functions.</span>
+<span class="sd">        In addition, the `Scene` is projected into the target spatial reference</span>
+<span class="sd">        system by using the reference system the majority of the scenes in a</span>
+<span class="sd">        collection has in common.</span>
+
+<span class="sd">        IMPORTANT:</span>
+<span class="sd">            The reprojection step into the target spatial reference system (if</span>
+<span class="sd">            scene is not projected in it already) is **always** done!</span>
+
+<span class="sd">        :param item:</span>
+<span class="sd">            metadata item of the scene including its file-path or URL</span>
+<span class="sd">        :param scene_constructor:</span>
+<span class="sd">            Callable used to read the scenes found into `RasterCollection` fulfilling</span>
+<span class="sd">            the `is_scene` criterion (i.e., a time stamp is available).</span>
+<span class="sd">        :param scene_constructor_kwargs:</span>
+<span class="sd">            keyword-arguments to pass to `scene_constructor`. `fpath_raster`</span>
+<span class="sd">            and `vector_features` are filled in by the `Mapper` instance automatically,</span>
+<span class="sd">        :param scene_modifier:</span>
+<span class="sd">            optional Callable modifying a `RasterCollection` or returning a new</span>
+<span class="sd">            `RasterCollection`.</span>
+<span class="sd">        :param scene_modifier_kwargs:</span>
+<span class="sd">            keyword arguments for `scene_modifier`</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            `Scene` with all pre-processing steps applied.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">scene_constructor_kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="p">{</span><span class="s2">&quot;vector_features&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapper_configs</span><span class="o">.</span><span class="n">feature</span><span class="o">.</span><span class="n">to_geoseries</span><span class="p">()}</span>
+        <span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># call scene constructor. The file-path (or URL) goes first</span>
+            <span class="n">scene</span> <span class="o">=</span> <span class="n">scene_constructor</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span>
+                <span class="n">item</span><span class="o">.</span><span class="n">real_path</span><span class="p">,</span> <span class="o">**</span><span class="n">scene_constructor_kwargs</span>
+            <span class="p">)</span>
+            <span class="n">scene</span><span class="o">.</span><span class="n">scene_properties</span><span class="o">.</span><span class="n">sensing_time</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">time_column</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not load scene:  </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># apply scene modifier callable if available</span>
+        <span class="k">if</span> <span class="n">scene_modifier</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">scene</span> <span class="o">=</span> <span class="n">scene_modifier</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="n">scene</span><span class="p">,</span> <span class="o">**</span><span class="n">scene_modifier_kwargs</span><span class="p">)</span>
+
+        <span class="c1"># reproject scene if necessary</span>
+        <span class="n">scene</span><span class="o">.</span><span class="n">reproject</span><span class="p">(</span>
+            <span class="n">target_crs</span><span class="o">=</span><span class="n">item</span><span class="o">.</span><span class="n">target_epsg</span><span class="p">,</span>
+            <span class="n">interpolation_method</span><span class="o">=</span><span class="n">reprojection_method</span><span class="p">,</span>
+            <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">scene</span>
+
+    <span class="k">def</span> <span class="nf">_load_scenes_collection</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">reprojection_method</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">INTER_NEAREST_EXACT</span><span class="p">,</span>
+        <span class="n">scene_constructor</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span>
+            <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">RasterCollection</span><span class="p">]</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="n">RasterCollection</span><span class="o">.</span><span class="n">from_multi_band_raster</span><span class="p">,</span>
+        <span class="n">scene_constructor_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">scene_modifier</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">RasterCollection</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">scene_modifier_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">round_time_stamps_to_freq</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Auxiliary method to handle EOdal scenes and store them into a SceneCollection.</span>
+
+<span class="sd">        This method is called when the geometries used for calling the `Mapper`</span>
+<span class="sd">        instance are of type `Polygon` or `MultiPolygon`.</span>
+
+<span class="sd">        Mosaicing operations are handled on the fly so calling programs will</span>
+<span class="sd">        always receive analysis-ready data.</span>
+
+<span class="sd">        IMPORTANT:</span>
+
+<span class="sd">            When mosaicing is necessary, it **must** be ensured that all bands</span>
+<span class="sd">            have the spatial resolution. Thus, either read only bands with the</span>
+<span class="sd">            same spatial resolution or use the `scene_modifier` function to</span>
+<span class="sd">            resample the bands into a common spatial resolution. If this</span>
+<span class="sd">            requirement is not fulfilled the mosaicing will fail!</span>
+
+<span class="sd">        ..versionadd:: 0.2.1</span>
+
+<span class="sd">            To make sure all scenes in the collection share the same extent and</span>
+<span class="sd">            grid, a post-processing step is carried out re-projecting all scenes</span>
+<span class="sd">            into a common reference grid using nearest neighbor interpolation.</span>
+<span class="sd">            This ensures not only all scenes having the same spatial extent which</span>
+<span class="sd">            is convenient for stacking scenes in time, but also makes sure there</span>
+<span class="sd">            are no pixel shifts due to re-projections from different spatial</span>
+<span class="sd">            reference systems such as different UTM zones.</span>
+
+<span class="sd">        ..versionadd:: 0.2.2</span>
+<span class="sd">        </span>
+<span class="sd">            When mosaicing (i.e., a scene is split into multiple tiles) we not only</span>
+<span class="sd">            have to look for spatial and temporal overlap (old behavior) but we</span>
+<span class="sd">            must also allow a certain tolerance in the timestamps in the range of</span>
+<span class="sd">            typically some seconds to minutes to merge imagery that was acquired</span>
+<span class="sd">            slightly one-after-another. To do so, a new keyword argument</span>
+<span class="sd">            `round_time_stamps_to_freq` was added that defaults to None (old behavior)</span>
+<span class="sd">            and can be set to any string value accepted by `~pandas.Timestamp.round`.</span>
+
+<span class="sd">        :param scene_constructor:</span>
+<span class="sd">            Callable used to read the scenes found into `RasterCollection` fulfilling</span>
+<span class="sd">            the `is_scene` criterion (i.e., a time stamp is available). The callable is</span>
+<span class="sd">            applied to all scenes found in the metadata query call.</span>
+<span class="sd">            By default the standard class-method call</span>
+<span class="sd">            `~RasterCollection.from_multi_band_raster`</span>
+<span class="sd">            is used. It can be replaced, however, with a custom-written callable that</span>
+<span class="sd">            can be of any design except that it **MUST** accept a keyword argument</span>
+<span class="sd">            `fpath_raster` used for reading the Scene data and `vector_features` for</span>
+<span class="sd">            cropping the data to the spatial extent of the Mapper instance.</span>
+<span class="sd">        :param scene_constructor_kwargs:</span>
+<span class="sd">            optional keyword-arguments to pass to `scene_constructor`. `fpath_raster`</span>
+<span class="sd">            and `vector_features` are filled in by the `Mapper` instance automatically,</span>
+<span class="sd">            i.e., any custom values passed will be overwritten.</span>
+<span class="sd">        :param scene_modifier:</span>
+<span class="sd">            optional Callable modifying a `RasterCollection` or returning a new</span>
+<span class="sd">            `RasterCollection`. The Callable is applied to all scenes in the</span>
+<span class="sd">            `SceneCollection` when loaded by the `Mapper`. Can be used, e.g.,</span>
+<span class="sd">            to calculate spectral indices on the fly or for applying masks.</span>
+<span class="sd">        :param scene_modifier_kwargs:</span>
+<span class="sd">            optional keyword arguments for `scene_modifier` (if any).</span>
+<span class="sd">        :param round_time_stamps_to_freq:</span>
+<span class="sd">            ..versionadd:: 0.2.2</span>
+<span class="sd">            optionally round scene time stamps to a custom temporal frequency accepted</span>
+<span class="sd">            by `~pandas.Timestamp.round` to allow moscaicing of scenes with slightly</span>
+<span class="sd">            different timestamps as it might be necessary for some EO platforms.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># open a SceneCollection for storing the data</span>
+        <span class="n">scoll</span> <span class="o">=</span> <span class="n">SceneCollection</span><span class="p">()</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Starting extraction of </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sensor</span><span class="si">}</span><span class="s2"> scenes&quot;</span><span class="p">)</span>
+        <span class="c1"># filter out datasets for which mosaicing is necessary (time stamp is the same)</span>
+        <span class="c1"># ..versionadd:: 0.2.2</span>
+        <span class="c1"># Allow a user-defined temporal tolerance (background: some</span>
+        <span class="c1"># platforms such as Landsat provide the &quot;scene-center&quot; time, i.e., two</span>
+        <span class="c1"># scenes that were acquired one-after-another differ only be a few minutes)</span>
+        <span class="k">if</span> <span class="n">round_time_stamps_to_freq</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># new optional behavior eodal &gt;= 0.2.2</span>
+            <span class="n">rounded_time_column</span> <span class="o">=</span> \
+                <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">time_column</span><span class="si">}</span><span class="s1">_rounded_</span><span class="si">{</span><span class="n">round_time_stamps_to_freq</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="n">rounded_time_column</span><span class="p">]</span> <span class="o">=</span> \
+                <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">time_column</span><span class="p">]</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">round</span><span class="p">(</span>
+                    <span class="n">freq</span><span class="o">=</span><span class="n">round_time_stamps_to_freq</span><span class="p">)</span>
+            <span class="c1"># set time column to rounded time stamps but keep</span>
+            <span class="c1"># the name of the &quot;old&quot;, i.e., original time column</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">time_column</span> <span class="o">=</span> <span class="n">rounded_time_column</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;_duplicated&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">time_column</span><span class="p">]</span><span class="o">.</span><span class="n">duplicated</span><span class="p">(</span>
+                <span class="n">keep</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">)</span>
+        <span class="c1"># datasets where the &#39;duplicated&#39; entry is False are truely unqiue</span>
+        <span class="n">_metadata_unique</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="o">~</span><span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">_duplicated</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">_metadata_nonunique</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">_duplicated</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="c1"># mosaic the non-unique datasets first</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">_metadata_nonunique</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="n">_metadata_nonunique</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">time_column</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">unique_time_stamps</span> <span class="o">=</span> <span class="n">_metadata_nonunique</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">time_column</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
+            <span class="c1"># loop over unique time stamps. In the end there should be a single</span>
+            <span class="c1"># scene per time stamp</span>
+            <span class="n">update_scene_properties_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">unique_time_stamp</span> <span class="ow">in</span> <span class="n">unique_time_stamps</span><span class="p">:</span>
+                <span class="n">scenes</span> <span class="o">=</span> <span class="n">_metadata_nonunique</span><span class="p">[</span>
+                    <span class="n">_metadata_nonunique</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">time_column</span><span class="p">]</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M&quot;</span><span class="p">)</span>
+                    <span class="o">==</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">unique_time_stamp</span><span class="p">)</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M&quot;</span><span class="p">)[</span>
+                        <span class="mi">0</span><span class="p">:</span><span class="mi">16</span>
+                    <span class="p">]</span>
+                <span class="p">]</span>
+                <span class="c1"># read the datasets one by one, save them into a temporary directory</span>
+                <span class="c1"># and merge them using rasterio</span>
+                <span class="n">dataset_list</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">scene_properties_list</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">scenes</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+                    <span class="n">_scene</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_scene</span><span class="p">(</span>
+                        <span class="n">item</span><span class="o">=</span><span class="n">item</span><span class="p">,</span>
+                        <span class="n">scene_constructor</span><span class="o">=</span><span class="n">scene_constructor</span><span class="p">,</span>
+                        <span class="n">scene_constructor_kwargs</span><span class="o">=</span><span class="n">scene_constructor_kwargs</span><span class="p">,</span>
+                        <span class="n">reprojection_method</span><span class="o">=</span><span class="n">reprojection_method</span><span class="p">,</span>
+                        <span class="n">scene_modifier</span><span class="o">=</span><span class="n">scene_modifier</span><span class="p">,</span>
+                        <span class="n">scene_modifier_kwargs</span><span class="o">=</span><span class="n">scene_modifier_kwargs</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="n">fname_scene</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">TEMP_WORKING_DIR</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="si">}</span><span class="s2">.tif&quot;</span>
+                    <span class="p">)</span>
+                    <span class="n">_scene</span><span class="o">.</span><span class="n">to_rasterio</span><span class="p">(</span><span class="n">fname_scene</span><span class="p">)</span>
+                    <span class="n">dataset_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fname_scene</span><span class="p">)</span>
+                    <span class="n">scene_properties_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_scene</span><span class="o">.</span><span class="n">scene_properties</span><span class="p">)</span>
+                <span class="c1"># merge datasets using rasterio and read results back into a scene</span>
+                <span class="n">band_options</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s2">&quot;band_names&quot;</span><span class="p">:</span> <span class="n">_scene</span><span class="o">.</span><span class="n">band_names</span><span class="p">,</span>
+                    <span class="s2">&quot;band_aliases&quot;</span><span class="p">:</span> <span class="n">_scene</span><span class="o">.</span><span class="n">band_aliases</span>
+                <span class="p">}</span>
+                <span class="n">scene</span> <span class="o">=</span> <span class="n">merge_datasets</span><span class="p">(</span>
+                    <span class="n">datasets</span><span class="o">=</span><span class="n">dataset_list</span><span class="p">,</span>
+                    <span class="n">target_crs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">target_epsg</span><span class="o">.</span><span class="n">unique</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span>
+                    <span class="n">vector_features</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mapper_configs</span><span class="o">.</span><span class="n">feature</span><span class="o">.</span><span class="n">to_geoseries</span><span class="p">(),</span>
+                    <span class="n">sensor</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sensor</span><span class="p">,</span>
+                    <span class="n">band_options</span><span class="o">=</span><span class="n">band_options</span>
+                <span class="p">)</span>
+                <span class="c1"># handle scene properties. They need to be merged as well</span>
+                <span class="n">merged_scene_properties</span> <span class="o">=</span> <span class="n">scene_properties_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">other_scene_properties</span> <span class="ow">in</span> <span class="n">scene_properties_list</span><span class="p">[</span><span class="mi">1</span><span class="p">::]:</span>
+                    <span class="n">scene_props_keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">merged_scene_properties</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+                    <span class="k">for</span> <span class="n">scene_prop</span> <span class="ow">in</span> <span class="n">scene_props_keys</span><span class="p">:</span>
+                        <span class="n">first_val</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;merged_scene_properties.</span><span class="si">{</span><span class="n">scene_prop</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                        <span class="n">this_val</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;other_scene_properties.</span><span class="si">{</span><span class="n">scene_prop</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">first_val</span> <span class="o">!=</span> <span class="n">this_val</span><span class="p">:</span>
+                            <span class="c1"># only string values can be merged (connected by &#39;&amp;&amp;&#39;)</span>
+                            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">first_val</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                                <span class="n">new_val</span> <span class="o">=</span> <span class="n">first_val</span> <span class="o">+</span> <span class="s2">&quot;&amp;&amp;&quot;</span> <span class="o">+</span> <span class="n">this_val</span>  <span class="c1"># noqa: F841</span>
+                                <span class="n">exec</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;merged_scene_properties.</span><span class="si">{</span><span class="n">scene_prop</span><span class="si">}</span><span class="s2"> = new_val&quot;</span><span class="p">)</span>
+
+                <span class="n">scene</span><span class="o">.</span><span class="n">scene_properties</span> <span class="o">=</span> <span class="n">merged_scene_properties</span>
+                <span class="c1"># because ESA has some mess with the naming of their file names and</span>
+                <span class="c1"># metadata, there might be duplicated seems not detected by the mapper</span>
+                <span class="c1"># since the time stamps slightly differ (few seconds in some cases) but</span>
+                <span class="c1"># their IDs are the same</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">scoll</span><span class="o">.</span><span class="n">add_scene</span><span class="p">(</span><span class="n">scene</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Scene with ID </span><span class="si">{</span><span class="n">merged_scene_properties</span><span class="o">.</span><span class="n">product_uri</span><span class="si">}</span><span class="s2"> &quot;</span>
+                        <span class="s2">&quot;already added to SceneCollection - continue&quot;</span>
+                    <span class="p">)</span>
+                    <span class="k">continue</span>
+                <span class="n">update_scene_properties_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">merged_scene_properties</span><span class="p">)</span>
+
+            <span class="c1"># update the metadata entries to avoid mis-matches in the number of</span>
+            <span class="c1"># scenes and their URIs</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span>
+                <span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">time_column</span><span class="p">],</span> <span class="n">keep</span><span class="o">=</span><span class="s2">&quot;first&quot;</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">updated_scene_properties</span> <span class="ow">in</span> <span class="n">update_scene_properties_list</span><span class="p">:</span>
+                <span class="c1"># use the time stamp for finding the correct metadata</span>
+                <span class="c1"># records. There might be some disagreement in the milliseconds</span>
+                <span class="c1"># because of different precision levels therefore, an offset</span>
+                <span class="c1"># of less than 1 second is tolerated</span>
+                <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span>
+                    <span class="nb">abs</span><span class="p">(</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">time_column</span><span class="p">]</span>
+                        <span class="o">-</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span>
+                            <span class="n">updated_scene_properties</span><span class="o">.</span><span class="n">acquisition_time</span><span class="p">,</span>
+                            <span class="n">utc</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="o">&lt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="mi">60</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;minutes&quot;</span><span class="p">)</span>
+                <span class="p">]</span><span class="o">.</span><span class="n">index</span>
+                <span class="k">for</span> <span class="n">scene_property</span> <span class="ow">in</span> <span class="n">updated_scene_properties</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">idx</span><span class="p">,</span> <span class="n">scene_property</span><span class="p">]</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;updated_scene_properties.</span><span class="si">{</span><span class="n">scene_property</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="p">)</span>
+
+        <span class="c1"># then add those scenes that are unique, i.e., no mosaicing is required</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">_metadata_unique</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">_metadata_unique</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+                <span class="n">scene</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_scene</span><span class="p">(</span>
+                    <span class="n">item</span><span class="o">=</span><span class="n">item</span><span class="p">,</span>
+                    <span class="n">scene_constructor</span><span class="o">=</span><span class="n">scene_constructor</span><span class="p">,</span>
+                    <span class="n">scene_constructor_kwargs</span><span class="o">=</span><span class="n">scene_constructor_kwargs</span><span class="p">,</span>
+                    <span class="n">scene_modifier</span><span class="o">=</span><span class="n">scene_modifier</span><span class="p">,</span>
+                    <span class="n">scene_modifier_kwargs</span><span class="o">=</span><span class="n">scene_modifier_kwargs</span><span class="p">,</span>
+                    <span class="n">reprojection_method</span><span class="o">=</span><span class="n">reprojection_method</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="c1"># because ESA has some mess with the naming of their file names and</span>
+                <span class="c1"># metadata, there might be duplicated seems not detected by the mapper</span>
+                <span class="c1"># since the time stamps slightly differ (few seconds in some cases) but</span>
+                <span class="c1"># their IDs are the same</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">scoll</span><span class="o">.</span><span class="n">add_scene</span><span class="p">(</span><span class="n">scene</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Scene with ID </span><span class="si">{</span><span class="n">scene</span><span class="o">.</span><span class="n">scene_properties</span><span class="o">.</span><span class="n">product_uri</span><span class="si">}</span><span class="s2"> &quot;</span>
+                        <span class="s2">&quot;already added to SceneCollection - continue&quot;</span>
+                    <span class="p">)</span>
+                    <span class="k">continue</span>
+
+        <span class="c1"># sort scenes by their timestamps and save as data attribute</span>
+        <span class="c1"># to mapper instance</span>
+        <span class="n">scoll</span> <span class="o">=</span> <span class="n">scoll</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+
+        <span class="c1"># ..versionadd:: 0.2.1</span>
+        <span class="c1"># we have to make sure that the scenes in self.data all share the same</span>
+        <span class="c1"># extent and are aligned onto the same grid.</span>
+        <span class="c1"># We use the boundary of all scenes to update the upper left corner</span>
+        <span class="n">bounds_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">ncols</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">nrows</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">scene</span> <span class="ow">in</span> <span class="n">scoll</span><span class="p">:</span>
+            <span class="n">bounds</span> <span class="o">=</span> <span class="n">scene</span><span class="p">[</span><span class="n">scene</span><span class="o">.</span><span class="n">band_names</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">bounds</span>
+            <span class="n">ncols</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">scene</span><span class="p">[</span><span class="n">scene</span><span class="o">.</span><span class="n">band_names</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">ncols</span><span class="p">)</span>
+            <span class="n">nrows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">scene</span><span class="p">[</span><span class="n">scene</span><span class="o">.</span><span class="n">band_names</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">nrows</span><span class="p">)</span>
+            <span class="n">crs</span> <span class="o">=</span> <span class="n">scene</span><span class="p">[</span><span class="n">scene</span><span class="o">.</span><span class="n">band_names</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">crs</span>
+            <span class="n">bounds_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">(</span>
+                <span class="n">geometry</span><span class="o">=</span><span class="p">[</span><span class="n">bounds</span><span class="p">],</span>
+                <span class="n">crs</span><span class="o">=</span><span class="n">crs</span>
+            <span class="p">))</span>
+        <span class="n">bounds_gdf</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">bounds_list</span><span class="p">)</span>
+        <span class="n">total_bounds</span> <span class="o">=</span> <span class="n">bounds_gdf</span><span class="o">.</span><span class="n">total_bounds</span>
+        
+        <span class="c1"># loop over scenes and project them onto the total bounds</span>
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">scene</span> <span class="ow">in</span> <span class="n">scoll</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">scene</span><span class="o">.</span><span class="n">is_bandstack</span><span class="p">():</span>
+                <span class="c1"># get a band of the SceneCollection</span>
+                <span class="n">reference_band</span> <span class="o">=</span> <span class="n">scene</span><span class="p">[</span><span class="n">scene</span><span class="o">.</span><span class="n">band_names</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+                <span class="n">geo_info</span> <span class="o">=</span> <span class="n">reference_band</span><span class="o">.</span><span class="n">geo_info</span>
+                <span class="c1"># get the transform of the destination extent</span>
+                <span class="n">minx</span><span class="p">,</span> <span class="n">maxy</span> <span class="o">=</span> <span class="n">total_bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">total_bounds</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">dst_transform</span> <span class="o">=</span> <span class="n">Affine</span><span class="p">(</span>
+                    <span class="n">a</span><span class="o">=</span><span class="n">geo_info</span><span class="o">.</span><span class="n">pixres_x</span><span class="p">,</span>
+                    <span class="n">b</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                    <span class="n">c</span><span class="o">=</span><span class="n">minx</span><span class="p">,</span>
+                    <span class="n">d</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                    <span class="n">e</span><span class="o">=</span><span class="n">geo_info</span><span class="o">.</span><span class="n">pixres_y</span><span class="p">,</span>
+                    <span class="n">f</span><span class="o">=</span><span class="n">maxy</span><span class="p">)</span>
+
+                <span class="c1"># loop over the bands and reproject them</span>
+                <span class="c1"># onto the target grid</span>
+                <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">band</span> <span class="ow">in</span> <span class="n">scene</span><span class="p">:</span>
+                    <span class="n">dst_shape</span> <span class="o">=</span> <span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">nrows</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="n">ncols</span><span class="p">))</span>
+                    <span class="n">destination</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+                        <span class="n">dst_shape</span><span class="p">,</span>
+                        <span class="n">dtype</span><span class="o">=</span><span class="n">band</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">dtype</span>
+                    <span class="p">)</span>
+                    <span class="c1"># determine nodata</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">band</span><span class="o">.</span><span class="n">nodata</span><span class="p">):</span>
+                        <span class="n">dst_nodata</span> <span class="o">=</span> <span class="n">band</span><span class="o">.</span><span class="n">nodata</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="c1"># if band nodata is NaN we set</span>
+                        <span class="c1"># no-data to None (rasterio default)</span>
+                        <span class="n">dst_nodata</span> <span class="o">=</span> <span class="kc">None</span>
+                    <span class="n">band</span><span class="o">.</span><span class="n">reproject</span><span class="p">(</span>
+                        <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">target_crs</span><span class="o">=</span><span class="n">reference_band</span><span class="o">.</span><span class="n">crs</span><span class="p">,</span>
+                        <span class="n">dst_transform</span><span class="o">=</span><span class="n">dst_transform</span><span class="p">,</span>
+                        <span class="n">destination</span><span class="o">=</span><span class="n">destination</span><span class="p">,</span>
+                        <span class="n">dst_nodata</span><span class="o">=</span><span class="n">dst_nodata</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">scoll</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Finished extraction of </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sensor</span><span class="si">}</span><span class="s2"> scenes&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_load_pixels</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">pixel_reader</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span>
+            <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">]</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="n">RasterCollection</span><span class="o">.</span><span class="n">read_pixels</span><span class="p">,</span>
+        <span class="n">pixel_reader_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{},</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load pixel values from 0:N scenes into a `GeoDataFrame`</span>
+
+<span class="sd">        :param pixel_reader:</span>
+<span class="sd">            Callable to read the pixels from scenes. `RasterCollection.read_pixels` by</span>
+<span class="sd">            default. Any other callable can be provided as long as it returns a</span>
+<span class="sd">            GeoDataFrame and accepts `vector_features` and `fpath_raster` as input</span>
+<span class="sd">            keyword arguments.</span>
+<span class="sd">        :param pixel_reader_kwargs:</span>
+<span class="sd">            optional keyword arguments to pass on to `pixel_reader`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># loop over scenes and read the pixel values. Carry out reprojection where</span>
+        <span class="c1"># necessary</span>
+        <span class="n">pixel_scene_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+            <span class="n">pixel_reader_kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;vector_features&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapper_configs</span><span class="o">.</span><span class="n">feature</span><span class="o">.</span><span class="n">to_geoseries</span><span class="p">(),</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">pixels</span> <span class="o">=</span> <span class="n">pixel_reader</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">real_path</span><span class="p">,</span> <span class="o">**</span><span class="n">pixel_reader_kwargs</span><span class="p">)</span>
+                <span class="n">pixels</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">time_column</span><span class="p">]</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">time_column</span><span class="p">]</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not read pixel data: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="c1"># reproject pixels if necessary</span>
+            <span class="n">pixels</span><span class="o">.</span><span class="n">to_crs</span><span class="p">(</span><span class="n">epsg</span><span class="o">=</span><span class="n">item</span><span class="o">.</span><span class="n">target_epsg</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">pixel_scene_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pixels</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">pixel_scene_list</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Mapper.load_scenes"><a class="viewcode-back" href="../../../packages/eodal.mapper.mapper.html#eodal.mapper.mapper.Mapper.load_scenes">[docs]</a>    <span class="k">def</span> <span class="nf">load_scenes</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">scene_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">pixel_kwargs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">round_time_stamps_to_freq</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load scenes from `~Mapper.query_scenes` result into a `SceneCollection`</span>
+<span class="sd">        (Polygon and MultiPolygon geometries) or into a `GeoDataFrame` (Point</span>
+<span class="sd">        and MultiPoint geometries).</span>
+
+<span class="sd">        Mosaicing operations are handled on the fly so calling programs will</span>
+<span class="sd">        always receive analysis-ready data (e.g., when working across image</span>
+<span class="sd">        tiles).</span>
+
+<span class="sd">        :param scene_kwargs:</span>
+<span class="sd">            key-word arguments to pass to `~Mapper._load_scenes_collection`</span>
+<span class="sd">            for handling EOdal scenes. These arguments *MUST* be provided when</span>
+<span class="sd">            using `Polygon` or `MulitPolygon` geometries in the `Mapper` call.</span>
+<span class="sd">        :param pixel_kwargs:</span>
+<span class="sd">            key-word arguments to pass to `~Mapper._load_pixels` for handling</span>
+<span class="sd">            single pixel values. These arguments *MUST* be provided when</span>
+<span class="sd">            using `Point` or `MulitPoint` geometries in the `Mapper` call.</span>
+<span class="sd">        :param round_time_stamps_to_freq:</span>
+<span class="sd">            ..versionadd:: 0.2.2</span>
+<span class="sd">            optionally round scene time stamps to a custom temporal frequency accepted</span>
+<span class="sd">            by `~pandas.Timestamp.round` to allow moscaicing of scenes with slightly</span>
+<span class="sd">            different timestamps as it might be necessary for some EO platforms.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># check if the correct keyword arguments have been passed</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_geoms_are_points</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">scene_kwargs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Since Polygon/MultiPolygon geometries are provided &quot;</span>
+                    <span class="o">+</span> <span class="s2">&quot;`pixel_kwargs` must not be empty&quot;</span>
+                <span class="p">)</span>
+
+        <span class="c1"># check if scenes have been queried and found</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;No scenes are available - have you already executed &quot;</span>
+                <span class="s2">&quot;Mapper.query_scenes()?&quot;</span>
+            <span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;No scenes were found - consider modifying your search criteria&quot;</span>
+            <span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="c1"># check the spatial reference system of the scenes found. The mapper class</span>
+        <span class="c1"># will ensure that all of them will be available in the same CRS. The CRS</span>
+        <span class="c1"># is selected which most of the scenes already have to keep the reprojection</span>
+        <span class="c1"># costs as small as possible (and also to avoid resampling induced errors)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;target_epsg&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">epsg</span><span class="o">.</span><span class="n">mode</span><span class="p">()</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not determine CRS of scenes: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># provide paths to raster data. Depending on th settings, this is a path on the</span>
+        <span class="c1"># file system or a URL</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;real_path&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">USE_STAC</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;real_path&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;assets&quot;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;real_path&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
+                <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">reconstruct_path</span><span class="p">(</span><span class="n">record</span><span class="o">=</span><span class="n">x</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span>
+            <span class="p">)</span>
+
+        <span class="c1"># load the data depending on the geometry type of the feature(s)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_geoms_are_points</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_load_pixels</span><span class="p">(</span><span class="o">**</span><span class="n">pixel_kwargs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_load_scenes_collection</span><span class="p">(</span>
+                <span class="n">round_time_stamps_to_freq</span><span class="o">=</span><span class="n">round_time_stamps_to_freq</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">scene_kwargs</span>
+            <span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../packages/modules.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,430 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.core.spectral_indices module &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="eodal.downloader package" href="eodal.downloader.html" />
+    <link rel="prev" title="eodal.core.scene module" href="eodal.core.scene.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-eodal.core.spectral_indices">
+<span id="eodal-core-spectral-indices-module"></span><h1>eodal.core.spectral_indices module<a class="headerlink" href="#module-eodal.core.spectral_indices" title="Permalink to this heading">¶</a></h1>
+<p>This module contains a set of commonly used Spectral Indices (VIs).
+The formula are generic by using color names. Thus, they can be applied
+to different remote sensing platforms and are not bound to a predefined band
+selection.</p>
+<p>Copyright (C) 2022 Lukas Valentin Graf</p>
+<p>This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.</p>
+<p>This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.</p>
+<p>You should have received a copy of the GNU General Public License
+along with this program.  If not, see &lt;<a class="reference external" href="http://www.gnu.org/licenses/">http://www.gnu.org/licenses/</a>&gt;.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="eodal.core.spectral_indices.SpectralIndices">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">eodal.core.spectral_indices.</span></span><span class="sig-name descname"><span class="pre">SpectralIndices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">band_mapping</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.12)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">{}</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/spectral_indices.html#SpectralIndices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.spectral_indices.SpectralIndices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.12)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>generic spectral indices</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.spectral_indices.SpectralIndices.BSI">
+<span class="sig-name descname"><span class="pre">BSI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/spectral_indices.html#SpectralIndices.BSI"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.spectral_indices.SpectralIndices.BSI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the Bare Soil Index (BSI).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>collection</strong> – reflectance in the ‘blue’, ‘red’, ‘nir_1’ and ‘swir_1’ channel</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>BSI values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.spectral_indices.SpectralIndices.CI_GREEN">
+<span class="sig-name descname"><span class="pre">CI_GREEN</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">array</span></span></span><a class="reference internal" href="../_modules/eodal/core/spectral_indices.html#SpectralIndices.CI_GREEN"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.spectral_indices.SpectralIndices.CI_GREEN" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the green chlorophyll index (CI_green).
+It is sensitive to canopy chlorophyll concentration (CCC).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>collection</strong> – reflectance in the ‘green’ and ‘nir_1’ channel</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>CI-green values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.spectral_indices.SpectralIndices.CR">
+<span class="sig-name descname"><span class="pre">CR</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/spectral_indices.html#SpectralIndices.CR"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.spectral_indices.SpectralIndices.CR" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the Cross Ratio  VH/VV</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.spectral_indices.SpectralIndices.EVI">
+<span class="sig-name descname"><span class="pre">EVI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/spectral_indices.html#SpectralIndices.EVI"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.spectral_indices.SpectralIndices.EVI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the Enhanced Vegetation Index (EVI) following the formula
+provided by Huete et al. (2002)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>collection</strong> – reflectance in the ‘blue’, ‘red’ and ‘nir_1’ channel</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>EVI values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.spectral_indices.SpectralIndices.GNDVI">
+<span class="sig-name descname"><span class="pre">GNDVI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/spectral_indices.html#SpectralIndices.GNDVI"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.spectral_indices.SpectralIndices.GNDVI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the Green Normalized Difference Vegetation Index
+:param collection:</p>
+<blockquote>
+<div><p>reflectance in the ‘nir_1’ and ‘green’ channel</p>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>GNDVI values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.spectral_indices.SpectralIndices.MCARI">
+<span class="sig-name descname"><span class="pre">MCARI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/spectral_indices.html#SpectralIndices.MCARI"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.spectral_indices.SpectralIndices.MCARI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the Modified Chlorophyll Absorption Ratio Index (MCARI).
+It is sensitive to leaf chlorophyll concentration (LCC).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>collection</strong> – refletcnace in the ‘green’, ‘red’, and ‘red_edge_1’ channel</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>MCARI values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.spectral_indices.SpectralIndices.MSAVI">
+<span class="sig-name descname"><span class="pre">MSAVI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">array</span></span></span><a class="reference internal" href="../_modules/eodal/core/spectral_indices.html#SpectralIndices.MSAVI"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.spectral_indices.SpectralIndices.MSAVI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the Modified Soil-Adjusted Vegetation Index
+(MSAVI). MSAVI is sensitive to the green leaf area index
+(greenLAI).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>collection</strong> – reflectance in the ‘red’ and ‘nir_1’ channel</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>MSAVI values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.spectral_indices.SpectralIndices.MTCARI_OSAVI">
+<span class="sig-name descname"><span class="pre">MTCARI_OSAVI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">array</span></span></span><a class="reference internal" href="../_modules/eodal/core/spectral_indices.html#SpectralIndices.MTCARI_OSAVI"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.spectral_indices.SpectralIndices.MTCARI_OSAVI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the ratio of the Transformed Chlorophyll Index (TCARI)
+and the Optimized Soil-Adjusted Vegetation Index (OSAVI). It is sensitive
+to changes in the leaf chlorophyll content (LCC).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>collection</strong> – reflectance in the ‘green’, ‘red’, ‘red_edge_1’, ‘red_edge_3’ channel</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>TCARI/OSAVI values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.spectral_indices.SpectralIndices.NDRE">
+<span class="sig-name descname"><span class="pre">NDRE</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">array</span></span></span><a class="reference internal" href="../_modules/eodal/core/spectral_indices.html#SpectralIndices.NDRE"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.spectral_indices.SpectralIndices.NDRE" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the Normalized Difference Red Edge (NDRE). It extends
+the capabilities of the NDVI for middle and late season crops.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>collection</strong> – reflectance in the ‘red_edge_1’ and ‘red_edge_3’ channel</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>NDRE values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.spectral_indices.SpectralIndices.NDRI">
+<span class="sig-name descname"><span class="pre">NDRI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/spectral_indices.html#SpectralIndices.NDRI"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.spectral_indices.SpectralIndices.NDRI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the Normalized Difference Residue Index. Useful for detecting
+crop residues.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>collection</strong> – reflectance in the ‘red’ and ‘swir_2’ channel</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>NDRI values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.spectral_indices.SpectralIndices.NDTI">
+<span class="sig-name descname"><span class="pre">NDTI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/spectral_indices.html#SpectralIndices.NDTI"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.spectral_indices.SpectralIndices.NDTI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the Normalized Tillage Index. Useful for tillage and crop residues.
+:param collection:</p>
+<blockquote>
+<div><p>reflectance in the ‘swir_1’ and ‘swir_2’ channel</p>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>NDTI values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.spectral_indices.SpectralIndices.NDVI">
+<span class="sig-name descname"><span class="pre">NDVI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">array</span></span></span><a class="reference internal" href="../_modules/eodal/core/spectral_indices.html#SpectralIndices.NDVI"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.spectral_indices.SpectralIndices.NDVI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the Normalized Difference Vegetation Index
+(NDVI) using the red and the near-infrared (NIR) channel.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>collection</strong> – reflectance in the ‘red’ and ‘nir_1’ channel</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>NDVI values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.spectral_indices.SpectralIndices.NDWI">
+<span class="sig-name descname"><span class="pre">NDWI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/spectral_indices.html#SpectralIndices.NDWI"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.spectral_indices.SpectralIndices.NDWI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the Normalized Difference Yellowness Index</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>collection</strong> – reflectance in the ‘green’ and ‘nir channel</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>NDYI values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.spectral_indices.SpectralIndices.NDYI">
+<span class="sig-name descname"><span class="pre">NDYI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/spectral_indices.html#SpectralIndices.NDYI"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.spectral_indices.SpectralIndices.NDYI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the Normalized Difference Yellowness Index</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>collection</strong> – reflectance in the ‘blue’, ‘green’, channel</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>NDYI values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.spectral_indices.SpectralIndices.NHI">
+<span class="sig-name descname"><span class="pre">NHI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/spectral_indices.html#SpectralIndices.NHI"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.spectral_indices.SpectralIndices.NHI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the Normalized Humidity Index. First described for detecting
+ponds with vegetation in and on top.
+:param collection:</p>
+<blockquote>
+<div><p>reflectance in the ‘green’ and ‘swir_1’ channel</p>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>NHI values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.spectral_indices.SpectralIndices.VARI">
+<span class="sig-name descname"><span class="pre">VARI</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">collection</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/spectral_indices.html#SpectralIndices.VARI"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.spectral_indices.SpectralIndices.VARI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the Visible Atmospherically Resistant Index (VARI)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>collection</strong> – reflectance in the ‘blue’, ‘red’, ‘nir_1’ and ‘swir_1’ channel</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>BSI values</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.spectral_indices.SpectralIndices.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">band_mapping</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.12)"><span class="pre">Dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">{}</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/eodal/core/spectral_indices.html#SpectralIndices.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.spectral_indices.SpectralIndices.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class constructor. To override the default
+bands pass custom band mappings as a dictionary:</p>
+<p class="rubric">Example</p>
+<p>To use Sentinel-2 band nir_2 (Band 8A) instead of
+Sentinel-2 band nir_1 (Band 8) for, e.g., NDVI
+calculation pass</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># use nir_2 instead of nir_1</span>
+<span class="c1"># the other bands remain unaffected</span>
+<span class="n">band_mapping</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;nir_1&#39;</span><span class="p">:</span> <span class="s1">&#39;nir_2&#39;</span><span class="p">}</span>
+<span class="n">spectral_indices</span> <span class="o">=</span> <span class="n">SpectralIndices</span><span class="p">(</span><span class="n">band_mapping</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>band_mapping</strong> – optional band mapping to override default band
+setting for SI calculation (see example above)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.spectral_indices.SpectralIndices.calc_si">
+<span class="sig-name descname"><span class="pre">calc_si</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">si</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">collection</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.12)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.26)"><span class="pre">ndarray</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">MaskedArray</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/eodal/core/spectral_indices.html#SpectralIndices.calc_si"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.spectral_indices.SpectralIndices.calc_si" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the selected spectral index (SI) for
+spectral band data derived from <cite>~eodal.core.RasterCollection</cite>.
+The resulting vi is returned as <code class="docutils literal notranslate"><span class="pre">numpy.ndarray</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>si</strong> – name of the selected vegetation index (e.g., NDVI). Raises
+an error if the vegetation index is not implemented/ found.</p></li>
+<li><p><strong>collection</strong> – ~`eodal.core.raster.RasterCollection` with spectral bands.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>2d <code class="docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> or <code class="docutils literal notranslate"><span class="pre">np.ma.MaskedArray</span></code> with VI values
+(depends on array-type of the input)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="eodal.core.spectral_indices.SpectralIndices.get_si_list">
+<span class="sig-name descname"><span class="pre">get_si_list</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/eodal/core/spectral_indices.html#SpectralIndices.get_si_list"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.spectral_indices.SpectralIndices.get_si_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a list of implemented Spectral Indices (SIs)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>list of SIs currently implemented</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="eodal.html">eodal package</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">API Reference</a><ul>
+  <li><a href="eodal.html">eodal package</a><ul>
+  <li><a href="eodal.core.html">eodal.core package</a><ul>
+      <li>Previous: <a href="eodal.core.scene.html" title="previous chapter">eodal.core.scene module</a></li>
+      <li>Next: <a href="eodal.downloader.html" title="next chapter">eodal.downloader package</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/packages/eodal.core.spectral_indices.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

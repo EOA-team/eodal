@@ -1,0 +1,205 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.core.utils.geometry module &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="eodal.core.utils.raster module" href="eodal.core.utils.raster.html" />
+    <link rel="prev" title="eodal.core.utils package" href="eodal.core.utils.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-eodal.core.utils.geometry">
+<span id="eodal-core-utils-geometry-module"></span><h1>eodal.core.utils.geometry module<a class="headerlink" href="#module-eodal.core.utils.geometry" title="Permalink to this heading">¶</a></h1>
+<p>Utils for working with <code class="docutils literal notranslate"><span class="pre">shapely.geometry</span></code> and <code class="docutils literal notranslate"><span class="pre">geopandas.GeoDataFrame</span></code> like objects.</p>
+<p>Copyright (C) 2022 Lukas Valentin Graf</p>
+<p>This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.</p>
+<p>This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.</p>
+<p>You should have received a copy of the GNU General Public License
+along with this program.  If not, see &lt;<a class="reference external" href="http://www.gnu.org/licenses/">http://www.gnu.org/licenses/</a>&gt;.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.core.utils.geometry.check_geometry_types">
+<span class="sig-prename descclassname"><span class="pre">eodal.core.utils.geometry.</span></span><span class="sig-name descname"><span class="pre">check_geometry_types</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.12)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">GeoDataFrame</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">allowed_geometry_types</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.12)"><span class="pre">List</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove_empty_geoms</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Optional" title="(in Python v3.12)"><span class="pre">Optional</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.12)"><span class="pre">bool</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">GeoDataFrame</span></span></span><a class="reference internal" href="../_modules/eodal/core/utils/geometry.html#check_geometry_types"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.utils.geometry.check_geometry_types" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks if a <code class="docutils literal notranslate"><span class="pre">GeoDataFrame</span></code> contains allowed <code class="docutils literal notranslate"><span class="pre">shapely.geometry</span></code>
+types, only. Raises an error if geometry types other than those allowed are
+found.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>allowed_geometry_types</strong> – list of allowed geometry types</p></li>
+<li><p><strong>in_dataset</strong> – file with vector geometries (e.g., ESRI shapefile or GEOJSON) or geodataframe
+to check</p></li>
+<li><p><strong>remove_empty_geoms</strong> – when True (default) removes features with empty (None-type) geometry from
+<code class="docutils literal notranslate"><span class="pre">in_dataset</span></code> before carrying out the type checking.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">GeoDataFrame</span></code> with checked (and optionally cleaned) vector features.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.core.utils.geometry.convert_3D_2D">
+<span class="sig-prename descclassname"><span class="pre">eodal.core.utils.geometry.</span></span><span class="sig-name descname"><span class="pre">convert_3D_2D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">geometry</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">GeoSeries</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">GeoSeries</span></span></span><a class="reference internal" href="../_modules/eodal/core/utils/geometry.html#convert_3D_2D"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.utils.geometry.convert_3D_2D" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes a GeoSeries of 3D Multi/Polygons (has_z) and returns a list of
+2D Multi/Polygons.
+Snippet taken from <a class="reference external" href="https://gist.github.com/rmania/8c88377a5c902dfbc134795a7af538d8">https://gist.github.com/rmania/8c88377a5c902dfbc134795a7af538d8</a>
+(accessed latest Jan 18th 2021)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>geometry</strong> – <code class="docutils literal notranslate"><span class="pre">GeoSeries</span></code> from <code class="docutils literal notranslate"><span class="pre">GeoDataFrame</span></code></p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>updated <code class="docutils literal notranslate"><span class="pre">GeoSeries</span></code> without third dimension (z)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.core.utils.geometry.multi_to_single_points">
+<span class="sig-prename descclassname"><span class="pre">eodal.core.utils.geometry.</span></span><span class="sig-name descname"><span class="pre">multi_to_single_points</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">point_features</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">gpd.GeoDataFrame</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">gpd.GeoDataFrame</span></span></span><a class="reference internal" href="../_modules/eodal/core/utils/geometry.html#multi_to_single_points"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.utils.geometry.multi_to_single_points" title="Permalink to this definition">¶</a></dt>
+<dd><p>Casts MultiPoint geometries to single point geometries by calling
+<cite>gpd.GeoDataFrame.explode()</cite></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>point_features</strong> – point features to cast</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>casted point features or input if all geometries are already single parted</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.core.utils.geometry.read_geometries">
+<span class="sig-prename descclassname"><span class="pre">eodal.core.utils.geometry.</span></span><span class="sig-name descname"><span class="pre">read_geometries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Union" title="(in Python v3.12)"><span class="pre">Union</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.12)"><span class="pre">Path</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">GeoDataFrame</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">GeoDataFrame</span></span></span><a class="reference internal" href="../_modules/eodal/core/utils/geometry.html#read_geometries"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.core.utils.geometry.read_geometries" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a geodataframe containing vector features</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>in_dataset</strong> – path-like object <code class="docutils literal notranslate"><span class="pre">GeoSeries</span></code> or <code class="docutils literal notranslate"><span class="pre">GeoDataFrame</span></code></p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">GeoDataFrame</span></code> representation of vector features</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="eodal.html">eodal package</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">API Reference</a><ul>
+  <li><a href="eodal.html">eodal package</a><ul>
+  <li><a href="eodal.core.html">eodal.core package</a><ul>
+  <li><a href="eodal.core.utils.html">eodal.core.utils package</a><ul>
+      <li>Previous: <a href="eodal.core.utils.html" title="previous chapter">eodal.core.utils package</a></li>
+      <li>Next: <a href="eodal.core.utils.raster.html" title="next chapter">eodal.core.utils.raster module</a></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/packages/eodal.core.utils.geometry.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

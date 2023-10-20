@@ -1,0 +1,319 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.core.sensors.sentinel1 &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/alabaster.css" />
+    <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
+    <script src="../../../../_static/jquery.js"></script>
+    <script src="../../../../_static/underscore.js"></script>
+    <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../../_static/doctools.js"></script>
+    <script src="../../../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for eodal.core.sensors.sentinel1</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module contains the ``Sentinel1`` class that inherits from</span>
+<span class="sd">eodal&#39;s core ``RasterCollection`` class.</span>
+
+<span class="sd">The ``Sentinel1`` class enables reading one or more polarizations from Sentinel-1</span>
+<span class="sd">data in .SAFE format which is ESA&#39;s standard format for distributing Sentinel-1 data.</span>
+
+<span class="sd">The class handles data in GRD (ground-range detected) and RTC (radiometrically terrain</span>
+<span class="sd">corrected) processing level.</span>
+
+<span class="sd">Copyright (C) 2022 Lukas Valentin Graf</span>
+
+<span class="sd">This program is free software: you can redistribute it and/or modify</span>
+<span class="sd">it under the terms of the GNU General Public License as published by</span>
+<span class="sd">the Free Software Foundation, either version 3 of the License, or</span>
+<span class="sd">(at your option) any later version.</span>
+
+<span class="sd">This program is distributed in the hope that it will be useful,</span>
+<span class="sd">but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="sd">MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="sd">GNU General Public License for more details.</span>
+
+<span class="sd">You should have received a copy of the GNU General Public License</span>
+<span class="sd">along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">geopandas</span> <span class="k">as</span> <span class="nn">gpd</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">planetary_computer</span>
+
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="kn">from</span> <span class="nn">eodal.config</span> <span class="kn">import</span> <span class="n">get_settings</span>
+<span class="kn">from</span> <span class="nn">eodal.core.band</span> <span class="kn">import</span> <span class="n">Band</span>
+<span class="kn">from</span> <span class="nn">eodal.core.raster</span> <span class="kn">import</span> <span class="n">RasterCollection</span><span class="p">,</span> <span class="n">SceneProperties</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.decorators</span> <span class="kn">import</span> <span class="n">prepare_point_features</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.sentinel1</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">get_S1_platform_from_safe</span><span class="p">,</span>
+    <span class="n">get_S1_acquistion_time_from_safe</span><span class="p">,</span>
+    <span class="n">_url_to_safe_name</span><span class="p">,</span>
+    <span class="n">get_s1_imaging_mode_from_safe</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.exceptions</span> <span class="kn">import</span> <span class="n">DataNotFoundError</span>
+
+<span class="n">Settings</span> <span class="o">=</span> <span class="n">get_settings</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="Sentinel1"><a class="viewcode-back" href="../../../../packages/eodal.core.sensors.sentinel1.html#eodal.core.sensors.sentinel1.Sentinel1">[docs]</a><span class="k">class</span> <span class="nc">Sentinel1</span><span class="p">(</span><span class="n">RasterCollection</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Reading Sentinel-1 Radiometrically Terrain Corrected (RTC) and</span>
+<span class="sd">    Ground Range Detected (GRD) products</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_get_band_files</span><span class="p">(</span>
+        <span class="n">in_dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">polarizations</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get file-paths to Sentinel-1 polarizations</span>
+
+<span class="sd">        :param in_dir:</span>
+<span class="sd">            file-path to the Sentinel-1 RTC SAFE or dictionary with asset</span>
+<span class="sd">            items returned from STAC query</span>
+<span class="sd">        :param polarizations:</span>
+<span class="sd">            selection of polarization to read</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            `DataFrame` with found files and links to them</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">band_items</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">polarization</span> <span class="ow">in</span> <span class="n">polarizations</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">Settings</span><span class="o">.</span><span class="n">USE_STAC</span><span class="p">:</span>
+                <span class="c1"># get band files from STAC (MS PC)</span>
+                <span class="n">href</span> <span class="o">=</span> <span class="n">in_dir</span><span class="p">[</span><span class="n">polarization</span><span class="o">.</span><span class="n">lower</span><span class="p">()][</span><span class="s2">&quot;href&quot;</span><span class="p">]</span>
+                <span class="c1"># sign href (this works only with a valid API key)</span>
+                <span class="n">ref</span> <span class="o">=</span> <span class="n">planetary_computer</span><span class="o">.</span><span class="n">sign_url</span><span class="p">(</span><span class="n">href</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">ref</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+                        <span class="n">in_dir</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;measurement/s1*-</span><span class="si">{</span><span class="n">polarization</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="si">}</span><span class="s2">-*.tiff&quot;</span><span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">DataNotFoundError</span><span class="p">(</span>
+                        <span class="s2">&quot;Could not find data for polarization &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">polarization</span><span class="si">}</span><span class="s2"> in </span><span class="si">{</span><span class="n">in_dir</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="p">)</span>
+            <span class="n">item</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;polarization&quot;</span><span class="p">:</span> <span class="n">polarization</span><span class="p">,</span> <span class="s2">&quot;file_path&quot;</span><span class="p">:</span> <span class="n">ref</span><span class="p">}</span>
+            <span class="n">band_items</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">band_items</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Sentinel1.from_safe"><a class="viewcode-back" href="../../../../packages/eodal.core.sensors.sentinel1.html#eodal.core.sensors.sentinel1.Sentinel1.from_safe">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_safe</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">in_dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">polarizations</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;VV&quot;</span><span class="p">,</span> <span class="s2">&quot;VH&quot;</span><span class="p">],</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Reads a Sentinel-1 RTC (radiometrically terrain corrected) or</span>
+<span class="sd">        GRD (Ground Range Detected) products</span>
+
+<span class="sd">        NOTE</span>
+<span class="sd">            When using MSPC as STAC provider a valid API key is required</span>
+
+<span class="sd">        :param in_dir:</span>
+<span class="sd">            file-path to the Sentinel-1 RTC SAFE or dictionary with asset</span>
+<span class="sd">            items returned from STAC query</span>
+<span class="sd">        :param polarizations:</span>
+<span class="sd">            selection of polarization to read. &#39;VV&#39; and &#39;VH&#39; by default.</span>
+<span class="sd">        :param kwargs:</span>
+<span class="sd">            optional key word arguments to pass on to</span>
+<span class="sd">            `~eodal.core.raster.RasterCollection.from_rasterio`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># get file-paths</span>
+        <span class="n">band_df</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_band_files</span><span class="p">(</span><span class="n">in_dir</span><span class="p">,</span> <span class="n">polarizations</span><span class="p">)</span>
+
+        <span class="c1"># set scene properties (platform, sensor, acquisition date)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">platform</span> <span class="o">=</span> <span class="n">get_S1_platform_from_safe</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="o">=</span><span class="n">in_dir</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not determine platform: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">acqui_time</span> <span class="o">=</span> <span class="n">get_S1_acquistion_time_from_safe</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="o">=</span><span class="n">in_dir</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not determine acquisition time: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">mode</span> <span class="o">=</span> <span class="n">get_s1_imaging_mode_from_safe</span><span class="p">(</span><span class="n">dot_safe_name</span><span class="o">=</span><span class="n">in_dir</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not determine imaging mode: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_dir</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+                <span class="n">product_uri</span> <span class="o">=</span> <span class="n">in_dir</span><span class="o">.</span><span class="n">name</span>
+            <span class="k">elif</span> <span class="n">Settings</span><span class="o">.</span><span class="n">USE_STAC</span><span class="p">:</span>
+                <span class="n">product_uri</span> <span class="o">=</span> <span class="n">_url_to_safe_name</span><span class="p">(</span><span class="n">in_dir</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not determine product uri: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># get a new RasterCollection</span>
+        <span class="n">scene_properties</span> <span class="o">=</span> <span class="n">SceneProperties</span><span class="p">(</span>
+            <span class="n">acquisition_time</span><span class="o">=</span><span class="n">acqui_time</span><span class="p">,</span>
+            <span class="n">platform</span><span class="o">=</span><span class="n">platform</span><span class="p">,</span>
+            <span class="n">sensor</span><span class="o">=</span><span class="s2">&quot;SAR&quot;</span><span class="p">,</span>
+            <span class="n">product_uri</span><span class="o">=</span><span class="n">product_uri</span><span class="p">,</span>
+            <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">sentinel1</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">scene_properties</span><span class="o">=</span><span class="n">scene_properties</span><span class="p">)</span>
+
+        <span class="c1"># add bands</span>
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">band_item</span> <span class="ow">in</span> <span class="n">band_df</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+            <span class="n">sentinel1</span><span class="o">.</span><span class="n">add_band</span><span class="p">(</span>
+                <span class="n">band_constructor</span><span class="o">=</span><span class="n">Band</span><span class="o">.</span><span class="n">from_rasterio</span><span class="p">,</span>
+                <span class="n">fpath_raster</span><span class="o">=</span><span class="n">band_item</span><span class="o">.</span><span class="n">file_path</span><span class="p">,</span>
+                <span class="n">band_name_dst</span><span class="o">=</span><span class="n">band_item</span><span class="o">.</span><span class="n">polarization</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">sentinel1</span></div>
+
+<div class="viewcode-block" id="Sentinel1.read_pixels_from_safe"><a class="viewcode-back" href="../../../../packages/eodal.core.sensors.sentinel1.html#eodal.core.sensors.sentinel1.Sentinel1.read_pixels_from_safe">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="nd">@prepare_point_features</span>
+    <span class="k">def</span> <span class="nf">read_pixels_from_safe</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">in_dir</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">vector_features</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">,</span>
+        <span class="n">polarizations</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;VV&quot;</span><span class="p">,</span> <span class="s2">&quot;VH&quot;</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extracts Sentinel-1 raster values at locations defined by one or many</span>
+<span class="sd">        vector geometry features read from a vector file (e.g., ESRI shapefile) or</span>
+<span class="sd">        ``GeoDataFrame``.</span>
+
+<span class="sd">        NOTE:</span>
+<span class="sd">            A point is dimension-less, therefore, the raster grid cell (pixel) closest</span>
+<span class="sd">            to the point is returned if the point lies within the raster.</span>
+
+<span class="sd">        :param in_dir:</span>
+<span class="sd">            Sentinel-1 scene in .SAFE structure from which to extract pixel values at</span>
+<span class="sd">            the provided point locations (GRD or RTC).Can be either a dictionary</span>
+<span class="sd">            item returned from STAC or a physical file-path</span>
+<span class="sd">        :param vector_features:</span>
+<span class="sd">            vector file (e.g., ESRI shapefile or geojson) or ``GeoDataFrame``</span>
+<span class="sd">            defining point locations for which to extract pixel values</span>
+<span class="sd">        :param polarizations:</span>
+<span class="sd">            selection of polarization to read. &#39;VV&#39; and &#39;VH&#39; by default.</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            ``GeoDataFrame`` containing the extracted raster values. The band values</span>
+<span class="sd">            are appended as columns to the dataframe. Existing columns of the input</span>
+<span class="sd">            `in_file_pixels` are preserved.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># get file-paths</span>
+        <span class="n">band_df</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_band_files</span><span class="p">(</span><span class="n">in_dir</span><span class="p">,</span> <span class="n">polarizations</span><span class="p">)</span>
+        <span class="c1"># read pixel values from bands</span>
+        <span class="n">gdf_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">band_item</span> <span class="ow">in</span> <span class="n">band_df</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+            <span class="n">gdf_polarization</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">read_pixels</span><span class="p">(</span>
+                <span class="n">vector_features</span><span class="o">=</span><span class="n">vector_features</span><span class="p">,</span>
+                <span class="n">fpath_raster</span><span class="o">=</span><span class="n">band_item</span><span class="o">.</span><span class="n">file_path</span><span class="p">,</span>
+                <span class="n">band_idxs</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+            <span class="p">)</span>
+            <span class="n">gdf_polarization</span> <span class="o">=</span> <span class="n">gdf_polarization</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span>
+                <span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;B1&quot;</span><span class="p">:</span> <span class="n">band_item</span><span class="o">.</span><span class="n">polarization</span><span class="p">}</span>
+            <span class="p">)</span>
+            <span class="n">gdf_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">gdf_polarization</span><span class="p">)</span>
+
+        <span class="c1"># concatenate the single GeoDataFrames with the band data</span>
+        <span class="n">gdf</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">gdf_list</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># clean the dataframe and remove duplicate column names after merging</span>
+        <span class="c1"># to avoid (large) redundancies</span>
+        <span class="n">gdf</span> <span class="o">=</span> <span class="n">gdf</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="o">~</span><span class="n">gdf</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">duplicated</span><span class="p">()]</span>
+        <span class="k">return</span> <span class="n">gdf</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../packages/modules.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

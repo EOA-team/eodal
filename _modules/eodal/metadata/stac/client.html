@@ -1,0 +1,440 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.metadata.stac.client &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/alabaster.css" />
+    <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
+    <script src="../../../../_static/jquery.js"></script>
+    <script src="../../../../_static/underscore.js"></script>
+    <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../../_static/doctools.js"></script>
+    <script src="../../../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for eodal.metadata.stac.client</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Querying datasets from a Spatio-Temporal Asset Catalog (STAC).</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">geopandas</span> <span class="k">as</span> <span class="nn">gpd</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">pystac_client</span> <span class="kn">import</span> <span class="n">Client</span>
+<span class="kn">from</span> <span class="nn">pystac_client.stac_api_io</span> <span class="kn">import</span> <span class="n">StacApiIO</span>
+<span class="kn">from</span> <span class="nn">requests.adapters</span> <span class="kn">import</span> <span class="n">HTTPAdapter</span><span class="p">,</span> <span class="n">Retry</span>
+<span class="kn">from</span> <span class="nn">shapely.geometry</span> <span class="kn">import</span> <span class="n">box</span><span class="p">,</span> <span class="n">Polygon</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span>
+
+<span class="kn">from</span> <span class="nn">eodal.config</span> <span class="kn">import</span> <span class="n">get_settings</span><span class="p">,</span> <span class="n">STAC_Providers</span>
+<span class="kn">from</span> <span class="nn">eodal.mapper.filter</span> <span class="kn">import</span> <span class="n">Filter</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.decorators</span> <span class="kn">import</span> <span class="n">prepare_bbox</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.geometry</span> <span class="kn">import</span> <span class="n">box_from_transform</span><span class="p">,</span> <span class="n">prepare_gdf</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.reprojection</span> <span class="kn">import</span> <span class="n">infer_utm_zone</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.timestamps</span> <span class="kn">import</span> <span class="n">datetime_to_date</span>
+
+<span class="n">Settings</span> <span class="o">=</span> <span class="n">get_settings</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="query_stac"><a class="viewcode-back" href="../../../../packages/eodal.metadata.stac.client.html#eodal.metadata.stac.client.query_stac">[docs]</a><span class="k">def</span> <span class="nf">query_stac</span><span class="p">(</span>
+    <span class="n">time_start</span><span class="p">:</span> <span class="n">datetime</span><span class="p">,</span>
+    <span class="n">time_end</span><span class="p">:</span> <span class="n">datetime</span><span class="p">,</span>
+    <span class="n">collection</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">bounding_box</span><span class="p">:</span> <span class="n">Polygon</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Queries a STAC (Spatio-Temporal Asset Catalog) by bounding box and</span>
+<span class="sd">    time period to get items from a user-defined collection.</span>
+
+<span class="sd">    This is a sensor-agnostic function called by sensor-specific ones.</span>
+
+<span class="sd">    :param time_start:</span>
+<span class="sd">        start of the time period</span>
+<span class="sd">    :param time_end:</span>
+<span class="sd">        end of the time period</span>
+<span class="sd">    :param collection:</span>
+<span class="sd">        name of the collection</span>
+<span class="sd">        (e.g., sentinel-2-l2a for Sentinel-2 L2A data)</span>
+<span class="sd">    :param bounding_box:</span>
+<span class="sd">        bounding box either as extended well-known text in geographic coordinates</span>
+<span class="sd">        or as shapely ``Polygon`` in geographic coordinates (WGS84)</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        list of dictionary items returned from the STAC query</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># open connection to STAC server (specify custom CA_BUNDLE if required)</span>
+    <span class="n">stac_api_io</span> <span class="o">=</span> <span class="n">StacApiIO</span><span class="p">()</span>
+
+    <span class="c1"># ..versionadd:: 0.2.1</span>
+    <span class="c1"># add retries in case of HTTP 502, 503 and 504 errors</span>
+    <span class="c1"># TODO pass `Retry` object to `StacApiIO` with python &gt;= 3.8</span>
+    <span class="c1"># and `pystac-client` &gt;= 0.7.0.</span>
+    <span class="n">retries</span> <span class="o">=</span> <span class="n">Retry</span><span class="p">(</span>
+        <span class="n">total</span><span class="o">=</span><span class="n">Settings</span><span class="o">.</span><span class="n">NUMBER_HTTPS_RETRIES</span><span class="p">,</span>
+        <span class="n">backoff_factor</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">status_forcelist</span><span class="o">=</span><span class="p">[</span><span class="mi">502</span><span class="p">,</span> <span class="mi">503</span><span class="p">,</span> <span class="mi">504</span><span class="p">])</span>
+    <span class="n">stac_api_io</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">mount</span><span class="p">(</span><span class="s2">&quot;http://&quot;</span><span class="p">,</span> <span class="n">HTTPAdapter</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="n">retries</span><span class="p">))</span>
+    <span class="n">stac_api_io</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">mount</span><span class="p">(</span><span class="s2">&quot;https://&quot;</span><span class="p">,</span> <span class="n">HTTPAdapter</span><span class="p">(</span><span class="n">max_retries</span><span class="o">=</span><span class="n">retries</span><span class="p">))</span>
+
+    <span class="c1"># handle certificate bundle</span>
+    <span class="n">stac_api_io</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">verify</span> <span class="o">=</span> <span class="n">Settings</span><span class="o">.</span><span class="n">STAC_API_IO_CA_BUNDLE</span>
+
+    <span class="c1"># setup the client</span>
+    <span class="n">cat</span> <span class="o">=</span> <span class="n">Client</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">Settings</span><span class="o">.</span><span class="n">STAC_BACKEND</span><span class="o">.</span><span class="n">URL</span><span class="p">,</span> <span class="n">stac_io</span><span class="o">=</span><span class="n">stac_api_io</span><span class="p">)</span>
+
+    <span class="c1"># transform dates into the required format (%Y-%m-%d)</span>
+    <span class="n">datestr</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">time_start</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">time_end</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span><span class="si">}</span><span class="s1">&#39;</span>
+    <span class="c1"># search datasets on catalog</span>
+    <span class="n">search</span> <span class="o">=</span> <span class="n">cat</span><span class="o">.</span><span class="n">search</span><span class="p">(</span>
+        <span class="n">collections</span><span class="o">=</span><span class="n">collection</span><span class="p">,</span>
+        <span class="n">intersects</span><span class="o">=</span><span class="n">bounding_box</span><span class="p">,</span>
+        <span class="n">datetime</span><span class="o">=</span><span class="n">datestr</span><span class="p">,</span>
+        <span class="n">max_items</span><span class="o">=</span><span class="n">Settings</span><span class="o">.</span><span class="n">MAX_ITEMS</span><span class="p">,</span>
+        <span class="n">limit</span><span class="o">=</span><span class="n">Settings</span><span class="o">.</span><span class="n">LIMIT_ITEMS</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="c1"># fetch items and convert them to GeoDataFrame, drop all records with</span>
+    <span class="c1"># too many clouds</span>
+    <span class="n">items</span> <span class="o">=</span> <span class="n">search</span><span class="o">.</span><span class="n">item_collection</span><span class="p">()</span>
+    <span class="n">item_json</span> <span class="o">=</span> <span class="n">items</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+    <span class="n">scenes</span> <span class="o">=</span> <span class="n">item_json</span><span class="p">[</span><span class="s2">&quot;features&quot;</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">scenes</span></div>
+
+
+<span class="k">def</span> <span class="nf">_filter_criteria_fulfilled</span><span class="p">(</span>
+    <span class="n">metadata_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">metadata_filters</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Filter</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Check if a scene fulfills the metadata filter criteria</span>
+
+<span class="sd">    :param metadata_dict:</span>
+<span class="sd">        scene metadata returned from STAC item</span>
+<span class="sd">    :param metadata_filters:</span>
+<span class="sd">        scene metadata filters to apply on metadata_dict</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        `True` if all criteria passed, `False` if a single</span>
+<span class="sd">        criterion was not met.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">criteria_fulfilled</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">_filter</span> <span class="ow">in</span> <span class="n">metadata_filters</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">_filter</span><span class="o">.</span><span class="n">entity</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;processing_level&quot;</span><span class="p">,</span> <span class="s2">&quot;product_type&quot;</span><span class="p">]:</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="n">_filter</span><span class="o">.</span><span class="n">entity</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">metadata_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">_filter</span><span class="o">.</span><span class="n">entity</span><span class="si">}</span><span class="s2"> could not be retrieved from STAC -&gt; skipping filter&quot;</span>
+            <span class="p">)</span>
+        <span class="c1"># check if the filter condition is met</span>
+        <span class="c1"># check if the metadata item to filter is a list or single value</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">metadata_dict</span><span class="p">[</span><span class="n">_filter</span><span class="o">.</span><span class="n">entity</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">metadata_dict</span><span class="p">[</span><span class="n">_filter</span><span class="o">.</span><span class="n">entity</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">eval_str</span> <span class="o">=</span> \
+                    <span class="sa">f</span><span class="s1">&#39;metadata_dict[&quot;</span><span class="si">{</span><span class="n">_filter</span><span class="o">.</span><span class="n">entity</span><span class="si">}</span><span class="s1">&quot;] &#39;</span> <span class="o">+</span> \
+                    <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">_filter</span><span class="o">.</span><span class="n">operator</span><span class="si">}</span><span class="s1"> &quot;</span><span class="si">{</span><span class="n">_filter</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s1">&quot;&#39;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">eval_str</span> <span class="o">=</span> \
+                    <span class="sa">f</span><span class="s1">&#39;metadata_dict[&quot;</span><span class="si">{</span><span class="n">_filter</span><span class="o">.</span><span class="n">entity</span><span class="si">}</span><span class="s1">&quot;] &#39;</span> <span class="o">+</span> \
+                    <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">_filter</span><span class="o">.</span><span class="n">operator</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">_filter</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="n">condition_met</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span><span class="n">eval_str</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># TODO: this is not really elegant and might not deliver always the</span>
+            <span class="c1"># results we are looking for ...</span>
+            <span class="c1"># convert _filter.value to list if it is not yet</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">_filter</span><span class="o">.</span><span class="n">value</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="p">[</span><span class="n">value</span><span class="p">]</span>
+            <span class="c1"># redefine the operators to work with sets</span>
+            <span class="k">if</span> <span class="n">_filter</span><span class="o">.</span><span class="n">operator</span> <span class="o">==</span> <span class="s1">&#39;==&#39;</span><span class="p">:</span>
+                <span class="n">condition_met</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="n">metadata_dict</span><span class="p">[</span><span class="n">_filter</span><span class="o">.</span><span class="n">entity</span><span class="p">])</span>
+            <span class="k">elif</span> <span class="n">_filter</span><span class="o">.</span><span class="n">operator</span> <span class="o">==</span> <span class="s1">&#39;!=&#39;</span><span class="p">:</span>
+                <span class="n">condition_met</span> <span class="o">=</span> <span class="ow">not</span> <span class="nb">set</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">issubset</span><span class="p">(</span><span class="n">metadata_dict</span><span class="p">[</span><span class="n">_filter</span><span class="o">.</span><span class="n">entity</span><span class="p">])</span>
+        <span class="n">criteria_fulfilled</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">condition_met</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="n">criteria_fulfilled</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="sentinel2"><a class="viewcode-back" href="../../../../packages/eodal.metadata.stac.client.html#eodal.metadata.stac.client.sentinel2">[docs]</a><span class="nd">@prepare_bbox</span>
+<span class="k">def</span> <span class="nf">sentinel2</span><span class="p">(</span><span class="n">metadata_filters</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Filter</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Sentinel-2 specific STAC query allows filtering by scene-wide cloudy pixel</span>
+<span class="sd">    percentage.</span>
+
+<span class="sd">    :param metadata_filters:</span>
+<span class="sd">        custom filters for filtering scenes in catalog by some metadata attributes</span>
+<span class="sd">    :param kwargs:</span>
+<span class="sd">        keyword arguments to pass to `query_stac` function</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        dataframe with references to found Sentinel-2 scenes</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># check for processing level of the data and set the collection accordingly</span>
+    <span class="n">filter_entities</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">entity</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">metadata_filters</span><span class="p">]</span>
+    <span class="k">if</span> <span class="s2">&quot;processing_level&quot;</span> <span class="ow">in</span> <span class="n">filter_entities</span><span class="p">:</span>
+        <span class="n">processing_level</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">x</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">metadata_filters</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">entity</span> <span class="o">==</span> <span class="s2">&quot;processing_level&quot;</span>
+        <span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">processing_level</span> <span class="o">=</span> <span class="n">processing_level</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span><span class="p">)</span>
+    <span class="n">processing_level_stac</span> <span class="o">=</span> <span class="nb">eval</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Settings.STAC_BACKEND.S2</span><span class="si">{</span><span class="n">processing_level</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;collection&quot;</span><span class="p">:</span> <span class="n">processing_level_stac</span><span class="p">})</span>
+
+    <span class="c1"># query STAC catalog</span>
+    <span class="n">stac_kwargs</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">scenes</span> <span class="o">=</span> <span class="n">query_stac</span><span class="p">(</span><span class="o">**</span><span class="n">stac_kwargs</span><span class="p">)</span>
+
+    <span class="c1"># get STAC provider specific naming conventions</span>
+    <span class="n">s2</span> <span class="o">=</span> <span class="n">Settings</span><span class="o">.</span><span class="n">STAC_BACKEND</span><span class="o">.</span><span class="n">Sentinel2</span>
+    <span class="c1"># loop over scenes found and apply the Filters provided</span>
+    <span class="n">metadata_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">scene</span> <span class="ow">in</span> <span class="n">scenes</span><span class="p">:</span>
+        <span class="c1"># extract scene metadata required for Sentinel-2</span>
+        <span class="c1"># map the STAC keys to eodal&#39;s naming convention</span>
+        <span class="n">props</span> <span class="o">=</span> <span class="n">scene</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">]</span>
+        <span class="c1"># tile-id requires some string handling in case of AWS</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s2</span><span class="o">.</span><span class="n">tile_id</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">tile_id</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">props</span><span class="p">[</span><span class="n">x</span><span class="p">])</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">Settings</span><span class="o">.</span><span class="n">STAC_BACKEND</span><span class="o">.</span><span class="n">Sentinel2</span><span class="o">.</span><span class="n">tile_id</span><span class="p">]</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tile_id</span> <span class="o">=</span> <span class="n">props</span><span class="p">[</span><span class="n">Settings</span><span class="o">.</span><span class="n">STAC_BACKEND</span><span class="o">.</span><span class="n">Sentinel2</span><span class="o">.</span><span class="n">tile_id</span><span class="p">]</span>
+        <span class="c1"># the product_uri is also not handled the same way by the different</span>
+        <span class="c1"># STAC providers</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">product_uri</span> <span class="o">=</span> <span class="n">scene</span><span class="p">[</span><span class="n">s2</span><span class="o">.</span><span class="n">product_uri</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">product_uri</span> <span class="o">=</span> <span class="n">props</span><span class="p">[</span><span class="n">s2</span><span class="o">.</span><span class="n">product_uri</span><span class="p">]</span>
+        <span class="c1"># same for the scene_id</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">scene_id</span> <span class="o">=</span> <span class="n">props</span><span class="p">[</span><span class="n">s2</span><span class="o">.</span><span class="n">scene_id</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="n">scene_id</span> <span class="o">=</span> <span class="n">scene</span><span class="p">[</span><span class="n">s2</span><span class="o">.</span><span class="n">scene_id</span><span class="p">]</span>
+        <span class="c1"># TODO: think about a more generic way to do this. The problem is:</span>
+        <span class="c1"># we need to map the different STAC provider settings into EOdals</span>
+        <span class="c1"># metadata model to avoid having the user to think about it</span>
+        <span class="n">meta_dict</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;product_uri&quot;</span><span class="p">:</span> <span class="n">product_uri</span><span class="p">,</span>
+            <span class="s2">&quot;scene_id&quot;</span><span class="p">:</span> <span class="n">scene_id</span><span class="p">,</span>
+            <span class="s2">&quot;spacecraft_name&quot;</span><span class="p">:</span> <span class="n">props</span><span class="p">[</span><span class="n">s2</span><span class="o">.</span><span class="n">platform</span><span class="p">],</span>
+            <span class="s2">&quot;tile_id&quot;</span><span class="p">:</span> <span class="n">tile_id</span><span class="p">,</span>
+            <span class="s2">&quot;sensing_date&quot;</span><span class="p">:</span> <span class="n">datetime_to_date</span><span class="p">(</span><span class="n">props</span><span class="p">[</span><span class="n">s2</span><span class="o">.</span><span class="n">sensing_time</span><span class="p">]),</span>
+            <span class="s2">&quot;cloudy_pixel_percentage&quot;</span><span class="p">:</span> <span class="n">props</span><span class="p">[</span><span class="n">s2</span><span class="o">.</span><span class="n">cloud_cover</span><span class="p">],</span>
+            <span class="s2">&quot;epsg&quot;</span><span class="p">:</span> <span class="n">props</span><span class="p">[</span><span class="n">s2</span><span class="o">.</span><span class="n">epsg</span><span class="p">],</span>
+            <span class="s2">&quot;sensing_time&quot;</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span>
+                <span class="n">props</span><span class="p">[</span><span class="n">s2</span><span class="o">.</span><span class="n">sensing_time</span><span class="p">],</span> <span class="n">s2</span><span class="o">.</span><span class="n">sensing_time_fmt</span>
+            <span class="p">),</span>
+            <span class="s2">&quot;sun_azimuth_angle&quot;</span><span class="p">:</span> <span class="n">props</span><span class="p">[</span><span class="n">s2</span><span class="o">.</span><span class="n">sun_azimuth_angle</span><span class="p">],</span>
+            <span class="s2">&quot;sun_zenith_angle&quot;</span><span class="p">:</span> <span class="n">props</span><span class="p">[</span><span class="n">s2</span><span class="o">.</span><span class="n">sun_zenith_angle</span><span class="p">],</span>
+            <span class="s2">&quot;geom&quot;</span><span class="p">:</span> <span class="n">Polygon</span><span class="p">(</span><span class="n">scene</span><span class="p">[</span><span class="s2">&quot;geometry&quot;</span><span class="p">][</span><span class="s2">&quot;coordinates&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]),</span>
+        <span class="p">}</span>
+        <span class="c1"># get links to actual Sentinel-2 bands</span>
+        <span class="n">meta_dict</span><span class="p">[</span><span class="s2">&quot;assets&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">scene</span><span class="p">[</span><span class="s2">&quot;assets&quot;</span><span class="p">]</span>
+
+        <span class="c1"># apply filters</span>
+        <span class="n">append_scene</span> <span class="o">=</span> <span class="n">_filter_criteria_fulfilled</span><span class="p">(</span><span class="n">meta_dict</span><span class="p">,</span> <span class="n">metadata_filters</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">append_scene</span><span class="p">:</span>
+            <span class="n">metadata_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">meta_dict</span><span class="p">)</span>
+
+    <span class="c1"># create geppandas GeoDataFrame out of scene metadata records</span>
+    <span class="k">return</span> <span class="n">prepare_gdf</span><span class="p">(</span><span class="n">metadata_list</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="sentinel1"><a class="viewcode-back" href="../../../../packages/eodal.metadata.stac.client.html#eodal.metadata.stac.client.sentinel1">[docs]</a><span class="nd">@prepare_bbox</span>
+<span class="k">def</span> <span class="nf">sentinel1</span><span class="p">(</span><span class="n">metadata_filters</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Filter</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Sentinel-1 specific STAC query function to retrieve mapper from MSPC.</span>
+
+<span class="sd">    IMPORTANT:</span>
+<span class="sd">        Returns the RTC product by default if not stated otherwise (using</span>
+<span class="sd">        `EOdal.mapper.filter` on `product_type`</span>
+
+<span class="sd">    :param metadata_filters:</span>
+<span class="sd">        custom filters for filtering scenes in catalog by some metadata attributes</span>
+<span class="sd">    :param kwargs:</span>
+<span class="sd">        :param kwargs:</span>
+<span class="sd">        keyword arguments to pass to `query_stac` function</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        dataframe with references to found Sentinel-1 scenes</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">Settings</span><span class="o">.</span><span class="n">STAC_BACKEND</span> <span class="o">!=</span> <span class="n">STAC_Providers</span><span class="o">.</span><span class="n">MSPC</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;This method currently requires Microsoft Planetary Computer&quot;</span><span class="p">)</span>
+
+    <span class="c1"># construct collection string (defaults to S1RTC if not stated otherwise in the</span>
+    <span class="c1"># metadata filters)</span>
+    <span class="n">collection</span> <span class="o">=</span> <span class="s2">&quot;S1&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">([</span><span class="n">x</span><span class="o">.</span><span class="n">entity</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">metadata_filters</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">entity</span> <span class="o">==</span> <span class="s2">&quot;product_type&quot;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">collection</span> <span class="o">+=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">metadata_filters</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">entity</span> <span class="o">==</span> <span class="s2">&quot;product_type&quot;</span><span class="p">][</span>
+            <span class="mi">0</span>
+        <span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">collection</span> <span class="o">+=</span> <span class="s2">&quot;RTC&quot;</span>
+
+    <span class="c1"># query the catalog</span>
+    <span class="n">stac_kwargs</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">stac_kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;collection&quot;</span><span class="p">:</span> <span class="nb">eval</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Settings.STAC_BACKEND.</span><span class="si">{</span><span class="n">collection</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)})</span>
+    <span class="n">scenes</span> <span class="o">=</span> <span class="n">query_stac</span><span class="p">(</span><span class="o">**</span><span class="n">stac_kwargs</span><span class="p">)</span>
+    <span class="n">metadata_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">scene</span> <span class="ow">in</span> <span class="n">scenes</span><span class="p">:</span>
+        <span class="n">metadata_dict</span> <span class="o">=</span> <span class="n">scene</span><span class="p">[</span><span class="s2">&quot;properties&quot;</span><span class="p">]</span>
+        <span class="n">metadata_dict</span><span class="p">[</span><span class="s2">&quot;assets&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">scene</span><span class="p">[</span><span class="s2">&quot;assets&quot;</span><span class="p">]</span>
+        <span class="n">metadata_dict</span><span class="p">[</span><span class="s2">&quot;sensing_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">metadata_dict</span><span class="p">[</span><span class="s2">&quot;datetime&quot;</span><span class="p">]</span>
+        <span class="n">metadata_dict</span><span class="p">[</span><span class="s2">&quot;sensing_date&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">datetime_to_date</span><span class="p">(</span><span class="n">metadata_dict</span><span class="p">[</span><span class="s1">&#39;sensing_time&#39;</span><span class="p">])</span>
+        <span class="k">del</span> <span class="n">metadata_dict</span><span class="p">[</span><span class="s2">&quot;datetime&quot;</span><span class="p">]</span>
+        <span class="c1"># infer EPSG code of the scene in UTM coordinates from its bounding box</span>
+        <span class="n">bbox</span> <span class="o">=</span> <span class="n">box</span><span class="p">(</span><span class="o">*</span><span class="n">scene</span><span class="p">[</span><span class="s2">&quot;bbox&quot;</span><span class="p">])</span>
+        <span class="n">metadata_dict</span><span class="p">[</span><span class="s2">&quot;epsg&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">infer_utm_zone</span><span class="p">(</span><span class="n">bbox</span><span class="p">)</span>
+        <span class="n">metadata_dict</span><span class="p">[</span><span class="s2">&quot;geom&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">bbox</span>
+        <span class="c1"># apply filters</span>
+        <span class="n">append_scene</span> <span class="o">=</span> <span class="n">_filter_criteria_fulfilled</span><span class="p">(</span><span class="n">metadata_dict</span><span class="p">,</span> <span class="n">metadata_filters</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">append_scene</span><span class="p">:</span>
+            <span class="n">metadata_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">metadata_dict</span><span class="p">)</span>
+
+    <span class="c1"># create geppandas GeoDataFrame out of scene metadata records</span>
+    <span class="k">return</span> <span class="n">prepare_gdf</span><span class="p">(</span><span class="n">metadata_list</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="landsat"><a class="viewcode-back" href="../../../../packages/eodal.metadata.stac.client.html#eodal.metadata.stac.client.landsat">[docs]</a><span class="nd">@prepare_bbox</span>
+<span class="k">def</span> <span class="nf">landsat</span><span class="p">(</span><span class="n">metadata_filters</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Filter</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">gpd</span><span class="o">.</span><span class="n">GeoDataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Landsat specific STAC query function to retrieve mapper from MSPC.</span>
+
+<span class="sd">    :param metadata_filters:</span>
+<span class="sd">        custom filters for filtering scenes in catalog by some metadata attributes</span>
+<span class="sd">    :param kwargs:</span>
+<span class="sd">        :param kwargs:</span>
+<span class="sd">        keyword arguments to pass to `query_stac` function</span>
+<span class="sd">    :returns:</span>
+<span class="sd">        dataframe with references to found Landsat scenes</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">Settings</span><span class="o">.</span><span class="n">STAC_BACKEND</span> <span class="o">!=</span> <span class="n">STAC_Providers</span><span class="o">.</span><span class="n">MSPC</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;This method currently requires Microsoft Planetary Computer&quot;</span><span class="p">)</span>
+
+    <span class="c1"># query the catalog</span>
+    <span class="n">stac_kwargs</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">scenes</span> <span class="o">=</span> <span class="n">query_stac</span><span class="p">(</span><span class="o">**</span><span class="n">stac_kwargs</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">scenes</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;STAC query returned no results! </span><span class="si">{</span><span class="n">stac_kwargs</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="n">metadata_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">scene</span> <span class="ow">in</span> <span class="n">scenes</span><span class="p">:</span>
+        <span class="n">metadata_dict</span> <span class="o">=</span> <span class="n">scene</span><span class="p">[</span><span class="s1">&#39;properties&#39;</span><span class="p">]</span>
+        <span class="n">metadata_dict</span><span class="p">[</span><span class="s1">&#39;assets&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">scene</span><span class="p">[</span><span class="s1">&#39;assets&#39;</span><span class="p">]</span>
+        <span class="n">metadata_dict</span><span class="p">[</span><span class="s2">&quot;sensing_time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">metadata_dict</span><span class="p">[</span><span class="s2">&quot;datetime&quot;</span><span class="p">]</span>
+        <span class="n">metadata_dict</span><span class="p">[</span><span class="s2">&quot;sensing_date&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">datetime_to_date</span><span class="p">(</span><span class="n">metadata_dict</span><span class="p">[</span><span class="s1">&#39;sensing_time&#39;</span><span class="p">])</span>
+        <span class="k">del</span> <span class="n">metadata_dict</span><span class="p">[</span><span class="s2">&quot;datetime&quot;</span><span class="p">]</span>
+        <span class="c1"># apply filters</span>
+        <span class="n">append_scene</span> <span class="o">=</span> <span class="n">_filter_criteria_fulfilled</span><span class="p">(</span><span class="n">metadata_dict</span><span class="p">,</span> <span class="n">metadata_filters</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">append_scene</span><span class="p">:</span>
+            <span class="n">metadata_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">metadata_dict</span><span class="p">)</span>
+        <span class="c1"># reconstruct the scene footprint</span>
+        <span class="n">transform</span> <span class="o">=</span> <span class="n">metadata_dict</span><span class="p">[</span><span class="s1">&#39;proj:transform&#39;</span><span class="p">]</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="n">metadata_dict</span><span class="p">[</span><span class="s1">&#39;proj:shape&#39;</span><span class="p">]</span>
+        <span class="n">metadata_dict</span><span class="p">[</span><span class="s1">&#39;geom&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">box_from_transform</span><span class="p">(</span><span class="n">transform</span><span class="p">,</span> <span class="n">shape</span><span class="p">)</span>
+        <span class="n">metadata_dict</span><span class="p">[</span><span class="s1">&#39;epsg&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">metadata_dict</span><span class="p">[</span><span class="s1">&#39;proj:epsg&#39;</span><span class="p">]</span>
+
+        <span class="c1"># extract angles</span>
+        <span class="n">metadata_dict</span><span class="p">[</span><span class="s1">&#39;sun_azimuth_angle&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">metadata_dict</span><span class="p">[</span><span class="s1">&#39;view:sun_azimuth&#39;</span><span class="p">]</span>
+        <span class="k">del</span> <span class="n">metadata_dict</span><span class="p">[</span><span class="s1">&#39;view:sun_azimuth&#39;</span><span class="p">]</span>
+        <span class="n">metadata_dict</span><span class="p">[</span><span class="s1">&#39;sun_zenith_angle&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">90.</span> <span class="o">-</span> <span class="n">metadata_dict</span><span class="p">[</span><span class="s1">&#39;view:sun_elevation&#39;</span><span class="p">]</span>
+        <span class="k">del</span> <span class="n">metadata_dict</span><span class="p">[</span><span class="s1">&#39;view:sun_elevation&#39;</span><span class="p">]</span>
+        <span class="n">metadata_dict</span><span class="p">[</span><span class="s1">&#39;sensor_zenith_angle&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">metadata_dict</span><span class="p">[</span><span class="s1">&#39;view:off_nadir&#39;</span><span class="p">]</span>
+        <span class="k">del</span> <span class="n">metadata_dict</span><span class="p">[</span><span class="s1">&#39;view:off_nadir&#39;</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">metadata_list</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s1">&#39;No scenes fulfilling filter criteria: </span><span class="si">{</span><span class="n">metadata_filters</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">prepare_gdf</span><span class="p">(</span><span class="n">metadata_list</span><span class="p">)</span></div>
+    
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../packages/modules.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

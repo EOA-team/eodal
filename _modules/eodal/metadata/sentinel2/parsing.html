@@ -1,0 +1,662 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.metadata.sentinel2.parsing &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/alabaster.css" />
+    <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
+    <script src="../../../../_static/jquery.js"></script>
+    <script src="../../../../_static/underscore.js"></script>
+    <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../../_static/doctools.js"></script>
+    <script src="../../../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for eodal.metadata.sentinel2.parsing</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module contains functions to extract relevant scene-specific</span>
+<span class="sd">Sentinel-2 metadata supporting L1C and L2A (sen2core-derived) processing levels</span>
+
+<span class="sd">Copyright (C) 2022 Lukas Valentin Graf</span>
+
+<span class="sd">This program is free software: you can redistribute it and/or modify</span>
+<span class="sd">it under the terms of the GNU General Public License as published by</span>
+<span class="sd">the Free Software Foundation, either version 3 of the License, or</span>
+<span class="sd">(at your option) any later version.</span>
+
+<span class="sd">This program is distributed in the hope that it will be useful,</span>
+<span class="sd">but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="sd">MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="sd">GNU General Public License for more details.</span>
+
+<span class="sd">You should have received a copy of the GNU General Public License</span>
+<span class="sd">along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">xml.dom</span> <span class="kn">import</span> <span class="n">minidom</span>
+<span class="kn">from</span> <span class="nn">pyproj</span> <span class="kn">import</span> <span class="n">Transformer</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">date</span>
+
+<span class="kn">from</span> <span class="nn">eodal.config</span> <span class="kn">import</span> <span class="n">get_settings</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.constants.sentinel2</span> <span class="kn">import</span> <span class="n">s2_band_mapping</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.exceptions</span> <span class="kn">import</span> <span class="n">UnknownProcessingLevel</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.exceptions</span> <span class="kn">import</span> <span class="n">InputError</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.warnings</span> <span class="kn">import</span> <span class="n">NothingToDo</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">get_settings</span><span class="p">()</span><span class="o">.</span><span class="n">logger</span>
+
+
+<div class="viewcode-block" id="parse_MTD_DS"><a class="viewcode-back" href="../../../../packages/eodal.metadata.sentinel2.parsing.html#eodal.metadata.sentinel2.parsing.parse_MTD_DS">[docs]</a><span class="k">def</span> <span class="nf">parse_MTD_DS</span><span class="p">(</span><span class="n">in_file</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Parses the MTD_DS.xml located in tghe /DATASTRIP folder</span>
+<span class="sd">    in each .SAFE dataset. The xml contains the noise model parameters</span>
+<span class="sd">    alpha and beta as well as physical gain factors</span>
+<span class="sd">    required to calculate the radiometric uncertainty</span>
+<span class="sd">    of the Level-1C data. The extraction of this data is therefore</span>
+<span class="sd">    optional.</span>
+
+<span class="sd">    :param in_file:</span>
+<span class="sd">        filepath of the scene metadata xml (MTD_DS.xml)</span>
+<span class="sd">    :return metadata:</span>
+<span class="sd">        dictionary with extracted noise model parameters, alpha</span>
+<span class="sd">        and beta, per spectral band of MSI</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># parse the xml file into a minidom object</span>
+    <span class="n">xmldoc</span> <span class="o">=</span> <span class="n">minidom</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">in_file</span><span class="p">))</span>
+
+    <span class="c1"># now, the values of some relevant tags can be extracted:</span>
+    <span class="n">metadata</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+    <span class="n">band_names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">s2_band_mapping</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+    <span class="n">datatakeIdentifier_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;Datatake_Info&quot;</span><span class="p">)</span>
+    <span class="n">element</span> <span class="o">=</span> <span class="n">datatakeIdentifier_xml</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">datatakeIdentifier</span> <span class="o">=</span> <span class="n">element</span><span class="o">.</span><span class="n">getAttribute</span><span class="p">(</span><span class="s2">&quot;datatakeIdentifier&quot;</span><span class="p">)</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;datatakeidentifier&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">datatakeIdentifier</span>
+
+    <span class="c1"># extract noise model parameters alpha and beta for all bands</span>
+    <span class="n">alpha_values</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;ALPHA&quot;</span><span class="p">)</span>
+    <span class="n">beta_values</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;BETA&quot;</span><span class="p">)</span>
+    <span class="c1"># loop over bands and store values of alpha and beta</span>
+    <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">elem</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">alpha_values</span><span class="p">,</span> <span class="n">beta_values</span><span class="p">)):</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">elem</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span><span class="p">)</span>
+        <span class="n">beta</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">elem</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span><span class="p">)</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;alpha_</span><span class="si">{</span><span class="n">band_names</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">alpha</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;beta_</span><span class="si">{</span><span class="n">band_names</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">beta</span>
+
+    <span class="c1"># extract physical gans of the single spectral bands</span>
+    <span class="n">physical_gains</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;PHYSICAL_GAINS&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">elem</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">physical_gains</span><span class="p">):</span>
+        <span class="n">physical_gain</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">elem</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span><span class="p">)</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;physical_gain_</span><span class="si">{</span><span class="n">band_names</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">physical_gain</span>
+
+    <span class="k">return</span> <span class="n">metadata</span></div>
+
+
+<div class="viewcode-block" id="parse_MTD_TL"><a class="viewcode-back" href="../../../../packages/eodal.metadata.sentinel2.parsing.html#eodal.metadata.sentinel2.parsing.parse_MTD_TL">[docs]</a><span class="k">def</span> <span class="nf">parse_MTD_TL</span><span class="p">(</span><span class="n">in_file</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Parses the MTD_TL.xml metadata file provided by ESA.This metadata</span>
+<span class="sd">    XML is usually placed in the GRANULE subfolder of a ESA-derived</span>
+<span class="sd">    S2 product and named &#39;MTD_TL.xml&#39;.</span>
+
+<span class="sd">    The &#39;MTD_TL.xml&#39; is available for both processing levels (i.e.,</span>
+<span class="sd">    L1C and L2A). The function is able to handle both processing</span>
+<span class="sd">    sources and returns some entries available in L2A processing level,</span>
+<span class="sd">    only, as None type objects.</span>
+
+<span class="sd">    The function extracts the most important metadata from the XML and</span>
+<span class="sd">    returns a dict with those extracted entries.</span>
+
+<span class="sd">    :param in_file:</span>
+<span class="sd">        filepath of the scene metadata xml 8MTD_TL.xml)</span>
+<span class="sd">    :return metadata:</span>
+<span class="sd">        dict with extracted metadata entries</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># parse the xml file into a minidom object</span>
+    <span class="n">xmldoc</span> <span class="o">=</span> <span class="n">minidom</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">in_file</span><span class="p">)</span>
+
+    <span class="c1"># now, the values of some relevant tags can be extracted:</span>
+    <span class="n">metadata</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+
+    <span class="c1"># get tile ID of L2A product and its corresponding L1C counterpart</span>
+    <span class="n">tile_id_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;TILE_ID&quot;</span><span class="p">)</span>
+    <span class="c1"># adaption to older Sen2Cor version</span>
+    <span class="n">check_l1c</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tile_id_xml</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">tile_id_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;TILE_ID_2A&quot;</span><span class="p">)</span>
+        <span class="n">check_l1c</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">tile_id</span> <span class="o">=</span> <span class="n">tile_id_xml</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+    <span class="n">scene_id</span> <span class="o">=</span> <span class="n">tile_id</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;SCENE_ID&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">scene_id</span>
+
+    <span class="c1"># check if the scene is L1C or L2A</span>
+    <span class="n">is_l1c</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="n">check_l1c</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">l1c_tile_id_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;L1C_TILE_ID&quot;</span><span class="p">)</span>
+            <span class="n">l1c_tile_id</span> <span class="o">=</span> <span class="n">l1c_tile_id_xml</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+            <span class="n">l1c_tile_id</span> <span class="o">=</span> <span class="n">l1c_tile_id</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;L1C_TILE_ID&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">l1c_tile_id</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">scene_id</span><span class="si">}</span><span class="s2"> is L1C processing level&quot;</span><span class="p">)</span>
+            <span class="n">is_l1c</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="c1"># sensing time (acquisition time)</span>
+    <span class="n">sensing_time_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;SENSING_TIME&quot;</span><span class="p">)</span>
+    <span class="n">sensing_time</span> <span class="o">=</span> <span class="n">sensing_time_xml</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;SENSING_TIME&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sensing_time</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;SENSING_DATE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span>
+        <span class="n">sensing_time</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;T&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">date</span><span class="p">()</span>
+
+    <span class="c1"># number of rows and columns for each resolution -&gt; 10, 20, 60 meters</span>
+    <span class="n">nrows_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;NROWS&quot;</span><span class="p">)</span>
+    <span class="n">ncols_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;NCOLS&quot;</span><span class="p">)</span>
+    <span class="n">resolutions</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;_10m&quot;</span><span class="p">,</span> <span class="s2">&quot;_20m&quot;</span><span class="p">,</span> <span class="s2">&quot;_60m&quot;</span><span class="p">]</span>
+    <span class="c1"># order: 10, 20, 60 meters spatial resolution</span>
+    <span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+        <span class="n">nrows</span> <span class="o">=</span> <span class="n">nrows_xml</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+        <span class="n">ncols</span> <span class="o">=</span> <span class="n">ncols_xml</span><span class="p">[</span><span class="n">ii</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;NROWS&quot;</span> <span class="o">+</span> <span class="n">resolutions</span><span class="p">[</span><span class="n">ii</span><span class="p">]]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">nrows</span><span class="p">)</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;NCOLS&quot;</span> <span class="o">+</span> <span class="n">resolutions</span><span class="p">[</span><span class="n">ii</span><span class="p">]]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ncols</span><span class="p">)</span>
+
+    <span class="c1"># EPSG-code</span>
+    <span class="n">epsg_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;HORIZONTAL_CS_CODE&quot;</span><span class="p">)</span>
+    <span class="n">epsg</span> <span class="o">=</span> <span class="n">epsg_xml</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;EPSG&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">epsg</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+
+    <span class="c1"># Upper Left Corner coordinates -&gt; is the same for all three resolutions</span>
+    <span class="n">ulx_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;ULX&quot;</span><span class="p">)</span>
+    <span class="n">uly_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;ULY&quot;</span><span class="p">)</span>
+    <span class="n">ulx</span> <span class="o">=</span> <span class="n">ulx_xml</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+    <span class="n">uly</span> <span class="o">=</span> <span class="n">uly_xml</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;ULX&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">ulx</span><span class="p">)</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;ULY&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">uly</span><span class="p">)</span>
+    <span class="c1"># endfor</span>
+
+    <span class="c1"># extract the mean zenith and azimuth angles</span>
+    <span class="c1"># the sun angles come first followed by the mean angles per band</span>
+    <span class="n">zenith_angles</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;ZENITH_ANGLE&quot;</span><span class="p">)</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;SUN_ZENITH_ANGLE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">zenith_angles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span><span class="p">)</span>
+
+    <span class="n">azimuth_angles</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;AZIMUTH_ANGLE&quot;</span><span class="p">)</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;SUN_AZIMUTH_ANGLE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">azimuth_angles</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span><span class="p">)</span>
+
+    <span class="c1"># get the mean zenith and azimuth angle over all bands</span>
+    <span class="n">sensor_zenith_angles</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">zenith_angles</span><span class="p">[</span><span class="mi">1</span><span class="p">::]]</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;SENSOR_ZENITH_ANGLE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">sensor_zenith_angles</span><span class="p">))</span>
+
+    <span class="n">sensor_azimuth_angles</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">azimuth_angles</span><span class="p">[</span><span class="mi">1</span><span class="p">::]]</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;SENSOR_AZIMUTH_ANGLE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">sensor_azimuth_angles</span><span class="p">))</span>
+
+    <span class="c1"># extract scene relevant data about nodata values, cloud coverage, etc.</span>
+    <span class="n">cloudy_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;CLOUDY_PIXEL_PERCENTAGE&quot;</span><span class="p">)</span>
+    <span class="n">cloudy</span> <span class="o">=</span> <span class="n">cloudy_xml</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;CLOUDY_PIXEL_PERCENTAGE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">cloudy</span><span class="p">)</span>
+
+    <span class="n">degraded_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;DEGRADED_MSI_DATA_PERCENTAGE&quot;</span><span class="p">)</span>
+    <span class="n">degraded</span> <span class="o">=</span> <span class="n">degraded_xml</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;DEGRADED_MSI_DATA_PERCENTAGE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">degraded</span><span class="p">)</span>
+
+    <span class="c1"># the other tags are available in L2A processing level, only</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">is_l1c</span><span class="p">:</span>
+        <span class="n">nodata_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;NODATA_PIXEL_PERCENTAGE&quot;</span><span class="p">)</span>
+        <span class="n">nodata</span> <span class="o">=</span> <span class="n">nodata_xml</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;NODATA_PIXEL_PERCENTAGE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">nodata</span><span class="p">)</span>
+
+        <span class="n">darkfeatures_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;DARK_FEATURES_PERCENTAGE&quot;</span><span class="p">)</span>
+        <span class="n">darkfeatures</span> <span class="o">=</span> <span class="n">darkfeatures_xml</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;DARK_FEATURES_PERCENTAGE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">darkfeatures</span><span class="p">)</span>
+
+        <span class="n">cs_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;CLOUD_SHADOW_PERCENTAGE&quot;</span><span class="p">)</span>
+        <span class="n">cs</span> <span class="o">=</span> <span class="n">cs_xml</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;CLOUD_SHADOW_PERCENTAGE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">cs</span><span class="p">)</span>
+
+        <span class="n">veg_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;VEGETATION_PERCENTAGE&quot;</span><span class="p">)</span>
+        <span class="n">veg</span> <span class="o">=</span> <span class="n">veg_xml</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;VEGETATION_PERCENTAGE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">veg</span><span class="p">)</span>
+
+        <span class="n">noveg_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;NOT_VEGETATED_PERCENTAGE&quot;</span><span class="p">)</span>
+        <span class="n">noveg</span> <span class="o">=</span> <span class="n">noveg_xml</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;NOT_VEGETATED_PERCENTAGE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">noveg</span><span class="p">)</span>
+
+        <span class="n">water_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;WATER_PERCENTAGE&quot;</span><span class="p">)</span>
+        <span class="n">water</span> <span class="o">=</span> <span class="n">water_xml</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;WATER_PERCENTAGE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">water</span><span class="p">)</span>
+
+        <span class="n">unclass_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;UNCLASSIFIED_PERCENTAGE&quot;</span><span class="p">)</span>
+        <span class="n">unclass</span> <span class="o">=</span> <span class="n">unclass_xml</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;UNCLASSIFIED_PERCENTAGE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">unclass</span><span class="p">)</span>
+
+        <span class="n">cproba_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;MEDIUM_PROBA_CLOUDS_PERCENTAGE&quot;</span><span class="p">)</span>
+        <span class="n">cproba</span> <span class="o">=</span> <span class="n">cproba_xml</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;MEDIUM_PROBA_CLOUDS_PERCENTAGE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">cproba</span><span class="p">)</span>
+
+        <span class="n">hcproba_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;HIGH_PROBA_CLOUDS_PERCENTAGE&quot;</span><span class="p">)</span>
+        <span class="n">hcproba</span> <span class="o">=</span> <span class="n">hcproba_xml</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;HIGH_PROBA_CLOUDS_PERCENTAGE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">hcproba</span><span class="p">)</span>
+
+        <span class="n">thcirrus_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;THIN_CIRRUS_PERCENTAGE&quot;</span><span class="p">)</span>
+        <span class="n">thcirrus</span> <span class="o">=</span> <span class="n">thcirrus_xml</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;THIN_CIRRUS_PERCENTAGE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">thcirrus</span><span class="p">)</span>
+
+        <span class="n">snowice_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;SNOW_ICE_PERCENTAGE&quot;</span><span class="p">)</span>
+        <span class="n">snowice</span> <span class="o">=</span> <span class="n">snowice_xml</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;SNOW_ICE_PERCENTAGE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">snowice</span><span class="p">)</span>
+
+    <span class="c1"># calculate the scene footprint in geographic coordinates</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;geom&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">get_scene_footprint</span><span class="p">(</span><span class="n">sensor_data</span><span class="o">=</span><span class="n">metadata</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">metadata</span></div>
+
+
+<div class="viewcode-block" id="parse_MTD_MSI"><a class="viewcode-back" href="../../../../packages/eodal.metadata.sentinel2.parsing.html#eodal.metadata.sentinel2.parsing.parse_MTD_MSI">[docs]</a><span class="k">def</span> <span class="nf">parse_MTD_MSI</span><span class="p">(</span><span class="n">in_file</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    parses the MTD_MSIL1C or MTD_MSIL2A metadata file that is delivered with</span>
+<span class="sd">    ESA Sentinel-2 L1C and L2A products, respectively.</span>
+
+<span class="sd">    The file is usually placed directly in the .SAFE root folder of an</span>
+<span class="sd">    unzipped Sentinel-2 L1C or L2A scene.</span>
+
+<span class="sd">    The extracted metadata is returned as a dict.</span>
+
+<span class="sd">    :param in_file:</span>
+<span class="sd">        filepath of the scene metadata xml (MTD_MSI2A.xml or MTD_MSIL1C.xml)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># parse the xml file into a minidom object</span>
+    <span class="n">xmldoc</span> <span class="o">=</span> <span class="n">minidom</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">in_file</span><span class="p">)</span>
+
+    <span class="c1"># check the version of the xml. Unfortunately, different sen2cor version</span>
+    <span class="c1"># also produced slightly different metadata xmls</span>
+    <span class="k">if</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;L2A_Product_Info&quot;</span><span class="p">):</span>
+        <span class="n">tag_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;PRODUCT_URI_2A&quot;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">tag_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;PRODUCT_URI&quot;</span><span class="p">]</span>
+
+    <span class="c1"># datatake identifier</span>
+    <span class="n">datatakeIdentifier_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;Datatake&quot;</span><span class="p">)</span>
+    <span class="n">element</span> <span class="o">=</span> <span class="n">datatakeIdentifier_xml</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">datatakeIdentifier</span> <span class="o">=</span> <span class="n">element</span><span class="o">.</span><span class="n">getAttribute</span><span class="p">(</span><span class="s2">&quot;datatakeIdentifier&quot;</span><span class="p">)</span>
+
+    <span class="c1"># define further tags to extract</span>
+    <span class="n">tag_list</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+        <span class="p">[</span>
+            <span class="s2">&quot;PROCESSING_LEVEL&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;SENSING_ORBIT_NUMBER&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;SPACECRAFT_NAME&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;SENSING_ORBIT_DIRECTION&quot;</span><span class="p">,</span>
+        <span class="p">]</span>
+    <span class="p">)</span>
+
+    <span class="n">metadata</span> <span class="o">=</span> <span class="nb">dict</span><span class="o">.</span><span class="n">fromkeys</span><span class="p">(</span><span class="n">tag_list</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">tag</span> <span class="ow">in</span> <span class="n">tag_list</span><span class="p">:</span>
+        <span class="n">xml_elem</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">tag</span> <span class="o">==</span> <span class="s2">&quot;PRODUCT_URI_2A&quot;</span><span class="p">:</span>
+            <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;PRODUCT_URI&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">xml_elem</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">data</span>
+            <span class="n">metadata</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;PRODUCT_URI_2A&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">metadata</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span> <span class="o">=</span> <span class="n">xml_elem</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">data</span>
+
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;datatakeIdentifier&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">datatakeIdentifier</span>
+
+    <span class="c1"># extract PDGS baseline</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;pdgs_baseline&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;PRODUCT_URI&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)[</span><span class="mi">3</span><span class="p">]</span>
+
+    <span class="c1"># stupid Sen2Cor is not consistent here ...</span>
+    <span class="k">if</span> <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;PROCESSING_LEVEL&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;Level-2Ap&quot;</span><span class="p">:</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;PROCESSING_LEVEL&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Level-2A&quot;</span>
+
+    <span class="c1"># reflectance conversion factor (U)</span>
+    <span class="n">reflectance_conversion_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;U&quot;</span><span class="p">)</span>
+    <span class="n">reflectance_conversion</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">reflectance_conversion_xml</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span><span class="p">)</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;reflectance_conversion&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">reflectance_conversion</span>
+
+    <span class="c1"># extract solar irradiance for the single bands</span>
+    <span class="n">bands</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;B01&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;B02&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;B03&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;B04&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;B05&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;B06&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;B07&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;B08&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;B8A&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;B09&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;B10&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;B11&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;B12&quot;</span><span class="p">,</span>
+    <span class="p">]</span>
+    <span class="n">sol_irrad_xml</span> <span class="o">=</span> <span class="n">xmldoc</span><span class="o">.</span><span class="n">getElementsByTagName</span><span class="p">(</span><span class="s2">&quot;SOLAR_IRRADIANCE&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">band</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">bands</span><span class="p">):</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="sa">f</span><span class="s2">&quot;SOLAR_IRRADIANCE_</span><span class="si">{</span><span class="n">band</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span>
+            <span class="n">sol_irrad_xml</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="o">.</span><span class="n">firstChild</span><span class="o">.</span><span class="n">nodeValue</span>
+        <span class="p">)</span>
+
+    <span class="c1"># S2 tile</span>
+    <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;TILE_ID&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;PRODUCT_URI&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)[</span><span class="mi">5</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">metadata</span></div>
+
+
+<div class="viewcode-block" id="get_scene_footprint"><a class="viewcode-back" href="../../../../packages/eodal.metadata.sentinel2.parsing.html#eodal.metadata.sentinel2.parsing.get_scene_footprint">[docs]</a><span class="k">def</span> <span class="nf">get_scene_footprint</span><span class="p">(</span><span class="n">sensor_data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    get the footprint (geometry) of a scene by calculating its</span>
+<span class="sd">    extent using the original UTM coordinates of the scene.</span>
+<span class="sd">    The obtained footprint is then converted to WGS84 geographic</span>
+<span class="sd">    coordinates and returned as Extended Well-Known-Text (EWKT)</span>
+<span class="sd">    string.</span>
+
+<span class="sd">    :param sensor_data:</span>
+<span class="sd">        dict with ULX, ULY, NROWS_10m, NCOLS_10m, EPSG entries</span>
+<span class="sd">        obtained from the MTD_TL.xml file</span>
+<span class="sd">    :return wkt:</span>
+<span class="sd">        extended well-known-text representation of the scene</span>
+<span class="sd">        footprint</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">dst_crs</span> <span class="o">=</span> <span class="s2">&quot;epsg:4326&quot;</span>
+    <span class="c1"># get the EPSG-code</span>
+    <span class="n">epsg</span> <span class="o">=</span> <span class="n">sensor_data</span><span class="p">[</span><span class="s2">&quot;EPSG&quot;</span><span class="p">]</span>
+    <span class="n">src_crs</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;epsg:</span><span class="si">{</span><span class="n">epsg</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="c1"># the pixelsize is set to 10 m</span>
+    <span class="n">pixelsize</span> <span class="o">=</span> <span class="mf">10.0</span>
+
+    <span class="c1"># use per default the 10m-representation</span>
+    <span class="n">ulx</span> <span class="o">=</span> <span class="n">sensor_data</span><span class="p">[</span><span class="s2">&quot;ULX&quot;</span><span class="p">]</span>  <span class="c1"># upper left x</span>
+    <span class="n">uly</span> <span class="o">=</span> <span class="n">sensor_data</span><span class="p">[</span><span class="s2">&quot;ULY&quot;</span><span class="p">]</span>  <span class="c1"># upper left y</span>
+    <span class="n">nrows</span> <span class="o">=</span> <span class="n">sensor_data</span><span class="p">[</span><span class="s2">&quot;NROWS_10m&quot;</span><span class="p">]</span>  <span class="c1"># number of rows</span>
+    <span class="n">ncols</span> <span class="o">=</span> <span class="n">sensor_data</span><span class="p">[</span><span class="s2">&quot;NCOLS_10m&quot;</span><span class="p">]</span>  <span class="c1"># number of columns</span>
+
+    <span class="c1"># calculate the other image corners (upper right, lower left, lower right)</span>
+    <span class="n">urx</span> <span class="o">=</span> <span class="n">ulx</span> <span class="o">+</span> <span class="p">(</span><span class="n">ncols</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">pixelsize</span>  <span class="c1"># upper right x</span>
+    <span class="n">ury</span> <span class="o">=</span> <span class="n">uly</span>  <span class="c1"># upper right y</span>
+    <span class="n">llx</span> <span class="o">=</span> <span class="n">ulx</span>  <span class="c1"># lower left x</span>
+    <span class="n">lly</span> <span class="o">=</span> <span class="n">uly</span> <span class="o">-</span> <span class="p">(</span><span class="n">nrows</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">pixelsize</span>  <span class="c1"># lower left y</span>
+    <span class="n">lrx</span> <span class="o">=</span> <span class="n">urx</span>  <span class="c1"># lower right x</span>
+    <span class="n">lry</span> <span class="o">=</span> <span class="n">lly</span>  <span class="c1"># lower right y</span>
+
+    <span class="c1"># transform coordinates to WGS84</span>
+    <span class="n">transformer</span> <span class="o">=</span> <span class="n">Transformer</span><span class="o">.</span><span class="n">from_crs</span><span class="p">(</span><span class="n">src_crs</span><span class="p">,</span> <span class="n">dst_crs</span><span class="p">)</span>
+    <span class="n">uly</span><span class="p">,</span> <span class="n">ulx</span> <span class="o">=</span> <span class="n">transformer</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">xx</span><span class="o">=</span><span class="n">ulx</span><span class="p">,</span> <span class="n">yy</span><span class="o">=</span><span class="n">uly</span><span class="p">)</span>
+    <span class="n">ury</span><span class="p">,</span> <span class="n">urx</span> <span class="o">=</span> <span class="n">transformer</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">xx</span><span class="o">=</span><span class="n">urx</span><span class="p">,</span> <span class="n">yy</span><span class="o">=</span><span class="n">ury</span><span class="p">)</span>
+    <span class="n">lly</span><span class="p">,</span> <span class="n">llx</span> <span class="o">=</span> <span class="n">transformer</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">xx</span><span class="o">=</span><span class="n">llx</span><span class="p">,</span> <span class="n">yy</span><span class="o">=</span><span class="n">lly</span><span class="p">)</span>
+    <span class="n">lry</span><span class="p">,</span> <span class="n">lrx</span> <span class="o">=</span> <span class="n">transformer</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">xx</span><span class="o">=</span><span class="n">lrx</span><span class="p">,</span> <span class="n">yy</span><span class="o">=</span><span class="n">lry</span><span class="p">)</span>
+
+    <span class="n">wkt</span> <span class="o">=</span> <span class="s2">&quot;SRID=4326;&quot;</span>
+    <span class="n">wkt</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;POLYGON((</span><span class="si">{</span><span class="n">ulx</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">uly</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="n">urx</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">ury</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="n">lrx</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">lry</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="n">llx</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">lly</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="n">ulx</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">uly</span><span class="si">}</span><span class="s2">))&quot;</span>
+
+    <span class="k">return</span> <span class="n">wkt</span></div>
+
+
+<div class="viewcode-block" id="parse_s2_scene_metadata"><a class="viewcode-back" href="../../../../packages/eodal.metadata.sentinel2.parsing.html#eodal.metadata.sentinel2.parsing.parse_s2_scene_metadata">[docs]</a><span class="k">def</span> <span class="nf">parse_s2_scene_metadata</span><span class="p">(</span>
+    <span class="n">in_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">extract_datastrip</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    wrapper function to extract metadata from ESA Sentinel-2</span>
+<span class="sd">    mapper. It returns a dict with the metadata most important</span>
+<span class="sd">    to characterize a given Sentinel-2 scene (mtd_msi).</span>
+<span class="sd">    Optionally, some information about the datastrip can be</span>
+<span class="sd">    extracted as well (MTD_DS.xml); this information is required</span>
+<span class="sd">    for the uncertainty modelling and therefore not extracted by</span>
+<span class="sd">    default.</span>
+
+<span class="sd">    The function works on both, L1C and L2A (sen2cor-based)</span>
+<span class="sd">    processing levels. The amount of metadata, however, is</span>
+<span class="sd">    reduced in the case of L1C since no scene classification</span>
+<span class="sd">    information is available.</span>
+
+<span class="sd">    NOTE: In order to identify mapper and their processing level</span>
+<span class="sd">    correctly, L2A mapper must have &#39;_MSIL2A_&#39; occuring somewhere</span>
+<span class="sd">    in the filepath. For L1C, it must be &#39;_MSIL1C_&#39;.</span>
+
+<span class="sd">    :param in_dir:</span>
+<span class="sd">        directory containing the L1C or L2A Sentinel-2 scene</span>
+<span class="sd">    :param extract_datastrip:</span>
+<span class="sd">        If True reads also metadata from the datastrip xml file</span>
+<span class="sd">        (MTD_DS.xml)</span>
+<span class="sd">    :return mtd_msi:</span>
+<span class="sd">        dict with extracted metadata items</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># depending on the processing level (supported: L1C and</span>
+    <span class="c1"># L2A) metadata has to be extracted slightly differently</span>
+    <span class="c1"># because of different file names and storage locations</span>
+    <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">in_dir</span><span class="p">)</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;_MSIL2A_&quot;</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># scene is L2A</span>
+        <span class="n">mtd_msil2a_xml</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">in_dir</span><span class="p">)</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s2">&quot;MTD_MSIL2A.xml&quot;</span><span class="p">)))</span>
+        <span class="n">mtd_msi</span> <span class="o">=</span> <span class="n">parse_MTD_MSI</span><span class="p">(</span><span class="n">in_file</span><span class="o">=</span><span class="n">mtd_msil2a_xml</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">mtd_msil2a_xml</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">xml_file</span><span class="p">:</span>
+            <span class="n">mtd_msi</span><span class="p">[</span><span class="s2">&quot;mtd_msi_xml&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">xml_file</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+    <span class="k">elif</span> <span class="nb">str</span><span class="p">(</span><span class="n">in_dir</span><span class="p">)</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;_MSIL1C_&quot;</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># scene is L1C</span>
+        <span class="n">mtd_msil1c_xml</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">in_dir</span><span class="p">)</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s2">&quot;MTD_MSIL1C.xml&quot;</span><span class="p">)))</span>
+        <span class="n">mtd_msi</span> <span class="o">=</span> <span class="n">parse_MTD_MSI</span><span class="p">(</span><span class="n">in_file</span><span class="o">=</span><span class="n">mtd_msil1c_xml</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">mtd_msil1c_xml</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">xml_file</span><span class="p">:</span>
+            <span class="n">mtd_msi</span><span class="p">[</span><span class="s2">&quot;mtd_msi_xml&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">xml_file</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">UnknownProcessingLevel</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">in_dir</span><span class="si">}</span><span class="s2"> seems not be a valid Sentinel-2 scene&quot;</span><span class="p">)</span>
+
+    <span class="n">mtd_tl_xml</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">in_dir</span><span class="p">)</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s2">&quot;MTD_TL.xml&quot;</span><span class="p">)))</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">mtd_tl_xml</span><span class="p">)</span> <span class="k">as</span> <span class="n">xml_file</span><span class="p">:</span>
+        <span class="n">mtd_msi</span><span class="p">[</span><span class="s2">&quot;mtd_tl_xml&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">xml_file</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+    <span class="c1"># datastrip xml (optional)</span>
+    <span class="n">mtd_ds</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="n">extract_datastrip</span><span class="p">:</span>
+        <span class="n">mtd_ds_xml</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">next</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">in_dir</span><span class="p">)</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s2">&quot;MTD_DS.xml&quot;</span><span class="p">)))</span>
+        <span class="n">mtd_ds</span> <span class="o">=</span> <span class="n">parse_MTD_DS</span><span class="p">(</span><span class="n">in_file</span><span class="o">=</span><span class="n">mtd_ds_xml</span><span class="p">)</span>
+
+    <span class="n">mtd_msi</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">parse_MTD_TL</span><span class="p">(</span><span class="n">in_file</span><span class="o">=</span><span class="n">mtd_tl_xml</span><span class="p">))</span>
+
+    <span class="c1"># storage location and path handling</span>
+    <span class="n">storage_path</span> <span class="o">=</span> <span class="n">in_dir</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
+    <span class="n">mtd_msi</span><span class="p">[</span><span class="s2">&quot;storage_share&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">storage_path</span>
+    <span class="n">mtd_msi</span><span class="p">[</span><span class="s2">&quot;path_type&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Posix&quot;</span>
+    <span class="n">mtd_msi</span><span class="p">[</span><span class="s2">&quot;storage_device_ip&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="n">mtd_msi</span><span class="p">,</span> <span class="n">mtd_ds</span></div>
+
+
+<div class="viewcode-block" id="loop_s2_archive"><a class="viewcode-back" href="../../../../packages/eodal.metadata.sentinel2.parsing.html#eodal.metadata.sentinel2.parsing.loop_s2_archive">[docs]</a><span class="k">def</span> <span class="nf">loop_s2_archive</span><span class="p">(</span>
+    <span class="n">in_dir</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+    <span class="n">extract_datastrip</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">get_newest_datasets</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">last_execution_date</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">date</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    wrapper function to loop over an entire archive (i.e., collection) of</span>
+<span class="sd">    Sentinel-2 mapper in either L1C or L2A processing level or a mixture</span>
+<span class="sd">    thereof.</span>
+
+<span class="sd">    The function returns a pandas dataframe for all found entries in the</span>
+<span class="sd">    archive (i.e., directory). Each row in the dataframe denotes one scene.</span>
+
+<span class="sd">    :param in_dir:</span>
+<span class="sd">        directory containing the Sentinel-2 data (L1C and/or L2A</span>
+<span class="sd">        processing level). Sentinel-2 mapper are assumed to follow ESA&#39;s</span>
+<span class="sd">        .SAFE naming convention and structure</span>
+<span class="sd">    :param extract_datastrip:</span>
+<span class="sd">        If True reads also metadata from the datastrip xml file</span>
+<span class="sd">        (MTD_DS.xml)</span>
+<span class="sd">    :param get_newest_datasets:</span>
+<span class="sd">        if set to True only datasets newer than a user-defined time stamp</span>
+<span class="sd">        will be considered for ingestion into the database. This is particularly</span>
+<span class="sd">        useful for updating the database after new mapper have been downloaded</span>
+<span class="sd">        or processed.</span>
+<span class="sd">    :param last_execution_date:</span>
+<span class="sd">        if get_newest_datasets is True this variable needs to be set. All</span>
+<span class="sd">        datasets younger than that date will be considered for ingestion</span>
+<span class="sd">        into the database.</span>
+<span class="sd">    :return:</span>
+<span class="sd">        dataframe with metadata of all mapper handled by the function</span>
+<span class="sd">        call</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># check inputs if only latest datasets shall be considered</span>
+    <span class="k">if</span> <span class="n">get_newest_datasets</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">last_execution_date</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">InputError</span><span class="p">(</span>
+                <span class="s2">&quot;A timestamp must be provided when the only newest &quot;</span> <span class="o">+</span>
+                <span class="s2">&quot;datasets shall be considered&quot;</span>
+            <span class="p">)</span>
+
+    <span class="c1"># search for .SAFE subdirectories identifying the single mapper</span>
+    <span class="c1"># some data providers, however, do not name their products following the</span>
+    <span class="c1"># ESA convention (.SAFE is missing)</span>
+    <span class="n">s2_scenes</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">in_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;*.SAFE&quot;</span><span class="p">)))</span>
+    <span class="n">n_scenes</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">s2_scenes</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">n_scenes</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">s2_scenes</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">in_dir</span><span class="o">.</span><span class="n">iterdir</span><span class="p">()</span> <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">is_dir</span><span class="p">()]</span>
+        <span class="n">n_scenes</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">s2_scenes</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">n_scenes</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">UnknownProcessingLevel</span><span class="p">(</span><span class="s2">&quot;No Sentinel-2 mapper were found&quot;</span><span class="p">)</span>
+
+    <span class="c1"># if only mapper after a specific timestamp shall be considered drop</span>
+    <span class="c1"># those from the list which are &quot;too old&quot;</span>
+    <span class="k">if</span> <span class="n">get_newest_datasets</span><span class="p">:</span>
+        <span class="n">filtered_scenes</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># convert date to Unix timestamp</span>
+        <span class="n">last_execution</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">mktime</span><span class="p">(</span><span class="n">last_execution_date</span><span class="o">.</span><span class="n">timetuple</span><span class="p">())</span>
+        <span class="k">for</span> <span class="n">s2_scene</span> <span class="ow">in</span> <span class="n">s2_scenes</span><span class="p">:</span>
+            <span class="n">s2_scene_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">s2_scene</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">s2_scene_path</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_ctime</span> <span class="o">&gt;=</span> <span class="n">last_execution</span><span class="p">:</span>
+                <span class="n">filtered_scenes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s2_scene</span><span class="p">)</span>
+        <span class="n">s2_scenes</span> <span class="o">=</span> <span class="n">filtered_scenes</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">s2_scenes</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">NothingToDo</span><span class="p">(</span>
+                <span class="s1">&#39;No mapper younger than &#39;</span> <span class="o">+</span>
+                <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">datetime</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="n">last_execution_date</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span><span class="si">}</span><span class="s1"> found&#39;</span>
+            <span class="p">)</span>
+
+    <span class="c1"># loop over the mapper</span>
+    <span class="n">metadata_scenes</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">ql_ds_scenes</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">error_file</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">in_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">&quot;errored_datasets.txt&quot;</span><span class="p">),</span> <span class="s2">&quot;w+&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">s2_scene</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">s2_scenes</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Extracting metadata of </span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">s2_scene</span><span class="p">)</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">idx</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">n_scenes</span><span class="si">}</span><span class="s2">)&quot;</span>
+        <span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">mtd_scene</span><span class="p">,</span> <span class="n">mtd_ds_scene</span> <span class="o">=</span> <span class="n">parse_s2_scene_metadata</span><span class="p">(</span>
+                <span class="n">in_dir</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="n">s2_scene</span><span class="p">),</span> <span class="n">extract_datastrip</span><span class="o">=</span><span class="n">extract_datastrip</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">error_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">s2_scene</span><span class="p">)</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="n">error_file</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Extraction of metadata failed </span><span class="si">{</span><span class="n">s2_scene</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="n">metadata_scenes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mtd_scene</span><span class="p">)</span>
+        <span class="n">ql_ds_scenes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mtd_ds_scene</span><span class="p">)</span>
+
+    <span class="c1"># convert to pandas dataframe and return</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">metadata_scenes</span><span class="p">),</span>
+        <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">ql_ds_scenes</span><span class="p">),</span>
+    <span class="p">)</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../packages/modules.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,812 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.core.sensors.landsat &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/alabaster.css" />
+    <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
+    <script src="../../../../_static/jquery.js"></script>
+    <script src="../../../../_static/underscore.js"></script>
+    <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../../_static/doctools.js"></script>
+    <script src="../../../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for eodal.core.sensors.landsat</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module contains the ``Landsat`` class that inherits from</span>
+<span class="sd">eodal&#39;s core ``RasterCollection`` class.</span>
+
+<span class="sd">The ``Landsat`` class enables reading one or more spectral bands from Landsat 5 to 9</span>
+<span class="sd">science products in L2 processing level.</span>
+
+<span class="sd">The class handles data in L1C and L2A processing level.</span>
+
+<span class="sd">Copyright (C) 2023 Lukas Valentin Graf</span>
+
+<span class="sd">This program is free software: you can redistribute it and/or modify</span>
+<span class="sd">it under the terms of the GNU General Public License as published by</span>
+<span class="sd">the Free Software Foundation, either version 3 of the License, or</span>
+<span class="sd">(at your option) any later version.</span>
+
+<span class="sd">This program is distributed in the hope that it will be useful,</span>
+<span class="sd">but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="sd">MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="sd">GNU General Public License for more details.</span>
+
+<span class="sd">You should have received a copy of the GNU General Public License</span>
+<span class="sd">along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">import</span> <span class="nn">io</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">planetary_computer</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+<span class="kn">from</span> <span class="nn">xml.etree</span> <span class="kn">import</span> <span class="n">ElementTree</span>
+
+<span class="kn">from</span> <span class="nn">eodal.config</span> <span class="kn">import</span> <span class="n">get_settings</span><span class="p">,</span> <span class="n">STAC_Providers</span>
+<span class="kn">from</span> <span class="nn">eodal.core.band</span> <span class="kn">import</span> <span class="n">Band</span>
+<span class="kn">from</span> <span class="nn">eodal.core.raster</span> <span class="kn">import</span> <span class="n">RasterCollection</span><span class="p">,</span> <span class="n">SceneProperties</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.geometry</span> <span class="kn">import</span> <span class="n">adopt_vector_features_to_mask</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.constants</span> <span class="kn">import</span> <span class="n">ProcessingLevels</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.constants.landsat</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">band_resolution</span><span class="p">,</span>
+    <span class="n">landsat_band_mapping</span><span class="p">,</span>
+    <span class="n">platform_sensor_mapping</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">eodal.utils.types</span> <span class="kn">import</span> <span class="n">xml_to_dict_recursive</span>
+
+<span class="n">Settings</span> <span class="o">=</span> <span class="n">get_settings</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="Landsat"><a class="viewcode-back" href="../../../../packages/eodal.core.sensors.landsat.html#eodal.core.sensors.landsat.Landsat">[docs]</a><span class="k">class</span> <span class="nc">Landsat</span><span class="p">(</span><span class="n">RasterCollection</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class for working with Landsat science products (Level-2).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_get_available_bands</span><span class="p">(</span>
+            <span class="n">in_dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check the available bands in the input directory and return the</span>
+<span class="sd">        bands found in a list.</span>
+
+<span class="sd">        :param in_dir:</span>
+<span class="sd">            Path to the directory containing the Landsat data or collection of</span>
+<span class="sd">            hyper-links in the case of STAC. If a dictionary is passed, we assume</span>
+<span class="sd">            that all files are stored in the same directory.</span>
+<span class="sd">        :return:</span>
+<span class="sd">            List of available bands.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_dir</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">available_bands</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">in_dir</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="c1"># remove non-band files</span>
+            <span class="n">available_bands</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">available_bands</span> <span class="k">if</span> <span class="n">Path</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">suffix</span>
+                <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;.txt&#39;</span><span class="p">,</span> <span class="s1">&#39;.xml&#39;</span><span class="p">,</span> <span class="s1">&#39;.json&#39;</span><span class="p">]</span>
+                <span class="ow">and</span> <span class="n">x</span> <span class="o">!=</span> <span class="s1">&#39;tilejson&#39;</span>
+                <span class="ow">and</span> <span class="n">x</span> <span class="o">!=</span> <span class="s1">&#39;rendered_preview&#39;</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_dir</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+            <span class="n">available_bands</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">stem</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">in_dir</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;*.TIF&quot;</span><span class="p">)]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;in_dir must be a Path or a dictionary.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">available_bands</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_check_platform</span><span class="p">(</span>
+            <span class="n">in_dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check which Landsat platform (spacecraft) produced the data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_dir</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="c1"># the green band should be always available</span>
+            <span class="n">test_band</span> <span class="o">=</span> <span class="n">in_dir</span><span class="p">[</span><span class="s1">&#39;green&#39;</span><span class="p">][</span><span class="s1">&#39;href&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_dir</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+            <span class="n">test_band</span> <span class="o">=</span> <span class="n">in_dir</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;*_B*.TIF&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="c1"># get the platform from the band name</span>
+        <span class="n">platform</span> <span class="o">=</span> <span class="n">test_band</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">platform</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_get_metadata_json</span><span class="p">(</span>
+            <span class="n">in_dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the Landsat metadata JSON file from the input directory.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_dir</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">metadata_url</span> <span class="o">=</span> <span class="n">planetary_computer</span><span class="o">.</span><span class="n">sign_url</span><span class="p">(</span><span class="n">in_dir</span><span class="p">[</span><span class="s1">&#39;mtl.json&#39;</span><span class="p">][</span><span class="s1">&#39;href&#39;</span><span class="p">])</span>
+            <span class="n">response_code</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">metadata_url</span><span class="p">)</span><span class="o">.</span><span class="n">status_code</span>
+            <span class="c1"># check for JSON or XML</span>
+            <span class="k">if</span> <span class="n">response_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+                <span class="n">metadata</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">metadata_url</span><span class="p">)</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">response_code</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>
+                <span class="n">metadata_url</span> <span class="o">=</span> <span class="n">planetary_computer</span><span class="o">.</span><span class="n">sign_url</span><span class="p">(</span><span class="n">in_dir</span><span class="p">[</span><span class="s1">&#39;mtl.xml&#39;</span><span class="p">][</span><span class="s1">&#39;href&#39;</span><span class="p">])</span>
+                <span class="n">metadata_xml_tree</span> <span class="o">=</span> <span class="n">ElementTree</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span>
+                    <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">(</span><span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">metadata_url</span><span class="p">)</span><span class="o">.</span><span class="n">content</span><span class="p">))</span>
+                <span class="n">metadata_xml_root</span> <span class="o">=</span> <span class="n">metadata_xml_tree</span><span class="o">.</span><span class="n">getroot</span><span class="p">()</span>
+                <span class="c1"># convert to dictionary</span>
+                <span class="n">metadata</span> <span class="o">=</span> <span class="n">xml_to_dict_recursive</span><span class="p">(</span><span class="n">metadata_xml_root</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_dir</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+            <span class="n">fpath_json</span> <span class="o">=</span> <span class="n">in_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;MTL.json&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">fpath_json</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fpath_json</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">src</span><span class="p">:</span>
+                    <span class="n">metadata</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">src</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">fpath_xml</span> <span class="o">=</span> <span class="n">in_dir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;MTL.xml&#39;</span><span class="p">)</span>
+                <span class="n">metadata_xml_tree</span> <span class="o">=</span> <span class="n">ElementTree</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">fpath_xml</span><span class="p">)</span>
+                <span class="n">metadata_xml_root</span> <span class="o">=</span> <span class="n">metadata_xml_tree</span><span class="o">.</span><span class="n">getroot</span><span class="p">()</span>
+                <span class="c1"># convert to dictionary</span>
+                <span class="n">metadata</span> <span class="o">=</span> <span class="n">xml_to_dict_recursive</span><span class="p">(</span><span class="n">metadata_xml_root</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">metadata</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_product_uri_from_filename</span><span class="p">(</span>
+            <span class="n">in_dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the product URI from the file name.</span>
+
+<span class="sd">        :param in_dir:</span>
+<span class="sd">            Path to the directory containing the Landsat data or collection of</span>
+<span class="sd">            hyper-links in the case of STAC. If a dictionary is passed, we assume</span>
+<span class="sd">            that all files are stored in the same directory.</span>
+<span class="sd">        :return:</span>
+<span class="sd">            Product URI.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_dir</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="c1"># the green band should be always available</span>
+            <span class="n">test_band</span> <span class="o">=</span> <span class="n">in_dir</span><span class="p">[</span><span class="s1">&#39;green&#39;</span><span class="p">][</span><span class="s1">&#39;href&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_dir</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+            <span class="n">test_band</span> <span class="o">=</span> <span class="n">in_dir</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;*.TIF&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="c1"># get the product URI from the band name</span>
+        <span class="n">product_uri</span> <span class="o">=</span> <span class="s1">&#39;_&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">test_band</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[:</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">product_uri</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_sensing_time_from_filename</span><span class="p">(</span>
+            <span class="n">in_dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">datetime</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the sensing time from the file name.</span>
+
+<span class="sd">        :param in_dir:</span>
+<span class="sd">            Path to the directory containing the Landsat data or collection of</span>
+<span class="sd">            hyper-links in the case of STAC. If a dictionary is passed, we assume</span>
+<span class="sd">            that all files are stored in the same directory.</span>
+<span class="sd">        :return:</span>
+<span class="sd">            Sensing time.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_dir</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="c1"># the green band should be always available</span>
+            <span class="n">test_band</span> <span class="o">=</span> <span class="n">in_dir</span><span class="p">[</span><span class="s1">&#39;red&#39;</span><span class="p">][</span><span class="s1">&#39;href&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_dir</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+            <span class="n">test_band</span> <span class="o">=</span> <span class="n">in_dir</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;*.TIF&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="c1"># get the sensing time from the metadata file</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="n">Landsat</span><span class="o">.</span><span class="n">_get_metadata_json</span><span class="p">(</span><span class="n">in_dir</span><span class="p">)[</span><span class="s1">&#39;LANDSAT_METADATA_FILE&#39;</span><span class="p">]</span>
+
+        <span class="c1"># unpack dictionaries from lists</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">metadata</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">metadata_as_dict</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">metadata</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">entry</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">metadata_as_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">k</span><span class="p">:</span> <span class="p">{}})</span>
+                    <span class="k">for</span> <span class="n">inner_item</span> <span class="ow">in</span> <span class="n">v</span><span class="p">:</span>
+                        <span class="n">metadata_as_dict</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">inner_item</span><span class="p">)</span>
+            <span class="n">metadata</span> <span class="o">=</span> <span class="n">metadata_as_dict</span>
+
+        <span class="n">date</span> <span class="o">=</span> <span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;IMAGE_ATTRIBUTES&#39;</span><span class="p">][</span><span class="s1">&#39;DATE_ACQUIRED&#39;</span><span class="p">]</span>
+        <span class="n">scene_center_time</span> <span class="o">=</span> <span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;IMAGE_ATTRIBUTES&#39;</span><span class="p">][</span><span class="s1">&#39;SCENE_CENTER_TIME&#39;</span><span class="p">]</span>
+        <span class="n">combined</span> <span class="o">=</span> <span class="n">date</span> <span class="o">+</span> <span class="s1">&#39; &#39;</span> <span class="o">+</span> <span class="n">scene_center_time</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">combined</span><span class="p">,</span> <span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1"> %H:%M:%S&#39;</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_sensor_from_platform</span><span class="p">(</span>
+            <span class="n">platform</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the sensor name from the abbrevated platform name.</span>
+
+<span class="sd">        :param platform:</span>
+<span class="sd">            Landsat platform name (e.g., LC09).</span>
+<span class="sd">        :return:</span>
+<span class="sd">            Sensor name (e.g., Operational_Land_Imager).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">landsat_platform_number</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">platform</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="mi">4</span><span class="p">])</span>
+        <span class="n">landsat_platform_full_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;LANDSAT_</span><span class="si">{</span><span class="n">landsat_platform_number</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="k">return</span> <span class="n">platform_sensor_mapping</span><span class="p">[</span><span class="n">landsat_platform_full_name</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_preprocess_band_selection</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">in_dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+            <span class="n">band_selection</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">read_qa</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="n">read_atcor</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Process the user-defined band selection if any and return the available</span>
+<span class="sd">        bands in a pandas DataFrame.</span>
+
+<span class="sd">        :param in_dir:</span>
+<span class="sd">            Path to the directory containing the Landsat data or collection of</span>
+<span class="sd">            hyper-links in the case of STAC. If a dictionary is passed, we assume</span>
+<span class="sd">            that all files are stored in the same directory.</span>
+<span class="sd">        :param band_selection:</span>
+<span class="sd">            List of bands to be loaded. If None, all bands will be loaded.</span>
+<span class="sd">            The bands loaded depend on the sensor, e.g., TM, ETM, OLI, TIRS.</span>
+<span class="sd">            The sensor will be auto-detected. To make sure, the band selection</span>
+<span class="sd">            works for multiple sensors, use the aliases defined in</span>
+<span class="sd">            `~eodal.utils.constants.landsat_mapper.landsat_band_mapping`.</span>
+<span class="sd">            For instance, to load the VIS bands pass `[&quot;blue&quot;, &quot;green&quot;, &quot;red&quot;]`.</span>
+<span class="sd">        :param read_qa:</span>
+<span class="sd">            If True, the QA bands will be loaded as well. Default is True.</span>
+<span class="sd">        :param read_atcor:</span>
+<span class="sd">            If True, the bands stemming from the atmospheric correction are read</span>
+<span class="sd">            as well. Default is False.</span>
+<span class="sd">        :return:</span>
+<span class="sd">            Pandas DataFrame with the available bands.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># get available bands</span>
+        <span class="n">available_bands</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_available_bands</span><span class="p">(</span><span class="n">in_dir</span><span class="p">)</span>
+
+        <span class="c1"># check which platform and hence sensor is used</span>
+        <span class="n">platform</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_platform</span><span class="p">(</span><span class="n">in_dir</span><span class="p">)</span>
+
+        <span class="c1"># get the sensor name from the platform</span>
+        <span class="n">sensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sensor_from_platform</span><span class="p">(</span><span class="n">platform</span><span class="p">)</span>
+        <span class="n">sensor_bands</span> <span class="o">=</span> <span class="n">landsat_band_mapping</span><span class="p">[</span><span class="n">sensor</span><span class="p">]</span>
+
+        <span class="c1"># compare against the band selection. In case the user passed the</span>
+        <span class="c1"># sensor specific names (e.g,. &quot;TM_B1&quot;) we need to convert them to</span>
+        <span class="c1"># the generic names (e.g., &quot;blue&quot;)</span>
+        <span class="c1"># convert available bands to their generic names first</span>
+        <span class="k">for</span> <span class="n">available_band</span> <span class="ow">in</span> <span class="n">available_bands</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">available_band</span> <span class="ow">in</span> <span class="n">sensor_bands</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">available_bands</span><span class="p">[</span><span class="n">available_bands</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">available_band</span><span class="p">)]</span> <span class="o">=</span> \
+                    <span class="n">sensor_bands</span><span class="p">[</span><span class="n">available_band</span><span class="p">]</span>
+
+        <span class="c1"># then check the user-defined selection (if any)</span>
+        <span class="k">if</span> <span class="n">band_selection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">band_name</span> <span class="ow">in</span> <span class="n">band_selection</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">band_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">available_bands</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">band_name</span> <span class="ow">in</span> <span class="n">sensor_bands</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                        <span class="n">band_selection</span><span class="p">[</span><span class="n">band_selection</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">band_name</span><span class="p">)]</span> <span class="o">=</span> \
+                            <span class="n">sensor_bands</span><span class="p">[</span><span class="n">band_name</span><span class="p">]</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s1">&#39;Band </span><span class="si">{</span><span class="n">band_name</span><span class="si">}</span><span class="s1"> not found - &#39;</span> <span class="o">+</span>
+                            <span class="s1">&#39;remove it from selection&#39;</span><span class="p">)</span>
+                        <span class="n">band_selection</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">band_name</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">band_selection</span> <span class="o">=</span> <span class="n">available_bands</span>
+
+        <span class="c1"># check if the user wants to read the atmospheric correction bands</span>
+        <span class="n">atcor_bands</span> <span class="o">=</span> <span class="n">landsat_band_mapping</span><span class="p">[</span><span class="s1">&#39;atmospheric_correction&#39;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">atcor_band</span> <span class="ow">in</span> <span class="n">atcor_bands</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">atcor_band</span> <span class="ow">in</span> <span class="n">available_bands</span><span class="p">:</span>
+                <span class="c1"># read_atcor is True:</span>
+                <span class="c1"># add those bands to the band selection that are available</span>
+                <span class="k">if</span> <span class="n">read_atcor</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">atcor_band</span> <span class="ow">in</span> <span class="n">band_selection</span><span class="p">:</span>
+                        <span class="n">band_selection</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">atcor_band</span><span class="p">)</span>
+                <span class="c1"># read_atcor is False:</span>
+                <span class="c1"># remove atmospheric correction bands</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">atcor_band</span> <span class="ow">in</span> <span class="n">band_selection</span><span class="p">:</span>
+                        <span class="n">band_selection</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">atcor_band</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># band_selection.remove(atcor_band)</span>
+                <span class="k">pass</span>
+
+        <span class="c1"># check if the user wants to read the QA bands</span>
+        <span class="n">qa_bands</span> <span class="o">=</span> <span class="n">landsat_band_mapping</span><span class="p">[</span><span class="s1">&#39;quality_flags&#39;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">qa_band</span> <span class="ow">in</span> <span class="n">qa_bands</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">qa_band</span> <span class="ow">in</span> <span class="n">available_bands</span><span class="p">:</span>
+                <span class="c1"># read_qa is True:</span>
+                <span class="c1"># add those bands to the band selection that are available</span>
+                <span class="k">if</span> <span class="n">read_qa</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">qa_band</span> <span class="ow">in</span> <span class="n">band_selection</span><span class="p">:</span>
+                        <span class="n">band_selection</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">qa_band</span><span class="p">)</span>
+                <span class="c1"># read_atcor is False:</span>
+                <span class="c1"># remove atmospheric correction bands</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">qa_band</span> <span class="ow">in</span> <span class="n">band_selection</span><span class="p">:</span>
+                        <span class="n">band_selection</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">qa_band</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># band_selection.remove(qa_band)</span>
+                <span class="k">pass</span>
+ 
+        <span class="c1"># next, we need the paths to the bands</span>
+        <span class="n">band_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">band_name</span> <span class="ow">in</span> <span class="n">band_selection</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_dir</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">Settings</span><span class="o">.</span><span class="n">STAC_BACKEND</span> <span class="o">==</span> <span class="n">STAC_Providers</span><span class="o">.</span><span class="n">MSPC</span><span class="p">:</span>
+                    <span class="n">band_fpath</span> <span class="o">=</span> <span class="n">planetary_computer</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">in_dir</span><span class="p">[</span><span class="n">band_name</span><span class="p">][</span><span class="s2">&quot;href&quot;</span><span class="p">])</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">band_fpath</span> <span class="o">=</span> <span class="n">in_dir</span><span class="p">[</span><span class="n">band_name</span><span class="p">][</span><span class="s2">&quot;href&quot;</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">in_dir</span><span class="p">,</span> <span class="n">Path</span><span class="p">):</span>
+                <span class="c1"># for local resources, we have to use the sensor specific names</span>
+                <span class="c1"># to find the bands</span>
+                <span class="n">sensor_specific_band_name</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">sensor_bands</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="o">==</span> <span class="s1">&#39;red&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">band_fpath</span> <span class="o">=</span> <span class="n">in_dir</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;*_</span><span class="si">{</span><span class="n">sensor_specific_band_name</span><span class="si">}</span><span class="s2">.TIF&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">band_res</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">band_name</span> <span class="ow">in</span> <span class="n">sensor_bands</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="n">band_res</span> <span class="o">=</span> <span class="n">band_resolution</span><span class="p">[</span><span class="n">sensor</span><span class="p">][</span><span class="n">band_name</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">read_qa</span> <span class="ow">or</span> <span class="n">band_name</span> <span class="ow">in</span> <span class="n">qa_bands</span><span class="p">:</span>
+                <span class="n">band_res</span> <span class="o">=</span> <span class="n">band_resolution</span><span class="p">[</span><span class="s1">&#39;quality_flags&#39;</span><span class="p">][</span><span class="n">band_name</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">read_atcor</span> <span class="ow">or</span> <span class="n">band_name</span> <span class="ow">in</span> <span class="n">atcor_bands</span><span class="p">:</span>
+                <span class="n">band_res</span> <span class="o">=</span> <span class="n">band_resolution</span><span class="p">[</span><span class="s1">&#39;atmospheric_correction&#39;</span><span class="p">][</span><span class="n">band_name</span><span class="p">]</span>
+
+            <span class="n">item</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;band_name&#39;</span><span class="p">:</span> <span class="n">band_name</span><span class="p">,</span>
+                <span class="s1">&#39;band_path&#39;</span><span class="p">:</span> <span class="n">band_fpath</span><span class="p">,</span>
+                <span class="s1">&#39;band_resolution&#39;</span><span class="p">:</span> <span class="n">band_res</span><span class="p">}</span>
+            <span class="n">band_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+
+        <span class="c1"># construct pandas DataFrame with all band entries and return</span>
+        <span class="n">band_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">band_list</span><span class="p">)</span>
+        <span class="n">band_df</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">band_df</span>
+
+<div class="viewcode-block" id="Landsat.from_usgs"><a class="viewcode-back" href="../../../../packages/eodal.core.sensors.landsat.html#eodal.core.sensors.landsat.Landsat.from_usgs">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_usgs</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">in_dir</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">band_selection</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">read_qa</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">read_atcor</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">apply_scaling</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load Landsat Level-2 science products (spectral bands, thermal bands,</span>
+<span class="sd">        QA bands) into a EOdal `RasterCollection.</span>
+
+<span class="sd">        :param in_dir:</span>
+<span class="sd">            Path to the directory containing the Landsat data or collection of</span>
+<span class="sd">            hyper-links in the case of STAC. If a dictionary is passed, we assume</span>
+<span class="sd">            that all files are stored in the same directory.</span>
+<span class="sd">        :param band_selection:</span>
+<span class="sd">            List of bands to be loaded. If None, all bands will be loaded.</span>
+<span class="sd">            The bands loaded depend on the sensor, e.g., TM, ETM, OLI, TIRS.</span>
+<span class="sd">            The sensor will be auto-detected. To make sure, the band selection</span>
+<span class="sd">            works for multiple sensors, use the aliases defined in</span>
+<span class="sd">            `~eodal.utils.constants.landsat_band_mapping`. For instance, to load</span>
+<span class="sd">            the VIS bands pass `[&quot;blue&quot;, &quot;green&quot;, &quot;red&quot;]`.</span>
+<span class="sd">        :param read_qa:</span>
+<span class="sd">            If True, the QA bands will be loaded as well. Default is True.</span>
+<span class="sd">        :param read_atcor:</span>
+<span class="sd">            If True, the bands stemming from the atmospheric correction are read</span>
+<span class="sd">            as well. Default is False.</span>
+<span class="sd">        :param apply_scaling:</span>
+<span class="sd">            If True, scales reflectance values to the range [0, 1] from original</span>
+<span class="sd">            unsigned 16-bit integers. Default is True.</span>
+<span class="sd">        :param kwargs:</span>
+<span class="sd">            Additional keyword arguments passed to the `RasterCollection` constructor.</span>
+<span class="sd">        :return:</span>
+<span class="sd">            RasterCollection containing the Landsat bands.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># check band selection and determine the platform and sensor</span>
+        <span class="n">band_df</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_preprocess_band_selection</span><span class="p">(</span>
+            <span class="bp">cls</span><span class="p">,</span>
+            <span class="n">in_dir</span><span class="o">=</span><span class="n">in_dir</span><span class="p">,</span>
+            <span class="n">band_selection</span><span class="o">=</span><span class="n">band_selection</span><span class="p">,</span>
+            <span class="n">read_qa</span><span class="o">=</span><span class="n">read_qa</span><span class="p">,</span>
+            <span class="n">read_atcor</span><span class="o">=</span><span class="n">read_atcor</span><span class="p">)</span>
+
+        <span class="c1"># check the clipping extent of the raster with the lowest (coarsest) spatial</span>
+        <span class="c1"># resolution and remember it for all other bands with higher spatial</span>
+        <span class="c1"># resolutions.</span>
+        <span class="c1"># By doing so, it is ensured that all bands will be clipped to the same spatial</span>
+        <span class="c1"># extent regardless of their pixel size. This works since all Landsat bands</span>
+        <span class="c1"># share the same coordinate origin.</span>
+        <span class="c1"># get lowest spatial resolution (maximum pixel size) band</span>
+        <span class="n">masking_after_read_required</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="k">if</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;vector_features&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">bounds_df</span><span class="p">,</span> <span class="n">shape_mask</span><span class="p">,</span> <span class="n">lowest_resolution</span> <span class="o">=</span> <span class="n">adopt_vector_features_to_mask</span><span class="p">(</span>
+                <span class="n">band_df</span><span class="o">=</span><span class="n">band_df</span><span class="p">,</span>
+                <span class="n">vector_features</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;vector_features&quot;</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;full_bounding_box_only&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+                <span class="n">masking_after_read_required</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="c1"># update the vector_features entry</span>
+            <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;vector_features&quot;</span><span class="p">:</span> <span class="n">bounds_df</span><span class="p">})</span>
+
+        <span class="c1"># get platform, sensor and sensing time</span>
+        <span class="n">platform</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_check_platform</span><span class="p">(</span><span class="n">in_dir</span><span class="o">=</span><span class="n">in_dir</span><span class="p">)</span>
+        <span class="n">sensor</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_sensor_from_platform</span><span class="p">(</span><span class="n">platform</span><span class="o">=</span><span class="n">platform</span><span class="p">)</span>
+        <span class="n">sensing_time</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_sensing_time_from_filename</span><span class="p">(</span><span class="n">in_dir</span><span class="o">=</span><span class="n">in_dir</span><span class="p">)</span>
+        <span class="c1"># get the product uri</span>
+        <span class="n">product_uri</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_product_uri_from_filename</span><span class="p">(</span><span class="n">in_dir</span><span class="o">=</span><span class="n">in_dir</span><span class="p">)</span>
+        <span class="c1"># determine processing level</span>
+        <span class="k">if</span> <span class="n">sensor</span> <span class="ow">in</span> \
+            <span class="p">[</span><span class="s1">&#39;Multispectral_Scanner_System_L1-3&#39;</span><span class="p">,</span>
+             <span class="s1">&#39;Multispectral_Scanner_System_L4-5&#39;</span><span class="p">]:</span>
+            <span class="n">processing_level</span> <span class="o">=</span> <span class="n">ProcessingLevels</span><span class="o">.</span><span class="n">L1C</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">processing_level</span> <span class="o">=</span> <span class="n">ProcessingLevels</span><span class="o">.</span><span class="n">L2A</span>
+
+        <span class="c1"># construct the SceneProperties object</span>
+        <span class="n">scene_properties</span> <span class="o">=</span> <span class="n">SceneProperties</span><span class="p">(</span>
+            <span class="n">platform</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;LANDSAT_</span><span class="si">{</span><span class="n">platform</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+            <span class="n">sensor</span><span class="o">=</span><span class="n">sensor</span><span class="p">,</span>
+            <span class="n">acquisition_time</span><span class="o">=</span><span class="n">sensing_time</span><span class="p">,</span>
+            <span class="n">product_uri</span><span class="o">=</span><span class="n">product_uri</span><span class="p">,</span>
+            <span class="n">processing_level</span><span class="o">=</span><span class="n">processing_level</span>
+        <span class="p">)</span>
+
+        <span class="c1"># set proper scaling factors to allow for conversion to</span>
+        <span class="c1"># reflectance [0, 1]</span>
+        <span class="n">gain</span><span class="p">,</span> <span class="n">offset</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">processing_level</span> <span class="o">==</span> <span class="n">ProcessingLevels</span><span class="o">.</span><span class="n">L2A</span><span class="p">:</span>
+            <span class="n">gain</span><span class="p">,</span> <span class="n">offset</span> <span class="o">=</span> <span class="mf">0.00001</span><span class="p">,</span> <span class="mf">0.0</span>
+
+        <span class="c1"># loop over bands and add them to the collection of bands</span>
+        <span class="n">landsat</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">scene_properties</span><span class="o">=</span><span class="n">scene_properties</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">band_name</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">band_df</span><span class="o">.</span><span class="n">band_name</span><span class="p">):</span>
+            <span class="c1"># get entry from dataframe with file-path of band</span>
+            <span class="n">band_safe</span> <span class="o">=</span> <span class="n">band_df</span><span class="p">[</span><span class="n">band_df</span><span class="o">.</span><span class="n">band_name</span> <span class="o">==</span> <span class="n">band_name</span><span class="p">]</span>
+            <span class="n">band_fpath</span> <span class="o">=</span> <span class="n">band_safe</span><span class="o">.</span><span class="n">band_path</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="c1"># get alias name of band</span>
+            <span class="n">band_alias</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">band_name</span> <span class="ow">in</span> <span class="n">landsat_band_mapping</span><span class="p">[</span><span class="n">sensor</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="n">band_alias</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">landsat_band_mapping</span><span class="p">[</span><span class="n">sensor</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">v</span> <span class="o">==</span> <span class="n">band_name</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">band_name</span> <span class="ow">in</span> <span class="n">landsat_band_mapping</span><span class="p">[</span><span class="s1">&#39;quality_flags&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> \
+                    <span class="ow">or</span> <span class="n">band_name</span> <span class="ow">in</span> <span class="n">landsat_band_mapping</span><span class="p">[</span><span class="s1">&#39;quality_flags&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="n">band_alias</span> <span class="o">=</span> <span class="n">band_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="n">band_name</span> <span class="ow">in</span> <span class="n">landsat_band_mapping</span><span class="p">[</span><span class="s1">&#39;atmospheric_correction&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> \
+                    <span class="ow">or</span> <span class="n">band_name</span> <span class="ow">in</span> <span class="n">landsat_band_mapping</span><span class="p">[</span><span class="s1">&#39;atmospheric_correction&#39;</span>
+                                                         <span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="n">band_alias</span> <span class="o">=</span> <span class="n">band_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+
+            <span class="c1"># read band</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">band_name</span> <span class="ow">in</span> <span class="n">landsat_band_mapping</span><span class="p">[</span><span class="n">sensor</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                    <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s1">&#39;scale&#39;</span><span class="p">:</span> <span class="n">gain</span><span class="p">,</span> <span class="s1">&#39;offset&#39;</span><span class="p">:</span> <span class="n">offset</span><span class="p">})</span>
+                <span class="n">landsat</span><span class="o">.</span><span class="n">add_band</span><span class="p">(</span>
+                    <span class="n">Band</span><span class="o">.</span><span class="n">from_rasterio</span><span class="p">,</span>
+                    <span class="n">fpath_raster</span><span class="o">=</span><span class="n">band_fpath</span><span class="p">,</span>
+                    <span class="n">band_idx</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                    <span class="n">band_name_dst</span><span class="o">=</span><span class="n">band_name</span><span class="p">,</span>
+                    <span class="n">band_alias</span><span class="o">=</span><span class="n">band_alias</span><span class="p">,</span>
+                    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Could not add band </span><span class="si">{</span><span class="n">band_name</span><span class="si">}</span><span class="s2"> &quot;</span> <span class="o">+</span>
+                    <span class="sa">f</span><span class="s2">&quot;from </span><span class="si">{</span><span class="n">scene_properties</span><span class="o">.</span><span class="n">product_uri</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+            <span class="c1"># apply actual vector features if masking is required</span>
+            <span class="k">if</span> <span class="n">masking_after_read_required</span><span class="p">:</span>
+                <span class="c1"># nothing to do when the lowest resolution is passed</span>
+                <span class="k">if</span> <span class="n">band_safe</span><span class="o">.</span><span class="n">band_resolution</span><span class="o">.</span><span class="n">values</span> <span class="o">==</span> <span class="n">lowest_resolution</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="c1"># otherwise resample the mask of the lowest resolution to the</span>
+                <span class="c1"># current resolution using nearest neighbor interpolation</span>
+                <span class="n">tmp</span> <span class="o">=</span> <span class="n">shape_mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;uint8&quot;</span><span class="p">)</span>
+                <span class="n">dim_resampled</span> <span class="o">=</span> <span class="p">(</span><span class="n">landsat</span><span class="p">[</span><span class="n">band_name</span><span class="p">]</span><span class="o">.</span><span class="n">ncols</span><span class="p">,</span> <span class="n">landsat</span><span class="p">[</span><span class="n">band_name</span><span class="p">]</span><span class="o">.</span><span class="n">nrows</span><span class="p">)</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span>
+                    <span class="n">tmp</span><span class="p">,</span> <span class="n">dim_resampled</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="n">cv2</span><span class="o">.</span><span class="n">INTER_NEAREST_EXACT</span>
+                <span class="p">)</span>
+                <span class="c1"># cast back to boolean</span>
+                <span class="n">mask</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;bool&quot;</span><span class="p">)</span>
+                <span class="n">landsat</span><span class="o">.</span><span class="n">mask</span><span class="p">(</span><span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span> <span class="n">bands_to_mask</span><span class="o">=</span><span class="p">[</span><span class="n">band_name</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># scaling of reflectance values (i.e., do not scale SCL)</span>
+        <span class="k">if</span> <span class="n">apply_scaling</span><span class="p">:</span>
+            <span class="n">sel_bands</span> <span class="o">=</span> <span class="n">landsat</span><span class="o">.</span><span class="n">band_names</span>
+            <span class="c1"># only scale the reflectance bands</span>
+            <span class="n">sel_bands</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">sel_bands</span> <span class="k">if</span> <span class="n">x</span> <span class="ow">in</span>
+                         <span class="n">landsat_band_mapping</span><span class="p">[</span><span class="n">sensor</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
+            <span class="n">landsat</span><span class="o">.</span><span class="n">scale</span><span class="p">(</span>
+                <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">band_selection</span><span class="o">=</span><span class="n">sel_bands</span><span class="p">,</span>
+                <span class="n">pixel_values_to_ignore</span><span class="o">=</span><span class="p">[</span><span class="n">landsat</span><span class="p">[</span><span class="n">landsat</span><span class="o">.</span><span class="n">band_names</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span><span class="o">.</span><span class="n">nodata</span><span class="p">],</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">landsat</span></div>
+
+<div class="viewcode-block" id="Landsat.calc_si"><a class="viewcode-back" href="../../../../packages/eodal.core.sensors.landsat.html#eodal.core.sensors.landsat.Landsat.calc_si">[docs]</a>    <span class="k">def</span> <span class="nf">calc_si</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">si_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">inplace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">band_mapping</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">MaskedArray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates a spectral index based on color-names (set as band aliases)</span>
+
+<span class="sd">        :param si_name:</span>
+<span class="sd">            name of the spectral index to calculate (e.g., &#39;NDVI&#39;).</span>
+<span class="sd">        :param inplace:</span>
+<span class="sd">            if False, returns the calculated SI as numpy array (default), else</span>
+<span class="sd">            adds the calculated SI as a new band to the RasterCollection</span>
+<span class="sd">            object.</span>
+<span class="sd">        :param band_mapping:</span>
+<span class="sd">            ..versionadd 0.2.2::</span>
+<span class="sd">            optional band mapping to use different color names instead</span>
+<span class="sd">            of the default ones (e.g., nir_2 instead of nir_1 as default</span>
+<span class="sd">            near-infrared band, which might be helpful for some sensor</span>
+<span class="sd">            with more than one NIR band such as Sentinel-2 MSI).</span>
+<span class="sd">            See ~`eodal.core.spectral_indices.SpectralIndices` how</span>
+<span class="sd">            `band_mapping` must look like.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># set color names properly before calling SI class</span>
+        <span class="c1"># (background: EOdal internally uses slightly different color names</span>
+        <span class="c1"># compared to Landsat collection 2 products. The differences</span>
+        <span class="c1"># only affect the NIR and SWIR bands)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">band_mapping</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">band_mapping</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;nir_1&#39;</span><span class="p">:</span> <span class="s1">&#39;nir08&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;swir_1&#39;</span><span class="p">:</span> <span class="s1">&#39;swir16&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;swir_2&#39;</span><span class="p">:</span> <span class="s1">&#39;swir22&#39;</span>
+            <span class="p">}</span>
+        <span class="k">return</span> <span class="n">RasterCollection</span><span class="o">.</span><span class="n">calc_si</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">si_name</span><span class="o">=</span><span class="n">si_name</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="n">inplace</span><span class="p">,</span>
+            <span class="n">band_mapping</span><span class="o">=</span><span class="n">band_mapping</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Landsat.get_water_mask"><a class="viewcode-back" href="../../../../packages/eodal.core.sensors.landsat.html#eodal.core.sensors.landsat.Landsat.get_water_mask">[docs]</a>    <span class="k">def</span> <span class="nf">get_water_mask</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">mask_band</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;qa_pixel&#39;</span><span class="p">,</span>
+            <span class="n">inplace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="n">name_water_mask</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;water_mask&#39;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Band</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get a water mask from the pixel quality band (bit 7).</span>
+
+<span class="sd">        NOTE:</span>
+<span class="sd">            Since the `mask_band` can be set to *any* `Band` it is also</span>
+<span class="sd">            possible to use a different water mask, e.g., from</span>
+<span class="sd">            a custom classifier as long as the bit map used for the classes</span>
+<span class="sd">            is the same.</span>
+<span class="sd">            See also</span>
+<span class="sd">            https://www.usgs.gov/media/images/landsat-collection-2-pixel-quality-assessment-bit-index</span>
+<span class="sd">            for more details.</span>
+
+<span class="sd">        :param mask_band:</span>
+<span class="sd">            The name of the band to use for masking. Default is &#39;qa_pixel&#39;.</span>
+<span class="sd">        :param inplace:</span>
+<span class="sd">            Whether to return a new `Band` instance or add a `Band` to the</span>
+<span class="sd">            current `Landsat` instance. Default is False.</span>
+<span class="sd">        :param name_water_mask:</span>
+<span class="sd">            The name of the water mask band. Default is &#39;water_mask&#39;.</span>
+<span class="sd">        :return:</span>
+<span class="sd">            A `Band` instance containing the water mask or `None` if</span>
+<span class="sd">            `inplace` is True.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">water_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask_from_qa_bits</span><span class="p">(</span>
+            <span class="n">bit_range</span><span class="o">=</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span> <span class="mi">7</span><span class="p">),</span>
+            <span class="n">band_name</span><span class="o">=</span><span class="n">mask_band</span>
+        <span class="p">)</span>
+        <span class="n">water_mask_band</span> <span class="o">=</span> <span class="n">Band</span><span class="p">(</span>
+                <span class="n">band_name</span><span class="o">=</span><span class="n">name_water_mask</span><span class="p">,</span>
+                <span class="n">values</span><span class="o">=</span><span class="n">water_mask</span><span class="p">,</span>
+                <span class="n">geo_info</span><span class="o">=</span><span class="bp">self</span><span class="p">[</span><span class="n">mask_band</span><span class="p">]</span><span class="o">.</span><span class="n">geo_info</span><span class="p">,</span>
+                <span class="n">nodata</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">inplace</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_band</span><span class="p">(</span><span class="n">water_mask_band</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">water_mask_band</span></div>
+
+<div class="viewcode-block" id="Landsat.mask_from_qa_bits"><a class="viewcode-back" href="../../../../packages/eodal.core.sensors.landsat.html#eodal.core.sensors.landsat.Landsat.mask_from_qa_bits">[docs]</a>    <span class="k">def</span> <span class="nf">mask_from_qa_bits</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">bit_range</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span>
+            <span class="n">band_name</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;qa_pixel&#39;</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">MaskedArray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Extract Quality Accurance (QA) bits from the QA band of</span>
+<span class="sd">        Landsat to obtain a binary mask.</span>
+
+<span class="sd">        This function can be used to obtain a binary cloud or</span>
+<span class="sd">        cloud shadow mask, for example.</span>
+
+<span class="sd">        :param bit_range:</span>
+<span class="sd">            A tuple of two integers indicating the start and end bit</span>
+<span class="sd">            of the bit range to extract.</span>
+<span class="sd">        :param band_name:</span>
+<span class="sd">            The name of the QA band. Default is &#39;qa_pixel&#39;.</span>
+<span class="sd">        :return:</span>
+<span class="sd">            A 2-dimensional numpy array containing the obtained mask.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># get the band</span>
+        <span class="n">band</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="n">band_name</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
+        <span class="n">band_mask</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">band</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="n">band_data</span> <span class="o">=</span> <span class="n">band</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">band</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">MaskedArray</span><span class="p">):</span>
+            <span class="n">band_data</span> <span class="o">=</span> <span class="n">band</span><span class="o">.</span><span class="n">data</span>
+            <span class="n">band_mask</span> <span class="o">=</span> <span class="n">band</span><span class="o">.</span><span class="n">mask</span>
+        <span class="c1"># compute the bits to extract</span>
+        <span class="n">pattern</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">bit_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">bit_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">pattern</span> <span class="o">+=</span> <span class="mi">2</span> <span class="o">**</span> <span class="n">i</span>
+        <span class="c1"># assign the extracted bits to the band</span>
+        <span class="n">band_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">bitwise_and</span><span class="p">(</span><span class="n">band_data</span><span class="p">,</span> <span class="n">pattern</span><span class="p">)</span>
+        <span class="n">band_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">right_shift</span><span class="p">(</span><span class="n">band_data</span><span class="p">,</span> <span class="n">bit_range</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="c1"># create a masked array if the input was also masked</span>
+        <span class="k">if</span> <span class="n">band_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">band_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">MaskedArray</span><span class="p">(</span>
+                <span class="n">data</span><span class="o">=</span><span class="n">band_data</span><span class="p">,</span>
+                <span class="n">mask</span><span class="o">=</span><span class="n">band_mask</span>
+            <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">band_data</span></div>
+
+<div class="viewcode-block" id="Landsat.mask_clouds_and_shadows"><a class="viewcode-back" href="../../../../packages/eodal.core.sensors.landsat.html#eodal.core.sensors.landsat.Landsat.mask_clouds_and_shadows">[docs]</a>    <span class="k">def</span> <span class="nf">mask_clouds_and_shadows</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">bands_to_mask</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">cloud_classes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
+            <span class="n">mask_band</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;qa_pixel&#39;</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span> <span class="o">|</span> <span class="n">Landsat</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        A wrapper around the inherited ``mask`` method to mask cirrus,</span>
+<span class="sd">        cloud and cloud shadow pixels in Landsat scenes based on the</span>
+<span class="sd">        pixel quality band.</span>
+
+<span class="sd">        NOTE:</span>
+<span class="sd">            Since the `mask_band` can be set to *any* `Band` it is also</span>
+<span class="sd">            possible to use a different cloud/shadow etc. mask, e.g., from</span>
+<span class="sd">            a custom classifier as long as the bit map used for the classes</span>
+<span class="sd">            is the same.</span>
+<span class="sd">            See also</span>
+<span class="sd">            https://www.usgs.gov/media/images/landsat-collection-2-pixel-quality-assessment-bit-index</span>
+<span class="sd">            for more details.</span>
+
+<span class="sd">        NOTE:</span>
+<span class="sd">            You might also use the mask function from</span>
+<span class="sd">            `eodal.core.raster.RasterCollection` directly.</span>
+
+<span class="sd">        :param bands_to_mask:</span>
+<span class="sd">            A list of bands to mask. Default is all bands.</span>
+<span class="sd">        :param cloud_classes:</span>
+<span class="sd">            A list of integers indicating the cloud classes to mask.</span>
+<span class="sd">            Default is [1, 2, 3, 5].</span>
+<span class="sd">        :param mask_band:</span>
+<span class="sd">            The name of the band to use for masking. Default is &#39;qa_pixel&#39;.</span>
+<span class="sd">        :param kwargs:</span>
+<span class="sd">            optional kwargs to pass to `~eodal.core.raster.RasterCollection.mask`</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            depending on `inplace` (passed in the kwargs) a new `Sentinel2` instance</span>
+<span class="sd">            or None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">bands_to_mask</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">bands_to_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">band_names</span>
+        <span class="c1"># the mask band should never be masked</span>
+        <span class="k">if</span> <span class="n">mask_band</span> <span class="ow">in</span> <span class="n">bands_to_mask</span><span class="p">:</span>
+            <span class="n">bands_to_mask</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">mask_band</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">mask_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">cloud_class</span> <span class="ow">in</span> <span class="n">cloud_classes</span><span class="p">:</span>
+                <span class="c1"># construct the bit range</span>
+                <span class="n">bit_range</span> <span class="o">=</span> <span class="p">(</span><span class="n">cloud_class</span><span class="p">,</span> <span class="n">cloud_class</span><span class="p">)</span>
+                <span class="c1"># get the binary mask as boolean array</span>
+                <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask_from_qa_bits</span><span class="p">(</span>
+                    <span class="n">bit_range</span><span class="o">=</span><span class="n">bit_range</span><span class="p">,</span>
+                    <span class="n">band_name</span><span class="o">=</span><span class="n">mask_band</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;bool&#39;</span><span class="p">)</span>
+                <span class="c1"># add the mask to the list</span>
+                <span class="n">mask_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+
+            <span class="c1"># combine the masks</span>
+            <span class="n">cloud_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">mask_list</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="c1"># mask the bands</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask</span><span class="p">(</span>
+                <span class="n">mask</span><span class="o">=</span><span class="n">cloud_mask</span><span class="p">,</span>
+                <span class="n">bands_to_mask</span><span class="o">=</span><span class="n">bands_to_mask</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">kwargs</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not mask clouds and shadows: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../packages/modules.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

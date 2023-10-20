@@ -1,0 +1,463 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eodal.core.spectral_indices &#8212; eodal 0.2.2 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for eodal.core.spectral_indices</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module contains a set of commonly used Spectral Indices (VIs).</span>
+<span class="sd">The formula are generic by using color names. Thus, they can be applied</span>
+<span class="sd">to different remote sensing platforms and are not bound to a predefined band</span>
+<span class="sd">selection.</span>
+
+<span class="sd">Copyright (C) 2022 Lukas Valentin Graf</span>
+
+<span class="sd">This program is free software: you can redistribute it and/or modify</span>
+<span class="sd">it under the terms of the GNU General Public License as published by</span>
+<span class="sd">the Free Software Foundation, either version 3 of the License, or</span>
+<span class="sd">(at your option) any later version.</span>
+
+<span class="sd">This program is distributed in the hope that it will be useful,</span>
+<span class="sd">but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="sd">MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="sd">GNU General Public License for more details.</span>
+
+<span class="sd">You should have received a copy of the GNU General Public License</span>
+<span class="sd">along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">numpy</span> <span class="kn">import</span> <span class="n">inf</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+
+<div class="viewcode-block" id="SpectralIndices"><a class="viewcode-back" href="../../../packages/eodal.core.spectral_indices.html#eodal.core.spectral_indices.SpectralIndices">[docs]</a><span class="k">class</span> <span class="nc">SpectralIndices</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;generic spectral indices&quot;&quot;&quot;</span>
+
+    <span class="c1"># define color names (for optical sensors)</span>
+<div class="viewcode-block" id="SpectralIndices.__init__"><a class="viewcode-back" href="../../../packages/eodal.core.spectral_indices.html#eodal.core.spectral_indices.SpectralIndices.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">band_mapping</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Class constructor. To override the default</span>
+<span class="sd">        bands pass custom band mappings as a dictionary:</span>
+<span class="sd">        </span>
+<span class="sd">        Example</span>
+<span class="sd">        -------</span>
+<span class="sd">        To use Sentinel-2 band nir_2 (Band 8A) instead of</span>
+<span class="sd">        Sentinel-2 band nir_1 (Band 8) for, e.g., NDVI</span>
+<span class="sd">        calculation pass</span>
+
+<span class="sd">        .. highlight:: python</span>
+<span class="sd">        .. code-block:: python</span>
+
+<span class="sd">            # use nir_2 instead of nir_1</span>
+<span class="sd">            # the other bands remain unaffected</span>
+<span class="sd">            band_mapping = {&#39;nir_1&#39;: &#39;nir_2&#39;}</span>
+<span class="sd">            spectral_indices = SpectralIndices(band_mapping)</span>
+
+<span class="sd">        :param band_mapping:</span>
+<span class="sd">            optional band mapping to override default band</span>
+<span class="sd">            setting for SI calculation (see example above)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># common optical bands</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">blue</span> <span class="o">=</span> <span class="n">band_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;blue&quot;</span><span class="p">,</span> <span class="s2">&quot;blue&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">green</span> <span class="o">=</span> <span class="n">band_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;green&quot;</span><span class="p">,</span> <span class="s2">&quot;green&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">red</span> <span class="o">=</span> <span class="n">band_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;red&quot;</span><span class="p">,</span> <span class="s2">&quot;red&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">red_edge_1</span> <span class="o">=</span> <span class="n">band_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;red_edge_1&quot;</span><span class="p">,</span> <span class="s2">&quot;red_edge_1&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">red_edge_2</span> <span class="o">=</span> <span class="n">band_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;red_edge_2&quot;</span><span class="p">,</span> <span class="s2">&quot;red_edge_2&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">red_edge_3</span> <span class="o">=</span> <span class="n">band_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;red_edge_3&quot;</span><span class="p">,</span> <span class="s2">&quot;red_edge_3&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nir_1</span> <span class="o">=</span> <span class="n">band_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;nir_1&quot;</span><span class="p">,</span> <span class="s2">&quot;nir_1&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nir_2</span> <span class="o">=</span> <span class="n">band_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;nir_2&quot;</span><span class="p">,</span> <span class="s2">&quot;nir_2&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">swir_1</span> <span class="o">=</span> <span class="n">band_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;swir_1&quot;</span><span class="p">,</span> <span class="s2">&quot;swir_1&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">swir_2</span> <span class="o">=</span> <span class="n">band_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;swir_2&quot;</span><span class="p">,</span> <span class="s2">&quot;swir_2&quot;</span><span class="p">)</span>
+    
+        <span class="c1"># polarizations (for SAR)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vv</span> <span class="o">=</span> <span class="n">band_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;VV&quot;</span><span class="p">,</span> <span class="s2">&quot;VV&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vh</span> <span class="o">=</span> <span class="n">band_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;VH&quot;</span><span class="p">,</span> <span class="s2">&quot;VH&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hh</span> <span class="o">=</span> <span class="n">band_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;HH&quot;</span><span class="p">,</span> <span class="s2">&quot;HH&quot;</span><span class="p">)</span></div>
+
+    
+<div class="viewcode-block" id="SpectralIndices.get_si_list"><a class="viewcode-back" href="../../../packages/eodal.core.spectral_indices.html#eodal.core.spectral_indices.SpectralIndices.get_si_list">[docs]</a>    <span class="k">def</span> <span class="nf">get_si_list</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns a list of implemented Spectral Indices (SIs)</span>
+
+<span class="sd">        :returns:</span>
+<span class="sd">            list of SIs currently implemented</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">x</span>
+            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">dir</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">x</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;__&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">x</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;__&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">x</span><span class="o">.</span><span class="n">islower</span><span class="p">()</span>
+        <span class="p">]</span></div>
+
+<div class="viewcode-block" id="SpectralIndices.calc_si"><a class="viewcode-back" href="../../../packages/eodal.core.spectral_indices.html#eodal.core.spectral_indices.SpectralIndices.calc_si">[docs]</a>    <span class="k">def</span> <span class="nf">calc_si</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">si</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">collection</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">MaskedArray</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the selected spectral index (SI) for</span>
+<span class="sd">        spectral band data derived from `~eodal.core.RasterCollection`.</span>
+<span class="sd">        The resulting vi is returned as ``numpy.ndarray``.</span>
+
+<span class="sd">        :param si:</span>
+<span class="sd">            name of the selected vegetation index (e.g., NDVI). Raises</span>
+<span class="sd">            an error if the vegetation index is not implemented/ found.</span>
+<span class="sd">        :param collection:</span>
+<span class="sd">            ~`eodal.core.raster.RasterCollection` with spectral bands.</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            2d ``numpy.ndarray`` or ``np.ma.MaskedArray`` with VI values</span>
+<span class="sd">            (depends on array-type of the input)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># SI calculation</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">si</span><span class="o">.</span><span class="n">upper</span><span class="p">()):</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;SI </span><span class="si">{</span><span class="n">si</span><span class="si">}</span><span class="s1"> not found.</span><span class="se">\n</span><span class="s1">See `SpectralIndices()&#39;</span> <span class="o">+</span>
+                <span class="s1">&#39;.get_si_list()` for a list of currently implemented SIs.&#39;</span><span class="p">)</span>
+
+        <span class="n">si_fun</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">si</span><span class="o">.</span><span class="n">upper</span><span class="p">())</span>
+        <span class="n">si_data</span> <span class="o">=</span> <span class="n">si_fun</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="n">collection</span><span class="p">)</span>
+
+        <span class="c1"># post-processing</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># replace infinity values with NaN</span>
+            <span class="n">si_data</span><span class="p">[</span><span class="n">si_data</span> <span class="o">==</span> <span class="n">inf</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+            <span class="c1"># replace masked values with no-data (might look weird otherwise)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">si_data</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">MaskedArray</span><span class="p">):</span>
+                <span class="n">si_data</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">si_data</span><span class="o">.</span><span class="n">mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span> <span class="kn">from</span> <span class="nn">e</span>
+        <span class="k">return</span> <span class="n">si_data</span></div>
+
+<div class="viewcode-block" id="SpectralIndices.NDVI"><a class="viewcode-back" href="../../../packages/eodal.core.spectral_indices.html#eodal.core.spectral_indices.SpectralIndices.NDVI">[docs]</a>    <span class="k">def</span> <span class="nf">NDVI</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">collection</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the Normalized Difference Vegetation Index</span>
+<span class="sd">        (NDVI) using the red and the near-infrared (NIR) channel.</span>
+
+<span class="sd">        :param collection:</span>
+<span class="sd">            reflectance in the &#39;red&#39; and &#39;nir_1&#39; channel</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            NDVI values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">nir</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nir_1</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">red</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">red</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">ndvi</span> <span class="o">=</span> <span class="p">(</span><span class="n">nir</span> <span class="o">-</span> <span class="n">red</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">nir</span> <span class="o">+</span> <span class="n">red</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ndvi</span></div>
+
+<div class="viewcode-block" id="SpectralIndices.EVI"><a class="viewcode-back" href="../../../packages/eodal.core.spectral_indices.html#eodal.core.spectral_indices.SpectralIndices.EVI">[docs]</a>    <span class="k">def</span> <span class="nf">EVI</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">collection</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the Enhanced Vegetation Index (EVI) following the formula</span>
+<span class="sd">        provided by Huete et al. (2002)</span>
+
+<span class="sd">        :param collection:</span>
+<span class="sd">            reflectance in the &#39;blue&#39;, &#39;red&#39; and &#39;nir_1&#39; channel</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            EVI values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">blue</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">blue</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">nir</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nir_1</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">red</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">red</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">numerator</span> <span class="o">=</span> <span class="n">nir</span> <span class="o">-</span> <span class="n">red</span>
+        <span class="n">denominator</span> <span class="o">=</span> <span class="n">nir</span> <span class="o">+</span> <span class="mi">6</span> <span class="o">*</span> <span class="n">red</span> <span class="o">-</span> <span class="mf">7.5</span> <span class="o">*</span> <span class="n">blue</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="c1"># values larger 1 and smaller -1 might occur (e.g., on artificial</span>
+        <span class="c1"># surfaces); here we cut them of</span>
+        <span class="n">evi</span> <span class="o">=</span> <span class="mf">2.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">numerator</span> <span class="o">/</span> <span class="n">denominator</span><span class="p">)</span>
+        <span class="n">evi</span><span class="p">[</span><span class="n">evi</span> <span class="o">&gt;</span> <span class="mf">1.0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="n">evi</span><span class="p">[</span><span class="n">evi</span> <span class="o">&lt;</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.0</span>
+        <span class="k">return</span> <span class="n">evi</span></div>
+
+<div class="viewcode-block" id="SpectralIndices.MSAVI"><a class="viewcode-back" href="../../../packages/eodal.core.spectral_indices.html#eodal.core.spectral_indices.SpectralIndices.MSAVI">[docs]</a>    <span class="k">def</span> <span class="nf">MSAVI</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">collection</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the Modified Soil-Adjusted Vegetation Index</span>
+<span class="sd">        (MSAVI). MSAVI is sensitive to the green leaf area index</span>
+<span class="sd">        (greenLAI).</span>
+
+<span class="sd">        :param collection:</span>
+<span class="sd">            reflectance in the &#39;red&#39; and &#39;nir_1&#39; channel</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            MSAVI values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">nir</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nir_1</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">red</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">red</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">nir</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="mi">2</span> <span class="o">*</span> <span class="n">nir</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">-</span> <span class="mi">8</span> <span class="o">*</span> <span class="p">(</span><span class="n">nir</span> <span class="o">-</span> <span class="n">red</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="SpectralIndices.CI_GREEN"><a class="viewcode-back" href="../../../packages/eodal.core.spectral_indices.html#eodal.core.spectral_indices.SpectralIndices.CI_GREEN">[docs]</a>    <span class="k">def</span> <span class="nf">CI_GREEN</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">collection</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the green chlorophyll index (CI_green).</span>
+<span class="sd">        It is sensitive to canopy chlorophyll concentration (CCC).</span>
+
+<span class="sd">        :param collection:</span>
+<span class="sd">            reflectance in the &#39;green&#39; and &#39;nir_1&#39; channel</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            CI-green values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">nir</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nir_1</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">green</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">green</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">nir</span> <span class="o">/</span> <span class="n">green</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span></div>
+
+<div class="viewcode-block" id="SpectralIndices.MTCARI_OSAVI"><a class="viewcode-back" href="../../../packages/eodal.core.spectral_indices.html#eodal.core.spectral_indices.SpectralIndices.MTCARI_OSAVI">[docs]</a>    <span class="k">def</span> <span class="nf">MTCARI_OSAVI</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">collection</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the ratio of the Transformed Chlorophyll Index (TCARI)</span>
+<span class="sd">        and the Optimized Soil-Adjusted Vegetation Index (OSAVI). It is sensitive</span>
+<span class="sd">        to changes in the leaf chlorophyll content (LCC).</span>
+
+<span class="sd">        :param collection:</span>
+<span class="sd">            reflectance in the &#39;green&#39;, &#39;red&#39;, &#39;red_edge_1&#39;, &#39;red_edge_3&#39; channel</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            TCARI/OSAVI values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">green</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">green</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">red</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">red</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">red_edge_1</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">red_edge_1</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">red_edge_3</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">red_edge_3</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+
+        <span class="n">TCARI</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">*</span> <span class="p">(</span>
+            <span class="p">(</span><span class="n">red_edge_1</span> <span class="o">-</span> <span class="n">red</span><span class="p">)</span> <span class="o">-</span> <span class="mf">0.2</span> <span class="o">*</span> <span class="p">(</span><span class="n">red_edge_1</span> <span class="o">-</span> <span class="n">green</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">red_edge_1</span> <span class="o">/</span> <span class="n">red</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">OSAVI</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="mf">0.16</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">red_edge_3</span> <span class="o">-</span> <span class="n">red</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">red_edge_3</span> <span class="o">+</span> <span class="n">red</span> <span class="o">+</span> <span class="mf">0.16</span><span class="p">)</span>
+        <span class="n">tcari_osavi</span> <span class="o">=</span> <span class="n">TCARI</span> <span class="o">/</span> <span class="n">OSAVI</span>
+        <span class="k">return</span> <span class="n">tcari_osavi</span></div>
+
+<div class="viewcode-block" id="SpectralIndices.NDRE"><a class="viewcode-back" href="../../../packages/eodal.core.spectral_indices.html#eodal.core.spectral_indices.SpectralIndices.NDRE">[docs]</a>    <span class="k">def</span> <span class="nf">NDRE</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">collection</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the Normalized Difference Red Edge (NDRE). It extends</span>
+<span class="sd">        the capabilities of the NDVI for middle and late season crops.</span>
+
+<span class="sd">        :param collection:</span>
+<span class="sd">            reflectance in the &#39;red_edge_1&#39; and &#39;red_edge_3&#39; channel</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            NDRE values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">red_edge_1</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">red_edge_1</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">red_edge_3</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">red_edge_3</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">red_edge_3</span> <span class="o">-</span> <span class="n">red_edge_1</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">red_edge_3</span> <span class="o">+</span> <span class="n">red_edge_1</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SpectralIndices.MCARI"><a class="viewcode-back" href="../../../packages/eodal.core.spectral_indices.html#eodal.core.spectral_indices.SpectralIndices.MCARI">[docs]</a>    <span class="k">def</span> <span class="nf">MCARI</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">collection</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the Modified Chlorophyll Absorption Ratio Index (MCARI).</span>
+<span class="sd">        It is sensitive to leaf chlorophyll concentration (LCC).</span>
+
+<span class="sd">        :param collection:</span>
+<span class="sd">            refletcnace in the &#39;green&#39;, &#39;red&#39;, and &#39;red_edge_1&#39; channel</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            MCARI values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">green</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">green</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">red</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">red</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">red_edge_1</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">red_edge_1</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">((</span><span class="n">red_edge_1</span> <span class="o">-</span> <span class="n">red</span><span class="p">)</span> <span class="o">-</span> <span class="mf">0.2</span> <span class="o">*</span> <span class="p">(</span><span class="n">red_edge_1</span> <span class="o">-</span> <span class="n">green</span><span class="p">))</span> <span class="o">*</span> <span class="p">(</span><span class="n">red_edge_1</span> <span class="o">/</span> <span class="n">red</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SpectralIndices.BSI"><a class="viewcode-back" href="../../../packages/eodal.core.spectral_indices.html#eodal.core.spectral_indices.SpectralIndices.BSI">[docs]</a>    <span class="k">def</span> <span class="nf">BSI</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">collection</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the Bare Soil Index (BSI).</span>
+
+<span class="sd">        :param collection:</span>
+<span class="sd">            reflectance in the &#39;blue&#39;, &#39;red&#39;, &#39;nir_1&#39; and &#39;swir_1&#39; channel</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            BSI values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">blue</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">blue</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">red</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">red</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">nir</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nir_1</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">swir_1</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">swir_1</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">((</span><span class="n">swir_1</span> <span class="o">+</span> <span class="n">red</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="n">nir</span> <span class="o">+</span> <span class="n">blue</span><span class="p">))</span> <span class="o">/</span> <span class="p">((</span><span class="n">swir_1</span> <span class="o">+</span> <span class="n">red</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">nir</span> <span class="o">+</span> <span class="n">blue</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="SpectralIndices.VARI"><a class="viewcode-back" href="../../../packages/eodal.core.spectral_indices.html#eodal.core.spectral_indices.SpectralIndices.VARI">[docs]</a>    <span class="k">def</span> <span class="nf">VARI</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">collection</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the Visible Atmospherically Resistant Index (VARI)</span>
+
+<span class="sd">        :param collection:</span>
+<span class="sd">            reflectance in the &#39;blue&#39;, &#39;red&#39;, &#39;nir_1&#39; and &#39;swir_1&#39; channel</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            BSI values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">blue</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">blue</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">green</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">green</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">red</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">red</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">green</span> <span class="o">-</span> <span class="n">red</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">green</span> <span class="o">+</span> <span class="n">red</span> <span class="o">-</span> <span class="n">blue</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SpectralIndices.NDYI"><a class="viewcode-back" href="../../../packages/eodal.core.spectral_indices.html#eodal.core.spectral_indices.SpectralIndices.NDYI">[docs]</a>    <span class="k">def</span> <span class="nf">NDYI</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">collection</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the Normalized Difference Yellowness Index</span>
+
+<span class="sd">        :param collection:</span>
+<span class="sd">            reflectance in the &#39;blue&#39;, &#39;green&#39;, channel</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            NDYI values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">blue</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">blue</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">green</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">green</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">green</span> <span class="o">-</span> <span class="n">blue</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">green</span> <span class="o">+</span> <span class="n">blue</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SpectralIndices.NDWI"><a class="viewcode-back" href="../../../packages/eodal.core.spectral_indices.html#eodal.core.spectral_indices.SpectralIndices.NDWI">[docs]</a>    <span class="k">def</span> <span class="nf">NDWI</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">collection</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the Normalized Difference Yellowness Index</span>
+
+<span class="sd">        :param collection:</span>
+<span class="sd">            reflectance in the &#39;green&#39; and &#39;nir channel</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            NDYI values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">green</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">green</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">nir</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nir_1</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">green</span> <span class="o">-</span> <span class="n">nir</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">green</span> <span class="o">+</span> <span class="n">nir</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SpectralIndices.CR"><a class="viewcode-back" href="../../../packages/eodal.core.spectral_indices.html#eodal.core.spectral_indices.SpectralIndices.CR">[docs]</a>    <span class="k">def</span> <span class="nf">CR</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">collection</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the Cross Ratio  VH/VV</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">vh</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vh</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">vv</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vv</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">vh</span> <span class="o">/</span> <span class="n">vv</span></div>
+
+<div class="viewcode-block" id="SpectralIndices.NHI"><a class="viewcode-back" href="../../../packages/eodal.core.spectral_indices.html#eodal.core.spectral_indices.SpectralIndices.NHI">[docs]</a>    <span class="k">def</span> <span class="nf">NHI</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">collection</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the Normalized Humidity Index. First described for detecting</span>
+<span class="sd">        ponds with vegetation in and on top.</span>
+<span class="sd">        :param collection:</span>
+<span class="sd">            reflectance in the &#39;green&#39; and &#39;swir_1&#39; channel</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            NHI values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">swir_1</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">swir_1</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">green</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">green</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">swir_1</span> <span class="o">-</span> <span class="n">green</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">swir_1</span> <span class="o">+</span> <span class="n">green</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SpectralIndices.NDTI"><a class="viewcode-back" href="../../../packages/eodal.core.spectral_indices.html#eodal.core.spectral_indices.SpectralIndices.NDTI">[docs]</a>    <span class="k">def</span> <span class="nf">NDTI</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">collection</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the Normalized Tillage Index. Useful for tillage and crop residues.</span>
+<span class="sd">        :param collection:</span>
+<span class="sd">            reflectance in the &#39;swir_1&#39; and &#39;swir_2&#39; channel</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            NDTI values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">swir_1</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">swir_1</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">swir_2</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">swir_2</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">swir_1</span> <span class="o">-</span> <span class="n">swir_2</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">swir_1</span> <span class="o">+</span> <span class="n">swir_2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SpectralIndices.NDRI"><a class="viewcode-back" href="../../../packages/eodal.core.spectral_indices.html#eodal.core.spectral_indices.SpectralIndices.NDRI">[docs]</a>    <span class="k">def</span> <span class="nf">NDRI</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">collection</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the Normalized Difference Residue Index. Useful for detecting</span>
+<span class="sd">        crop residues.</span>
+
+<span class="sd">        :param collection:</span>
+<span class="sd">            reflectance in the &#39;red&#39; and &#39;swir_2&#39; channel</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            NDRI values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">red</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">red</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">swir_2</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">swir_2</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">red</span> <span class="o">-</span> <span class="n">swir_2</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">red</span> <span class="o">+</span> <span class="n">swir_2</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SpectralIndices.GNDVI"><a class="viewcode-back" href="../../../packages/eodal.core.spectral_indices.html#eodal.core.spectral_indices.SpectralIndices.GNDVI">[docs]</a>    <span class="k">def</span> <span class="nf">GNDVI</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">collection</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculates the Green Normalized Difference Vegetation Index </span>
+<span class="sd">        :param collection:</span>
+<span class="sd">            reflectance in the &#39;nir_1&#39; and &#39;green&#39; channel</span>
+<span class="sd">        :returns:</span>
+<span class="sd">            GNDVI values</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">nir</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nir_1</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="n">green</span> <span class="o">=</span> <span class="n">collection</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">green</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">nir</span> <span class="o">-</span> <span class="n">green</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">nir</span> <span class="o">+</span> <span class="n">green</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">eodal</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Table of Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../packages/modules.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../source/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../py-modindex.html">Module Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../genindex.html">Index</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

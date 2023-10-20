@@ -1,0 +1,7 @@
+eodal.core.sensors.landsat module
+=================================
+
+.. automodule:: eodal.core.sensors.landsat
+   :members:
+   :undoc-members:
+   :show-inheritance:
