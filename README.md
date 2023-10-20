@@ -1,4 +1,4 @@
-[![Test Status](https://github.com/EOA-team/eodal/actions/workflows/test.yaml/badge.svg)
+![Test Status](https://github.com/EOA-team/eodal/actions/workflows/test.yaml/badge.svg)
 [![Documentation Status](https://readthedocs.org/projects/eodal/badge/?version=latest)](https://eodal.readthedocs.io/en/latest/?badge=latest)
 [![codecov](https://codecov.io/gh/EOA-team/eodal/graph/badge.svg?token=YA08L2Z608)](https://codecov.io/gh/EOA-team/eodal)
 
