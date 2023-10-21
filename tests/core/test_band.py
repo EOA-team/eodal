@@ -110,6 +110,13 @@ def test_band_from_rasterio(get_test_band, get_bandstack):
         Band.from_rasterio(
             fpath_raster=fpath_raster,
             band_idx=22,
+            nodata=0
+        )
+    # nodata value no specified
+    with pytest.raises(TypeError):
+        Band.from_rasterio(
+            fpath_raster=fpath_raster,
+            band_idx=22
         )
 
 
