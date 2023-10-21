@@ -1,5 +1,5 @@
 '''
-Tests for the filter class.
+Tests for the Mapper class for Sentinel-2.
 
 .. versionadded:: 0.2.0
 
@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 '''
 
 import geopandas as gpd
+import numpy as np
 import pytest
 
 from datetime import datetime
@@ -36,7 +37,7 @@ from eodal.mapper.mapper import Mapper, MapperConfigs
 Settings = get_settings()
 
 @pytest.mark.parametrize(
-    'collection,time_start,time_end,geom,metadata_filters',
+    'collection,time_start,time_end,geom,metadata_filters,apply_scaling',
     [(
         'sentinel2-msi',
         datetime(2022,7,1),
@@ -49,9 +50,25 @@ Settings = get_settings()
             [7.04229, 47.01202]]
         ),
         [Filter('cloudy_pixel_percentage','<', 80), Filter('processing_level', '==', 'Level-2A')],
-    ),]
+        False
+    ),
+        (
+        'sentinel2-msi',
+        datetime(2022,7,1),
+        datetime(2022,7,15),
+        Polygon(
+            [[7.04229, 47.01202],
+            [7.08525, 47.01202],
+            [7.08525, 46.96316],
+            [7.04229, 46.96316],
+            [7.04229, 47.01202]]
+        ),
+        [Filter('cloudy_pixel_percentage','<', 80), Filter('processing_level', '==', 'Level-2A')],
+        True
+    )]
 )
-def test_sentinel2_mapper(collection, time_start, time_end, geom, metadata_filters):
+def test_sentinel2_mapper(collection, time_start, time_end, geom, metadata_filters,
+                          apply_scaling):
     """
     Test the mapper class for handling Sentinel-2 data including mosaicing data
     from two different Sentinel-2 tiles
@@ -80,7 +97,10 @@ def test_sentinel2_mapper(collection, time_start, time_end, geom, metadata_filte
 
     scene_kwargs = {
         'scene_constructor': Sentinel2.from_safe,
-        'scene_constructor_kwargs': {'band_selection': ['B04', 'B08']},
+        'scene_constructor_kwargs': {
+            'band_selection': ['B04', 'B08'],
+            'apply_scaling': apply_scaling
+        },
         'scene_modifier': resample,
         'scene_modifier_kwargs': {'target_resolution': 10}
     }
@@ -93,3 +113,10 @@ def test_sentinel2_mapper(collection, time_start, time_end, geom, metadata_filte
         'all scenes must be projected into the target EPSG'
     assert mapper.metadata.shape[0] == len(mapper.data), \
         'mis-match between length of metadata and data'
+
+    for _, scene in mapper.data:
+        dtype = scene['red'].values.dtype
+        if apply_scaling:
+            assert dtype in [np.float32, np.float64]
+        else:
+            assert dtype in [np.uint8, np.uint16]
