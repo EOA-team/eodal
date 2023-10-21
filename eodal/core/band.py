@@ -791,7 +791,13 @@ class Band(object):
                 kwargs.pop("area_or_point")
             # check no data value
             if "nodata" not in kwargs.keys():
-                nodata = np.array([src.nodata]).astype(src.dtypes[0])[0]
+                if src.nodata is not None:
+                    nodata = np.array([src.nodata]).astype(
+                        src.dtypes[0])[0]
+                else:
+                    raise TypeError(
+                        'Nodata must not be None. Please pass ' +
+                        '`nodata` argument')
             else:
                 nodata = kwargs["nodata"]
                 kwargs.pop("nodata")
