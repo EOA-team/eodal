@@ -789,6 +789,12 @@ class Band(object):
             else:
                 area_or_point = kwargs["area_or_point"]
                 kwargs.pop("area_or_point")
+            # check no data value
+            if "nodata" not in kwargs.keys():
+                nodata = np.array([src.nodata]).astype(src.dtypes[0])[0]
+            else:
+                nodata = kwargs["nodata"]
+                kwargs.pop("nodata")
 
             # overwrite band_idx if band_name_src is provided
             band_names = list(src.descriptions)
@@ -854,13 +860,6 @@ class Band(object):
             if units is not None:
                 unit = units[band_idx - 1]
 
-        if "nodata" in kwargs.keys():
-            nodata = kwargs["nodata"]
-            kwargs.pop("nodata")
-        else:
-            nodata, nodata_vals = None, attrs.get("nodatavals", None)
-            if nodata_vals is not None:
-                nodata = nodata_vals[band_idx - 1]
         # make sure the nodata type matches the datatype of the
         # band values
         if band_data.dtype.kind not in 'fc' and np.isnan(nodata):
