@@ -450,22 +450,26 @@ class Landsat(RasterCollection):
 
             # get alias name of band
             band_alias = None
+            nodata = None
             if band_name in landsat_band_mapping[sensor].values():
                 band_alias = [
                     k for k, v in landsat_band_mapping[sensor].items()
                     if v == band_name][0]
-            elif band_name in landsat_band_mapping['quality_flags'].keys() \
+            elif band_name in landsat_band_mapping['quality_flags'] \
                     or band_name in landsat_band_mapping['quality_flags'].values():
                 band_alias = band_name.lower()
-            elif band_name in landsat_band_mapping['atmospheric_correction'].keys() \
+                nodata = 0
+            elif band_name in landsat_band_mapping['atmospheric_correction'] \
                     or band_name in landsat_band_mapping['atmospheric_correction'
                                                          ].values():
                 band_alias = band_name.lower()
+                nodata = 0
 
             # read band
             try:
-                if band_name in landsat_band_mapping[sensor].values():
-                    kwargs.update({'scale': gain, 'offset': offset})
+                kwargs.update({'scale': gain, 'offset': offset})
+                if nodata is not None:
+                    kwargs.update({'nodata': nodata})
                 landsat.add_band(
                     Band.from_rasterio,
                     fpath_raster=band_fpath,
