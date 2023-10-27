@@ -386,6 +386,7 @@ class Landsat(RasterCollection):
             RasterCollection containing the Landsat bands.
         """
         # check band selection and determine the platform and sensor
+        _band_selection = deepcopy(band_selection)
         band_df = cls._preprocess_band_selection(
             cls,
             in_dir=in_dir,
