@@ -1,5 +1,6 @@
+![Test Status](https://github.com/EOA-team/eodal/actions/workflows/test.yaml/badge.svg)
 [![Documentation Status](https://readthedocs.org/projects/eodal/badge/?version=latest)](https://eodal.readthedocs.io/en/latest/?badge=latest)
-[![codecov](https://codecov.io/gh/lukasValentin/eodal/graph/badge.svg?token=87CFHMHC41)](https://codecov.io/gh/lukasValentin/eodal)
+[![codecov](https://codecov.io/gh/EOA-team/eodal/graph/badge.svg?token=YA08L2Z608)](https://codecov.io/gh/EOA-team/eodal)
 
 # E:earth_africa:dal Earth Observation Data Analysis Library
 
@@ -129,3 +130,8 @@ We have compiled a set of [Jupyter notebooks](https://github.com/EOA-team/eodal_
 ## Contributing
 
 Contributions to E:earth_africa:dal are welcome. Please make sure to read the [contribution guidelines](https://github.com/EOA-team/eodal/tree/master/Contributing.rst) first.
+
+## Code Coverage
+The inner-most circle is the entire project, moving away from the center are folders then, finally, a single file. The size and color of each slice is representing the number of statements and the coverage, respectively.
+
+![codecov](https://codecov.io/gh/EOA-team/eodal/graphs/sunburst.svg?token=YA08L2Z608)

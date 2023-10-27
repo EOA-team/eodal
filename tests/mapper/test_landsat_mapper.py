@@ -24,22 +24,39 @@ import numpy as np
 import pytest
 
 from datetime import datetime
-from shapely.geometry import Polygon
+from shapely.geometry import box, Polygon
 
 from eodal.config import get_settings
 from eodal.core.raster import RasterCollection
 from eodal.core.scene import SceneCollection
-from eodal.core.sensors import Sentinel2
+from eodal.core.sensors import Landsat
 from eodal.mapper.feature import Feature
 from eodal.mapper.filter import Filter
 from eodal.mapper.mapper import Mapper, MapperConfigs
 
 Settings = get_settings()
 
+
+def preprocess_landsat_scene(
+        ds: Landsat
+) -> Landsat:
+    """
+    Mask clouds and cloud shadows in a Landsat scene based
+    on the 'qa_pixel' band.
+
+    :param ds:
+        Landsat scene before cloud mask applied.
+    :return:
+        Landsat scene with clouds and cloud shadows masked.
+    """
+    ds.mask_clouds_and_shadows(inplace=True)
+    return ds
+
+
 @pytest.mark.parametrize(
     'collection,time_start,time_end,geom,metadata_filters,apply_scaling',
     [(
-        'sentinel2-msi',
+        'landsat-c2-l2',
         datetime(2022,7,1),
         datetime(2022,7,15),
         Polygon(
@@ -49,11 +66,10 @@ Settings = get_settings()
             [7.04229, 46.96316],
             [7.04229, 47.01202]]
         ),
-        [Filter('cloudy_pixel_percentage','<', 80), Filter('processing_level', '==', 'Level-2A')],
+        [Filter('eo:cloud_cover','<', 80)],
         False
-    ),
-        (
-        'sentinel2-msi',
+    ),(
+        'landsat-c2-l2',
         datetime(2022,7,1),
         datetime(2022,7,15),
         Polygon(
@@ -63,15 +79,25 @@ Settings = get_settings()
             [7.04229, 46.96316],
             [7.04229, 47.01202]]
         ),
-        [Filter('cloudy_pixel_percentage','<', 80), Filter('processing_level', '==', 'Level-2A')],
+        [Filter('eo:cloud_cover','<', 80)],
         True
-    )]
+    ),
+    (
+        'landsat-c2-l1',
+        datetime(1972, 9, 1),
+        datetime(1972, 10, 31),
+        box(*[8.4183, 47.2544, 8.7639, 47.5176]),
+        [Filter('eo:cloud_cover','<', 80)],
+        False
+    )
+    ]
 )
-def test_sentinel2_mapper(collection, time_start, time_end, geom, metadata_filters,
-                          apply_scaling):
+def test_landsat_mapper(
+        collection, time_start, time_end, geom, metadata_filters,
+        apply_scaling):
     """
-    Test the mapper class for handling Sentinel-2 data including mosaicing data
-    from two different Sentinel-2 tiles
+    Test the mapper class for handling Landsat collection 2 data
+    (level 1 and 2).
     """
     Settings.USE_STAC = True
     feature = Feature(
@@ -92,17 +118,14 @@ def test_sentinel2_mapper(collection, time_start, time_end, geom, metadata_filte
     assert isinstance(mapper.metadata, gpd.GeoDataFrame), 'expected a GeoDataFrame'
     assert not mapper.metadata.empty, 'metadata must not be empty'
 
-    def resample(ds: RasterCollection, **kwargs):
-        return ds.resample(inplace=False, **kwargs)
-
     scene_kwargs = {
-        'scene_constructor': Sentinel2.from_safe,
+        'scene_constructor': Landsat.from_usgs,
         'scene_constructor_kwargs': {
-            'band_selection': ['B04', 'B08'],
+            'band_selection': ['red', 'nir08'],
+            'read_qa': True,
             'apply_scaling': apply_scaling
         },
-        'scene_modifier': resample,
-        'scene_modifier_kwargs': {'target_resolution': 10}
+        'scene_modifier': preprocess_landsat_scene
     }
     mapper.load_scenes(scene_kwargs=scene_kwargs)
 
