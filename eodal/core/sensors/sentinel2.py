@@ -31,6 +31,7 @@ import pandas as pd
 import geopandas as gpd
 import rasterio as rio
 
+from copy import deepcopy
 from matplotlib.pyplot import Figure
 from matplotlib import colors
 from numbers import Number
@@ -157,7 +158,7 @@ class Sentinel2(RasterCollection):
         if processing_level == ProcessingLevels.L1C:
             is_l2a = False
 
-        # check if SCL should e read (L2A)
+        # check if SCL should be read (L2A)
         if is_l2a and read_scl:
             scl_in_selection = "scl" in band_selection or "SCL" in band_selection
             if not scl_in_selection:
@@ -209,6 +210,20 @@ class Sentinel2(RasterCollection):
             for band in bands_to_exclude:
                 band_selection.remove(band)
 
+        # check if band or color names are passed
+        color_names = set(band_selection).issubset(s2_band_mapping.values())
+        band_names = set(band_selection).issubset(s2_band_mapping.keys())
+
+        if not color_names and not band_names:
+            raise BandNotFoundError(
+                f'Invalid selection of bands: {band_selection}')
+
+        # internally, we use band names only. So we have to map the color names
+        # back to their band names
+        if color_names:
+            band_selection = [
+                k for k, v in s2_band_mapping.items() if v in band_selection]
+
         # determine which spatial resolutions are selected and check processing level
         band_df_safe = self._get_band_files(
             in_dir=in_dir, band_selection=band_selection, read_scl=read_scl
@@ -224,7 +239,7 @@ class Sentinel2(RasterCollection):
                     if bands_not_found[0] == "SCL":
                         return band_df_safe
                 raise BandNotFoundError(
-                    f"Couldnot find bands {bands_not_found} " "provided in selection"
+                    f"Could not find bands {bands_not_found} " "provided in selection"
                 )
         return band_df_safe
 
@@ -280,8 +295,9 @@ class Sentinel2(RasterCollection):
             `Sentinel2` instance with S2 bands loaded
         """
         # load 10 and 20 bands by default
+        _band_selection = deepcopy(band_selection)
         band_df_safe = cls._process_band_selection(
-            cls, in_dir=in_dir, band_selection=band_selection, read_scl=read_scl
+            cls, in_dir=in_dir, band_selection=_band_selection, read_scl=read_scl
         )
 
         # check the clipping extent of the raster with the lowest (coarsest) spatial
