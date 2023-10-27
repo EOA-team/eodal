@@ -12,7 +12,7 @@ from datetime import date
 from eodal.config import get_settings
 from eodal.core.sensors import Sentinel2
 from eodal.core.band import Band
-from eodal.utils.exceptions import BandNotFoundError, InputError
+from eodal.utils.exceptions import BandNotFoundError
 
 settings = get_settings()
 settings.USE_STAC = False
@@ -251,7 +251,7 @@ def test_ignore_scl(datadir, get_s2_safe_l2a, get_polygons_2):
 
 
 def test_band_selections(datadir, get_s2_safe_l2a, get_polygons_2):
-    """testing invalid band selections"""
+    """testing valid and invalid band selections"""
 
     in_dir = get_s2_safe_l2a()
     in_file_aoi = get_polygons_2()
@@ -264,6 +264,20 @@ def test_band_selections(datadir, get_s2_safe_l2a, get_polygons_2):
             vector_features=in_file_aoi,
             band_selection=['B02', 'B13']
         )
+
+    # test with color names instead of band names
+    band_selection = ['red', 'green', 'blue']
+    ds = Sentinel2.from_safe(
+        in_dir=in_dir,
+        band_selection=band_selection,
+        read_scl=False,
+        apply_scaling=False
+    )
+    assert ds.band_names == ['B02', 'B03', 'B04']
+    assert set(ds.band_aliases) == set(band_selection)
+    assert (ds['B02'] == ds['blue']).values.all()
+    assert (ds['B03'] == ds['green']).values.all()
+    assert (ds['B04'] == ds['red']).values.all()
 
 
 @pytest.mark.skip(reason='too heavy test for Github workflows')

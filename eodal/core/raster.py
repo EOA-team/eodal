@@ -660,7 +660,7 @@ class RasterCollection(MutableMapping):
         Selects bands in a multi-band raster dataset based on a custom
         selection of band indices or band names.
 
-        .. versionadd:: 0.2.0
+        .. versionadded:: 0.2.0
             works also with a dictionary of hrefs returned from a
             STAC query
 
