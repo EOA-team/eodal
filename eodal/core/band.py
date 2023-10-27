@@ -2196,21 +2196,28 @@ class Band(object):
     def scale_data(
         self,
         inplace: Optional[bool] = False,
-        pixel_values_to_ignore: Optional[List[Union[int, float]]] = None,
+        pixel_values_to_ignore: Optional[List[int | float]] = None,
     ):
         """
         Applies scale and offset factors to the data.
+
+        .. versionadded:: 0.2.3
+            No-data values are ignored when applying scale and offset.
 
         :param inplace:
             if False (default) returns a copy of the ``Band`` instance
             with the changes applied. If True overwrites the values
             in the current instance.
         :param pixel_values_to_ignore:
-            optional list of pixel values (e.g., nodata values) to ignore,
-            i.e., where scaling has no effect
+            optional list of pixel values to ignore, i.e., where scaling
+            has no effect. From version 0.2.3 onwards, no-data values
+            are *always* ignored.
         :returns:
             ``Band`` instance if `inplace` is False, None instead.
         """
+        # add no-data to the `pixel_values_to_ignore` list
+        pixel_values_to_ignore.append(self.nodata)
+
         scale, offset = self.scale, self.offset
         if self.is_masked_array:
             if pixel_values_to_ignore is None:
