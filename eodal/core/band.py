@@ -1365,11 +1365,13 @@ class Band(object):
             name of the ``rasterio`` driver. `gTiff` (GeoTiff) by default
         :param kwargs:
             additional keyword arguments to append to metadata dictionary
+            or to overwrite defaults such as the "compress" attribute.
         :returns:
             ``rasterio`` compatible metadata dictionary to be used for
             writing new raster datasets
         """
         meta = {}
+        # set defaults
         meta["height"] = self.nrows
         meta["width"] = self.ncols
         meta["crs"] = self.crs
@@ -1382,6 +1384,8 @@ class Band(object):
         # "compress" as suggested here:
         # https://github.com/rasterio/rasterio/discussions/2933#discussioncomment-7208578
         meta["compress"] = "DEFLATE"
+
+        # defaults can be overwritten using custom kwargs
         meta.update(kwargs)
 
         return meta
@@ -1512,7 +1516,7 @@ class Band(object):
 
     def plot(
         self,
-        colormap: Optional[str] = "gray",
+        colormap: Optional[str] = "viridis",
         discrete_values: Optional[bool] = False,
         user_defined_colors: Optional[ListedColormap] = None,
         user_defined_ticks: Optional[List[Union[str, int, float]]] = None,
@@ -1527,7 +1531,7 @@ class Band(object):
 
         :param colormap:
             String identifying one of matplotlib's colormaps.
-            The default will plot the band in gray values.
+            The default will plot the band using the viridis colormap.
         :param discrete_values:
             if True (Default) assumes that the band has continuous values
             (i.e., ordinary spectral data). If False assumes that the
