@@ -2205,7 +2205,7 @@ class Band(object):
     def scale_data(
         self,
         inplace: Optional[bool] = False,
-        pixel_values_to_ignore: Optional[List[int | float]] = None,
+        pixel_values_to_ignore: Optional[List[int | float]] = [],
     ):
         """
         Applies scale and offset factors to the data.
