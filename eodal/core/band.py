@@ -1370,11 +1370,13 @@ class Band(object):
             name of the ``rasterio`` driver. `gTiff` (GeoTiff) by default
         :param kwargs:
             additional keyword arguments to append to metadata dictionary
+            or to overwrite defaults such as the "compress" attribute.
         :returns:
             ``rasterio`` compatible metadata dictionary to be used for
             writing new raster datasets
         """
         meta = {}
+        # set defaults
         meta["height"] = self.nrows
         meta["width"] = self.ncols
         meta["crs"] = self.crs
@@ -1387,6 +1389,8 @@ class Band(object):
         # "compress" as suggested here:
         # https://github.com/rasterio/rasterio/discussions/2933#discussioncomment-7208578
         meta["compress"] = "DEFLATE"
+
+        # defaults can be overwritten using custom kwargs
         meta.update(kwargs)
 
         return meta
@@ -1517,7 +1521,7 @@ class Band(object):
 
     def plot(
         self,
-        colormap: Optional[str] = "gray",
+        colormap: Optional[str] = "viridis",
         discrete_values: Optional[bool] = False,
         user_defined_colors: Optional[ListedColormap] = None,
         user_defined_ticks: Optional[List[Union[str, int, float]]] = None,
@@ -1532,7 +1536,7 @@ class Band(object):
 
         :param colormap:
             String identifying one of matplotlib's colormaps.
-            The default will plot the band in gray values.
+            The default will plot the band using the viridis colormap.
         :param discrete_values:
             if True (Default) assumes that the band has continuous values
             (i.e., ordinary spectral data). If False assumes that the
@@ -2201,21 +2205,28 @@ class Band(object):
     def scale_data(
         self,
         inplace: Optional[bool] = False,
-        pixel_values_to_ignore: Optional[List[Union[int, float]]] = None,
+        pixel_values_to_ignore: Optional[List[int | float]] = [],
     ):
         """
         Applies scale and offset factors to the data.
+
+        .. versionadded:: 0.2.3
+            No-data values are ignored when applying scale and offset.
 
         :param inplace:
             if False (default) returns a copy of the ``Band`` instance
             with the changes applied. If True overwrites the values
             in the current instance.
         :param pixel_values_to_ignore:
-            optional list of pixel values (e.g., nodata values) to ignore,
-            i.e., where scaling has no effect
+            optional list of pixel values to ignore, i.e., where scaling
+            has no effect. From version 0.2.3 onwards, no-data values
+            are *always* ignored.
         :returns:
             ``Band`` instance if `inplace` is False, None instead.
         """
+        # add no-data to the `pixel_values_to_ignore` list
+        pixel_values_to_ignore.append(self.nodata)
+
         scale, offset = self.scale, self.offset
         if self.is_masked_array:
             if pixel_values_to_ignore is None:
