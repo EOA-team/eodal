@@ -3,6 +3,7 @@ Tests for the Landsat class.
 '''
 
 import geopandas as gpd
+import numpy as np
 import pytest
 
 from datetime import datetime
@@ -52,3 +53,48 @@ def test_landsat_from_usgs():
         for band_name in landsat.band_names[:-1]:
             assert 0 < landsat[band_name].values.min() <= 1, 'wrong value'
             assert 0 < landsat[band_name].values.max() <= 1, 'wrong value'
+
+        # get the cloud mask -> this should fail because we didn't
+        # read the qa bands
+        with pytest.raises(KeyError):
+            cloud_mask = landsat.get_cloud_and_shadow_mask()
+
+        # repeat the reading of the scene WITH the qa bands
+        band_selection = ['blue', 'green', 'red', 'nir08', 'swir12']
+        landsat = Landsat.from_usgs(
+            in_dir=landsat_scene_item['assets'],
+            vector_features=gdf,
+            read_qa=True,
+            read_atcor=False,
+            band_selection=band_selection
+        )
+        assert 'qa_pixel' in landsat.band_names, 'missing quality band'
+
+        # now the generation of a binary cloud mask should work
+        cloud_mask = landsat.get_cloud_and_shadow_mask()
+        assert cloud_mask.values.dtype == bool, 'expected boolean'
+
+        water_mask = landsat.get_water_mask()
+        assert water_mask.values.dtype == 'bool', 'expected boolean'
+        
+        # mask clouds and shadows -> check if the mask has an effect
+        landsat.mask_clouds_and_shadows(inplace=True)
+        assert landsat['blue'].is_masked_array, 'expected as masked array'
+
+        # calculate the NDVI
+        landsat.calc_si(si_name='NDVI', inplace=True)
+        assert 'NDVI' in landsat.band_names
+        assert -1 <= landsat['NDVI'].values.min() <= 1
+        assert -1 <= landsat['NDVI'].values.max() <= 1
+        assert np.isnan(landsat['NDVI'].nodata)
+
+        # repeat the reading of the scene WITH the atcor bands
+        band_selection = ['blue', 'green', 'red', 'nir08', 'swir12']
+        landsat = Landsat.from_usgs(
+            in_dir=landsat_scene_item['assets'],
+            vector_features=gdf,
+            read_qa=True,
+            read_atcor=True,
+            band_selection=band_selection
+        )
+        assert 'lwir' in landsat.band_names
