@@ -1,6 +1,6 @@
 [run]
 branch = True
-omit = */tests/*
+omit = */tests/*, eodal/downloader/, eodal/metadata/database/
 
 [report]
 exclude_lines =
