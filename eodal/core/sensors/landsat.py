@@ -328,12 +328,15 @@ class Landsat(RasterCollection):
                     k for k, v in sensor_bands.items() if v == 'red'][0]
                 band_fpath = in_dir.glob(f"*_{sensor_specific_band_name}.TIF")[0]
             band_res = None
-            if band_name in sensor_bands.values():
-                band_res = band_resolution[sensor][band_name]
-            elif read_qa or band_name in qa_bands:
-                band_res = band_resolution['quality_flags'][band_name]
-            elif read_atcor or band_name in atcor_bands:
-                band_res = band_resolution['atmospheric_correction'][band_name]
+            try:
+                if band_name in sensor_bands.values():
+                    band_res = band_resolution[sensor][band_name]
+                elif read_qa or band_name in qa_bands:
+                    band_res = band_resolution['quality_flags'][band_name]
+                elif read_atcor or band_name in atcor_bands:
+                    band_res = band_resolution['atmospheric_correction'][band_name]
+            except KeyError:
+                continue
 
             item = {
                 'band_name': band_name,
@@ -650,7 +653,7 @@ class Landsat(RasterCollection):
         water_mask = self.mask_from_qa_bits(
             bit_range=(water_class, water_class),
             band_name=mask_band
-        )
+        ).astype('bool')
         # update water mask with the mask of the area of interest,
         if self[mask_band].is_masked_array:
             water_mask = np.logical_and(
@@ -747,8 +750,8 @@ class Landsat(RasterCollection):
         :param kwargs:
             optional kwargs to pass to `~eodal.core.raster.RasterCollection.mask`
         :returns:
-            depending on `inplace` (passed in the kwargs) a new `Sentinel2` instance
-            or None
+            depending on `inplace` (passed in the kwargs) a new `Landsat`
+            instance or None
         """
         if bands_to_mask is None:
             bands_to_mask = self.band_names
@@ -756,9 +759,8 @@ class Landsat(RasterCollection):
         if mask_band in bands_to_mask:
             bands_to_mask.remove(mask_band)
         try:
-            cloud_mask = self.get_cloud_mask(
+            cloud_mask = self.get_cloud_and_shadow_mask(
                 mask_band=mask_band,
-                inplace=False,
                 cloud_classes=cloud_classes)
             # mask the bands
             return self.mask(
