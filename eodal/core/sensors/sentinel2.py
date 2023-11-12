@@ -650,6 +650,54 @@ class Sentinel2(RasterCollection):
         except Exception as e:
             raise Exception(f"Could not mask clouds and shadows: {e}")
 
+    def get_cloud_and_shadow_mask(
+        self,
+        mask_band: Optional[str] = 'scl',
+        inplace: Optional[bool] = False,
+        name_cloud_mask: Optional[str] = 'cloud_mask',
+        cloud_classes: Optional[list[int]] = [1, 2, 3, 7, 8, 9, 10, 11]
+    ) -> Sentinel2 | None:
+        """
+        Generate a binary cloud mask from the Scene Classification
+        Layer (SCL) that is part of the standard ESA product.
+
+        NOTE:
+            You can specify *any* band instance instead of SCL as
+            long as the band has an integer data type.
+
+        :param mask_band:
+            The name of the band to use for masking. Default is 'scl'.
+        :param inplace:
+            Whether to return a new `Band` instance or add a `Band` to the
+            current `Sentinel2` instance. Default is False.
+        :param name_cloud_mask:
+            The name of the water mask band. Default is 'water_mask'.
+        :param cloud_classes:
+            list of SCL values to be considered as clouds/shadows and snow.
+            By default, all three cloud classes and cloud shadows are considered
+            plus snow.
+        :return:
+            A `Band` instance containing the cloud mask or `None` if
+            `inplace` is True.
+        """
+        cloud_mask = np.isin(self[mask_band].values, cloud_classes)
+        # update cloud mask with the mask of the area of interest
+        if self[mask_band].is_masked_array:
+            cloud_mask = np.logical_and(
+                cloud_mask, ~self[mask_band].values.mask)
+
+        cloud_mask_band = Band(
+            band_name=name_cloud_mask,
+            values=cloud_mask,
+            geo_info=self[mask_band].geo_info,
+            nodata=0,
+        )
+        if inplace:
+            self.add_band(cloud_mask_band)
+            return
+        else:
+            return cloud_mask_band
+
     def get_scl_stats(self) -> pd.DataFrame:
         """
         Returns a ``DataFrame`` with the number of pixel for each
