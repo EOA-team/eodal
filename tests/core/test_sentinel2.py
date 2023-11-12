@@ -179,6 +179,10 @@ def test_read_from_safe_with_mask_l2a(datadir, get_s2_safe_l2a, get_polygons, ge
     # make sure meta information was saved correctly
     assert handler['scl'].meta['dtype'] == 'uint8', 'wrong data type for SCL in meta'
 
+    # get a binary cloud mask
+    cloud_mask = handler.get_cloud_and_shadow_mask()
+    assert cloud_mask.values.dtype == bool, 'expected boolean'
+
     # to_xarray should fail because of different spatial resolutions
     with pytest.raises(ValueError):
         handler.to_xarray()
@@ -413,7 +417,7 @@ def test_read_from_safe_l2a(datadir, get_s2_safe_l2a):
         inplace=True
     )
 
-    assert reader.is_bandstack(), 'data should fulfill bandstack criteria but doesnot'
+    assert reader.is_bandstack(), 'data should fulfill bandstack criteria but does not'
     assert reader['blue'].crs == 32633, 'projection was not updated'
 
     # try writing bands to output file
