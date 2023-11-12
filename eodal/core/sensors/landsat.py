@@ -552,14 +552,77 @@ class Landsat(RasterCollection):
             self, si_name=si_name, inplace=inplace,
             band_mapping=band_mapping)
 
+    def get_cloud_and_shadow_mask(
+            self,
+            mask_band: Optional[str] = 'qa_pixel',
+            inplace: Optional[bool] = False,
+            name_cloud_mask: Optional[str] = 'cloud_mask',
+            cloud_classes: list[int] = [1, 2, 3, 5]
+    ) -> Band | None:
+        """
+        Get a cloud and shadow mask from the pixel qualuty band (using bits
+        [1, 2, 3, 5] by default)
+
+        NOTE:
+            Since the `mask_band` can be set to *any* `Band` it is also
+            possible to use a different cloud mask, e.g., from
+            a custom classifier as long as the bit map used for the classes
+            is the same.
+            See also
+            https://www.usgs.gov/media/images/landsat-collection-2-pixel-quality-assessment-bit-index
+            for more details.
+
+        :param mask_band:
+            The name of the band to use for masking. Default is 'qa_pixel'.
+        :param inplace:
+            Whether to return a new `Band` instance or add a `Band` to the
+            current `Landsat` instance. Default is False.
+        :param name_cloud_mask:
+            The name of the cloud mask band. Default is 'cloud_mask'.
+        :param cloud_classes:
+            Classes that define "clouds". Default is [1, 2, 3, 5].
+        :return:
+            A `Band` instance containing the cloud mask or `None` if
+            `inplace` is True.
+        """
+        mask_list = []
+        for cloud_class in cloud_classes:
+            # construct the bit range
+            bit_range = (cloud_class, cloud_class)
+            # get the binary mask as boolean array
+            mask = self.mask_from_qa_bits(
+                bit_range=bit_range,
+                band_name=mask_band).astype('bool')
+            # add the mask to the list
+            mask_list.append(mask)
+
+        # combine the masks into a single cloud mask
+        cloud_mask = np.any(mask_list, axis=0)
+        # update cloud mask with the mask of the area of interest,
+        if self[mask_band].is_masked_array:
+            cloud_mask = np.logical_and(
+                cloud_mask, ~self[mask_band].values.mask)
+        cloud_mask_band = Band(
+            band_name=name_cloud_mask,
+            values=cloud_mask,
+            geo_info=self[mask_band].geo_info,
+            nodata=0,
+        )
+        if inplace:
+            self.add_band(cloud_mask_band)
+            return
+        else:
+            return cloud_mask_band
+
     def get_water_mask(
             self,
             mask_band: Optional[str] = 'qa_pixel',
             inplace: Optional[bool] = False,
-            name_water_mask: Optional[str] = 'water_mask'
+            name_water_mask: Optional[str] = 'water_mask',
+            water_class: int = 7
     ) -> Band | None:
         """
-        Get a water mask from the pixel quality band (bit 7).
+        Get a water mask from the pixel quality band (bit 7 by default).
 
         NOTE:
             Since the `mask_band` can be set to *any* `Band` it is also
@@ -577,14 +640,20 @@ class Landsat(RasterCollection):
             current `Landsat` instance. Default is False.
         :param name_water_mask:
             The name of the water mask band. Default is 'water_mask'.
+        :param water_class:
+            Bit number of the water class. 7 by default.
         :return:
             A `Band` instance containing the water mask or `None` if
             `inplace` is True.
         """
         water_mask = self.mask_from_qa_bits(
-            bit_range=(7, 7),
+            bit_range=(water_class, water_class),
             band_name=mask_band
         )
+        # update water mask with the mask of the area of interest,
+        if self[mask_band].is_masked_array:
+            water_mask = np.logical_and(
+                water_mask, ~self[mask_band].values.mask)
         water_mask_band = Band(
                 band_name=name_water_mask,
                 values=water_mask,
@@ -593,7 +662,7 @@ class Landsat(RasterCollection):
             )
         if inplace:
             self.add_band(water_mask_band)
-            return None
+            return
         else:
             return water_mask_band
 
@@ -686,22 +755,13 @@ class Landsat(RasterCollection):
         if mask_band in bands_to_mask:
             bands_to_mask.remove(mask_band)
         try:
-            mask_list = []
-            for cloud_class in cloud_classes:
-                # construct the bit range
-                bit_range = (cloud_class, cloud_class)
-                # get the binary mask as boolean array
-                mask = self.mask_from_qa_bits(
-                    bit_range=bit_range,
-                    band_name=mask_band).astype('bool')
-                # add the mask to the list
-                mask_list.append(mask)
-
-            # combine the masks
-            cloud_mask = np.any(mask_list, axis=0)
+            cloud_mask = self.get_cloud_mask(
+                mask_band=mask_band,
+                inplace=False,
+                cloud_classes=cloud_classes)
             # mask the bands
             return self.mask(
-                mask=cloud_mask,
+                mask=cloud_mask.values,
                 bands_to_mask=bands_to_mask,
                 **kwargs
             )
