@@ -49,6 +49,7 @@ from eodal.mapper.filter import Filter
 from eodal.metadata.database.querying import find_raw_data_by_bbox
 from eodal.metadata.utils import reconstruct_path
 from eodal.utils.exceptions import STACError
+from blinker._utilities import reference
 
 settings = get_settings()
 logger = settings.logger
@@ -705,12 +706,34 @@ class Mapper:
             ))
         bounds_gdf = pd.concat(bounds_list)
         total_bounds = bounds_gdf.total_bounds
+
+        # ..versionadd 0.2.3 (https://github.com/EOA-team/eodal/issues/90)
+        # we need to ensure that all scenes have not only the same extent but
+        # also the same pixel size and, hence, number of rows and columns
+        # The heuristic is:
+        # 1) is there a since that was not reprojected (_duplicated is False)
+        # 2) If no: use the first scene as reference scene
+        # 3) If yes: use the first scene that was not reprojected
+
+        # is there at a least a single scene that was not reprojected
+        if not self.metadata._duplicated.all():
+            reference_time = self.metadata[
+                ~self.metadata._duplicated][self.time_column].values[0]
+            timestamps = scoll.timestamps
+            reference_timestamp_idx = np.argmin(
+                [pd.to_datetime(x) - reference_time for x in timestamps])
+            reference_scene = scoll[
+                timestamps[reference_timestamp_idx]]
+        else:
+            reference_scene = scoll[scoll.timestamps[0]]
         
         # loop over scenes and project them onto the total bounds
         for _, scene in scoll:
-            if scene.is_bandstack():
-                # get a band of the SceneCollection
-                reference_band = scene[scene.band_names[0]]
+            # loop over the bands and reproject them
+            # onto the target grid
+            for band_name, band in scene:
+                # get the reference band
+                reference_band = reference_scene[band_name]
                 geo_info = reference_band.geo_info
                 # get the transform of the destination extent
                 minx, maxy = total_bounds[0], total_bounds[-1]
@@ -721,28 +744,25 @@ class Mapper:
                     d=0,
                     e=geo_info.pixres_y,
                     f=maxy)
-
-                # loop over the bands and reproject them
-                # onto the target grid
-                for _, band in scene:
-                    dst_shape = (max(nrows), max(ncols))
-                    destination = np.zeros(
-                        dst_shape,
-                        dtype=band.values.dtype
-                    )
-                    # determine nodata
-                    if not np.isnan(band.nodata):
-                        dst_nodata = band.nodata
-                    else:
-                        # if band nodata is NaN we set
-                        # no-data to None (rasterio default)
-                        dst_nodata = None
-                    band.reproject(
-                        inplace=True,
-                        target_crs=reference_band.crs,
-                        dst_transform=dst_transform,
-                        destination=destination,
-                        dst_nodata=dst_nodata)
+                
+                dst_shape = (max(nrows), max(ncols))
+                destination = np.zeros(
+                    dst_shape,
+                    dtype=band.values.dtype
+                )
+                # determine nodata
+                if not np.isnan(band.nodata):
+                    dst_nodata = band.nodata
+                else:
+                    # if band nodata is NaN we set
+                    # no-data to None (rasterio default)
+                    dst_nodata = None
+                band.reproject(
+                    inplace=True,
+                    target_crs=reference_band.crs,
+                    dst_transform=dst_transform,
+                    destination=destination,
+                    dst_nodata=dst_nodata)
 
         self.data = scoll
 
