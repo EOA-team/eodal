@@ -7,7 +7,7 @@ for package wide-logging (console and file output).
 The ``Settings`` class uses ``pydantic``. This means all attributes of the class can
 be **overwritten** using environmental variables or a `.env` file.
 
-Copyright (C) 2022 Lukas Valentin Graf
+Copyright (C) 2022, 2023 Lukas Valentin Graf
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
