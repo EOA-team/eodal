@@ -453,11 +453,18 @@ class Mapper:
             scene = scene_modifier.__call__(scene, **scene_modifier_kwargs)
 
         # reproject scene if necessary
-        scene.reproject(
-            target_crs=item.target_epsg,
-            interpolation_method=reprojection_method,
-            inplace=True
-        )
+        # ..versionadd 0.2.3 check for the EPSG to make sure no unnecessary
+        # operations are undertaken to save runtime and avoid floating
+        # point inaccuracies
+        epsg_scene = [b.geo_info.epsg for _, b in scene]
+        intersection = set(epsg_scene).intersection(set([item.target_epsg]))
+        # we need to reproject only if the intersection returns an empty set.
+        if len(intersection) == 0: 
+            scene.reproject(
+                target_crs=item.target_epsg,
+                interpolation_method=reprojection_method,
+                inplace=True
+            )
 
         return scene
 
