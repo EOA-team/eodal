@@ -49,7 +49,6 @@ from eodal.mapper.filter import Filter
 from eodal.metadata.database.querying import find_raw_data_by_bbox
 from eodal.metadata.utils import reconstruct_path
 from eodal.utils.exceptions import STACError
-from blinker._utilities import reference
 
 settings = get_settings()
 logger = settings.logger
