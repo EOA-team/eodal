@@ -255,6 +255,21 @@ def get_polygons_3(get_project_root_path):
 
 
 @pytest.fixture()
+def get_polygons_utm_zones(get_project_root_path):
+    """
+    Returns path to an area of interest at the boundary of two UTM zones
+    """
+    def _get_polygons():
+
+        testdata_dir = get_project_root_path.joinpath('data')
+        testdata_polys = testdata_dir.joinpath(
+            Path('sample_polygons').joinpath('utm_zones_western-ch.gpkg')
+        )
+        return testdata_polys
+    return _get_polygons
+
+
+@pytest.fixture()
 def get_scene_collection(get_bandstack):
     """fixture returing a SceneCollection with three scenes"""
     def _get_scene_collection():
