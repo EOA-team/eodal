@@ -10,10 +10,19 @@ The format is based on `Keep a Changelog`_, and this project adheres to `Semanti
 
 Categories for changes are: Added, Changed, Deprecated, Removed, Fixed, Security.
 
+Version `0.2.3 < https://github.com/EOA-team/eodal/releases/tag/v0.2.4>`__
+--------------------------------------------------------------------------------
+
+Release date: 2023-12-01
+
+- Fixed: selection of reference bands fixed for Landsat (different sensors have different quality bands). Now, only those quality bands available for all sensor generations are retained in case there are multiple different Landsat sensor generation involved.
+- Fixed: sign of offset changed from - to + to be consistent with QGIS when scaling data.
+
+
 Version `0.2.3 < https://github.com/EOA-team/eodal/releases/tag/v0.2.3>`__
 --------------------------------------------------------------------------------
 
-Release date: 2023-10-XX
+Release date: 2023-11-24
 
 - Fixed: a fill value is now explicitly set to each `np.ma.masked_array`. If not (previous behavior) numpy would interfere a fill value that would often not be the no-data type of the raster. In the forthcoming release of EOdal, the fill-value will now equal the nodata value.
 - Fixed: the inference of the highest data type in a `RasterCollection` has been improved and extended to all `INT`,  `FLOAT`, and `COMPLEX` data types currently supported by numpy. In the previous version, all data types were cast to `numpy.float32` or even `numpy.float64` leading to an unnecessary high consumption of memory.
