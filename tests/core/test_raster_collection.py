@@ -136,7 +136,7 @@ def test_scale():
     ones = np.ones((100,100), dtype='uint16')
     band_name_ones = 'ones'
     scale = 100
-    offset = 2
+    offset = -2
     handler.add_band(
         Band,
         band_name=band_name_ones,
@@ -150,7 +150,7 @@ def test_scale():
     before_scaling = handler.get_values()
     handler.scale(inplace=True)
     after_scaling = handler.get_values()
-    assert (after_scaling == scale * before_scaling - offset).all(), 'values not scaled correctly'
+    assert (after_scaling == scale * before_scaling + offset).all(), 'values not scaled correctly'
     assert (after_scaling == 98).all(), 'wrong value after scaling'
 
 
