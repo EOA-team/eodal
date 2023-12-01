@@ -737,9 +737,20 @@ class Mapper:
         for _, scene in scoll:
             # loop over the bands and reproject them
             # onto the target grid
+            bands_to_remove = []
             for band_name, band in scene:
-                # get the reference band
-                reference_band = reference_scene[band_name]
+                # get the reference band. For some platforms, there
+                # might be different bands in the scene (different Landsat
+                # generations of sensors). In this case we have to continue.
+                try:
+                    reference_band = reference_scene[band_name]
+                except KeyError:
+                    # if band is not in reference scene, we memorize
+                    # the band name and continue. We delete the band
+                    # later to make sure the scenes in the collection
+                    # all have the same number of bands
+                    bands_to_remove.append(band_name)
+                    continue
                 geo_info = reference_band.geo_info
                 # get the transform of the destination extent
                 minx, maxy = total_bounds[0], total_bounds[-1]
@@ -769,6 +780,12 @@ class Mapper:
                     dst_transform=dst_transform,
                     destination=destination,
                     dst_nodata=dst_nodata)
+            # remove bands if any
+            if len(bands_to_remove) > 0:
+                for band_to_remove in bands_to_remove:
+                    del scene[band_to_remove]
+                    if band_to_remove in scene.band_aliases:
+                        scene.band_aliases.remove(band_to_remove)
 
         self.data = scoll
 
