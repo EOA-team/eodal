@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>eodal.downloader.utils.creodias &#8212; eodal 0.2.2 documentation</title>
+    <title>eodal.downloader.utils.creodias &#8212; eodal 0.2.3 documentation</title>
     <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../../../../_static/alabaster.css" />
     <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
@@ -55,7 +55,10 @@
 
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">pyotp</span>
 <span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">time</span>
 
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
@@ -68,38 +71,73 @@
 <span class="n">CHUNK_SIZE</span> <span class="o">=</span> <span class="mi">2096</span>
 
 
-<div class="viewcode-block" id="get_keycloak"><a class="viewcode-back" href="../../../../packages/eodal.downloader.utils.creodias.html#eodal.downloader.utils.creodias.get_keycloak">[docs]</a><span class="k">def</span> <span class="nf">get_keycloak</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<div class="viewcode-block" id="get_totp"><a class="viewcode-back" href="../../../../packages/eodal.downloader.utils.creodias.html#eodal.downloader.utils.creodias.get_totp">[docs]</a><span class="k">def</span> <span class="nf">get_totp</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Returns the CREODIAS keycloak token for a valid</span>
-<span class="sd">    (i.e., registered) CREODIAS user. Takes the username</span>
-<span class="sd">    and password from either config/settings.py, a .env</span>
-<span class="sd">    file or environment variables.</span>
+<span class="sd">    Get one-time access code using the TOTP algorithm to</span>
+<span class="sd">    login into CREODIAS. The TOTP secret must have been</span>
+<span class="sd">    set in the EOdal configurations using the `CREODIAS_TOTP_SECRET`</span>
+<span class="sd">    variable.</span>
 
-<span class="sd">    The token is required for downloading data from</span>
-<span class="sd">    CREODIAS.</span>
-
-<span class="sd">    Function taken from:</span>
-<span class="sd">    https://creodias.eu/-/how-to-generate-keycloak-token-using-web-browser-console-</span>
-<span class="sd">    (2021-09-23)</span>
+<span class="sd">    :return: one-time access key valid for a maximum of 30 seconds.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">pyotp</span><span class="o">.</span><span class="n">TOTP</span><span class="p">(</span><span class="n">Settings</span><span class="o">.</span><span class="n">CREODIAS_TOTP_SECRET</span><span class="p">)</span><span class="o">.</span><span class="n">now</span><span class="p">()</span></div>
 
+
+<span class="k">def</span> <span class="nf">_get_keycloak</span><span class="p">(</span><span class="n">username</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">password</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Gets the keycloak token required by CREODIAS to sign requests.</span>
+<span class="sd">    It uses the CREODIAS username, password and one-time access code</span>
+<span class="sd">    (2FA) to authenticate at the Cloudferro Openid connector.</span>
+
+<span class="sd">    :param username: CREODIAS username</span>
+<span class="sd">    :param password: CREODIAS password</span>
+<span class="sd">    :return: keycloak access token</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># get one-time access code</span>
+    <span class="n">totp</span> <span class="o">=</span> <span class="n">get_totp</span><span class="p">()</span>
+
+    <span class="c1"># prepare data for HTTP POST request</span>
     <span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
         <span class="s2">&quot;client_id&quot;</span><span class="p">:</span> <span class="s2">&quot;CLOUDFERRO_PUBLIC&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="n">Settings</span><span class="o">.</span><span class="n">CREODIAS_USER</span><span class="p">,</span>
-        <span class="s2">&quot;password&quot;</span><span class="p">:</span> <span class="n">Settings</span><span class="o">.</span><span class="n">CREODIAS_PASSWORD</span><span class="p">,</span>
+        <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="n">username</span><span class="p">,</span>
+        <span class="s2">&quot;password&quot;</span><span class="p">:</span> <span class="n">password</span><span class="p">,</span>
+        <span class="s2">&quot;totp&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">totp</span><span class="p">),</span>
         <span class="s2">&quot;grant_type&quot;</span><span class="p">:</span> <span class="s2">&quot;password&quot;</span><span class="p">,</span>
     <span class="p">}</span>
+    <span class="c1"># request the token</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+        <span class="s2">&quot;https://identity.cloudferro.com/auth/realms/Creodias-new/protocol/openid-connect/token&quot;</span><span class="p">,</span>
+        <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">r</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s2">&quot;access_token&quot;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="get_keycloak"><a class="viewcode-back" href="../../../../packages/eodal.downloader.utils.creodias.html#eodal.downloader.utils.creodias.get_keycloak">[docs]</a><span class="k">def</span> <span class="nf">get_keycloak</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Gets the keycloak token required by CREODIAS to sign requests.</span>
+<span class="sd">    It uses the CREODIAS username, password and one-time access code</span>
+<span class="sd">    (2FA) to authenticate at the Cloudferro Openid connector.</span>
+
+<span class="sd">    NOTE:</span>
+<span class="sd">        A one-time access code is valid for 30 seconds. It can</span>
+<span class="sd">        be only used once. This means, if one makes multiple requests</span>
+<span class="sd">        for a keycloak token within &lt;= 30 seconds, there will be a</span>
+<span class="sd">        server error as the one-time access code has been consumed already.</span>
+<span class="sd">        To make this behavior more stable, the application waits 31 seconds</span>
+<span class="sd">        on error to request a new one-time access code (recursive call).</span>
+
+<span class="sd">    :return: keycloak access token</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># set user name and password from EOdal configuration</span>
+    <span class="n">username</span> <span class="o">=</span> <span class="n">Settings</span><span class="o">.</span><span class="n">CREODIAS_USER</span>
+    <span class="n">password</span> <span class="o">=</span> <span class="n">Settings</span><span class="o">.</span><span class="n">CREODIAS_PASSWORD</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
-            <span class="s2">&quot;https://auth.creodias.eu/auth/realms/DIAS/protocol/openid-connect/token&quot;</span><span class="p">,</span>
-            <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="n">r</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">_get_keycloak</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="n">password</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;Keycloak token creation failed. Reponse from the server was: </span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="p">)</span>
-    <span class="k">return</span> <span class="n">r</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s2">&quot;access_token&quot;</span><span class="p">]</span></div>
+        <span class="c1"># on error, sleep 31 seconds and then try again</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">31</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">get_keycloak</span><span class="p">()</span></div>
 
 
 <div class="viewcode-block" id="download_datasets"><a class="viewcode-back" href="../../../../packages/eodal.downloader.utils.creodias.html#eodal.downloader.utils.creodias.download_datasets">[docs]</a><span class="k">def</span> <span class="nf">download_datasets</span><span class="p">(</span>
@@ -125,9 +163,6 @@
 <span class="sd">        the existing zips are complete!</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="c1"># get API token from CREODIAS</span>
-    <span class="n">keycloak_token</span> <span class="o">=</span> <span class="n">get_keycloak</span><span class="p">()</span>
-
     <span class="c1"># change into download directory</span>
     <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">download_dir</span><span class="p">))</span>
 
@@ -135,7 +170,10 @@
     <span class="n">scene_counter</span> <span class="o">=</span> <span class="mi">1</span>
     <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">dataset</span> <span class="ow">in</span> <span class="n">datasets</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">dataset_url</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s2">&quot;services&quot;</span><span class="p">][</span><span class="s2">&quot;download&quot;</span><span class="p">][</span><span class="s2">&quot;url&quot;</span><span class="p">]</span>
+            <span class="c1"># get API token from CREODIAS (only valid for a limited time)</span>
+            <span class="n">keycloak_token</span> <span class="o">=</span> <span class="n">get_keycloak</span><span class="p">()</span>
+            <span class="n">dataset_temp_url</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s2">&quot;services&quot;</span><span class="p">][</span><span class="s2">&quot;download&quot;</span><span class="p">][</span><span class="s2">&quot;url&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">dataset_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">Settings</span><span class="o">.</span><span class="n">CREODIAS_ZIPPER_URL</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">dataset_temp_url</span><span class="si">}</span><span class="s1">&#39;</span>
             <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
                 <span class="n">dataset_url</span><span class="p">,</span>
                 <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="n">keycloak_token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
@@ -143,19 +181,22 @@
             <span class="p">)</span>
             <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not download </span><span class="si">{</span><span class="n">dataset</span><span class="o">.</span><span class="n">product_uri</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not download </span><span class="si">{</span><span class="n">dataset_url</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="k">continue</span>
 
         <span class="c1"># download the data using the iter_content method (writes chunks to disk)</span>
         <span class="c1"># check if the dataset exists already and overwrite it only if</span>
         <span class="c1"># defined by the user</span>
         <span class="n">fname</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">dataset_name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;SAFE&quot;</span><span class="p">,</span> <span class="s2">&quot;zip&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">fname</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;zip&quot;</span><span class="p">):</span>
+            <span class="n">fname</span> <span class="o">=</span> <span class="n">fname</span> <span class="o">+</span> <span class="s2">&quot;.zip&quot;</span>
         <span class="k">if</span> <span class="n">Path</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">overwrite_existing_zips</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">dataset</span><span class="o">.</span><span class="n">dataset_name</span><span class="si">}</span><span class="s2"> already downloaded - &quot;</span> <span class="o">+</span>
                     <span class="s2">&quot;continue with next dataset&quot;</span>
                 <span class="p">)</span>
+                <span class="n">scene_counter</span> <span class="o">+=</span> <span class="mi">1</span>
                 <span class="k">continue</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Overwriting </span><span class="si">{</span><span class="n">dataset</span><span class="o">.</span><span class="n">dataset_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -163,13 +204,52 @@
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
             <span class="sa">f</span><span class="s2">&quot;Starting downloading </span><span class="si">{</span><span class="n">fname</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">scene_counter</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">datasets</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">)&quot;</span>
         <span class="p">)</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fd</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">iter_content</span><span class="p">(</span><span class="n">chunk_size</span><span class="o">=</span><span class="n">CHUNK_SIZE</span><span class="p">):</span>
-                <span class="n">fd</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;Finished downloading </span><span class="si">{</span><span class="n">fname</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">scene_counter</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">datasets</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">)&quot;</span>
-        <span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fd</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">iter_content</span><span class="p">(</span><span class="n">chunk_size</span><span class="o">=</span><span class="n">CHUNK_SIZE</span><span class="p">):</span>
+                    <span class="n">fd</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Finished downloading </span><span class="si">{</span><span class="n">fname</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">scene_counter</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">datasets</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">)&quot;</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="c1"># on error (e.g., broken network connection) delete the incomplete</span>
+            <span class="c1"># zip archive and continue.</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s1">&#39;Downloading </span><span class="si">{</span><span class="n">fname</span><span class="si">}</span><span class="s1"> (</span><span class="si">{</span><span class="n">scene_counter</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">datasets</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1">) &#39;</span> <span class="o">+</span>
+                <span class="sa">f</span><span class="s1">&#39;was interrupted.</span><span class="se">\n</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="se">\n</span><span class="s1">Removed broken zip.</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">+</span>
+                <span class="s1">&#39;Consider re-running the download.&#39;</span><span class="p">)</span>
+            
         <span class="n">scene_counter</span> <span class="o">+=</span> <span class="mi">1</span></div>
+
+
+<span class="c1"># # unit test (requires credentials for CREODIAS)</span>
+<span class="c1"># if __name__ == &#39;__main__&#39;:</span>
+<span class="c1">#</span>
+<span class="c1">#     from datetime import date</span>
+<span class="c1">#     from eodal.downloader.sentinel2.creodias import query_creodias</span>
+<span class="c1">#     from eodal.utils.constants.sentinel2 import ProcessingLevels</span>
+<span class="c1">#     from shapely.geometry import box</span>
+<span class="c1">#</span>
+<span class="c1">#     bbox = box(*[8, 49, 9, 50])</span>
+<span class="c1">#     start_date = date(2017, 10, 5)</span>
+<span class="c1">#     end_date = date(2017, 10, 31)</span>
+<span class="c1">#     max_records = 100</span>
+<span class="c1">#     processing_level = ProcessingLevels.L2A</span>
+<span class="c1">#     datasets = query_creodias(</span>
+<span class="c1">#         start_date=start_date,</span>
+<span class="c1">#         end_date=end_date,</span>
+<span class="c1">#         max_records=max_records,</span>
+<span class="c1">#         processing_level=processing_level,</span>
+<span class="c1">#         bounding_box=bbox</span>
+<span class="c1">#     )</span>
+<span class="c1">#</span>
+<span class="c1">#     download_dir = Path(&#39;/mnt/ides/Lukas/03_Debug/SAT/&#39;)</span>
+<span class="c1">#     download_datasets(datasets=datasets, download_dir=download_dir, overwrite_existing_zips=False)</span>
+<span class="c1">#</span>
+<span class="c1">#     from eodal.downloader.utils.unzip_datasets import unzip_datasets</span>
+<span class="c1">#</span>
+<span class="c1">#     unzip_datasets(download_dir=download_dir, platform=&#39;S2&#39;, remove_zips=True)</span>
 </pre></div>
 
           </div>

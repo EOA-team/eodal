@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>eodal.downloader.utils.creodias module &#8212; eodal 0.2.2 documentation</title>
+    <title>eodal.downloader.utils.creodias module &#8212; eodal 0.2.3 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
@@ -73,15 +73,37 @@ the existing zips are complete!</p></li>
 <dl class="py function">
 <dt class="sig sig-object py" id="eodal.downloader.utils.creodias.get_keycloak">
 <span class="sig-prename descclassname"><span class="pre">eodal.downloader.utils.creodias.</span></span><span class="sig-name descname"><span class="pre">get_keycloak</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></span><a class="reference internal" href="../_modules/eodal/downloader/utils/creodias.html#get_keycloak"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.downloader.utils.creodias.get_keycloak" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns the CREODIAS keycloak token for a valid
-(i.e., registered) CREODIAS user. Takes the username
-and password from either config/settings.py, a .env
-file or environment variables.</p>
-<p>The token is required for downloading data from
-CREODIAS.</p>
-<p>Function taken from:
-<a class="reference external" href="https://creodias.eu/-/how-to-generate-keycloak-token-using-web-browser-console">https://creodias.eu/-/how-to-generate-keycloak-token-using-web-browser-console</a>-
-(2021-09-23)</p>
+<dd><p>Gets the keycloak token required by CREODIAS to sign requests.
+It uses the CREODIAS username, password and one-time access code
+(2FA) to authenticate at the Cloudferro Openid connector.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>A one-time access code is valid for 30 seconds. It can
+be only used once. This means, if one makes multiple requests
+for a keycloak token within &lt;= 30 seconds, there will be a
+server error as the one-time access code has been consumed already.
+To make this behavior more stable, the application waits 31 seconds
+on error to request a new one-time access code (recursive call).</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>keycloak access token</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="eodal.downloader.utils.creodias.get_totp">
+<span class="sig-prename descclassname"><span class="pre">eodal.downloader.utils.creodias.</span></span><span class="sig-name descname"><span class="pre">get_totp</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.12)"><span class="pre">str</span></a></span></span><a class="reference internal" href="../_modules/eodal/downloader/utils/creodias.html#get_totp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#eodal.downloader.utils.creodias.get_totp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get one-time access code using the TOTP algorithm to
+login into CREODIAS. The TOTP secret must have been
+set in the EOdal configurations using the <cite>CREODIAS_TOTP_SECRET</cite>
+variable.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>one-time access key valid for a maximum of 30 seconds.</p>
+</dd>
+</dl>
 </dd></dl>
 
 </div>

@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>eodal.mapper.mapper &#8212; eodal 0.2.2 documentation</title>
+    <title>eodal.mapper.mapper &#8212; eodal 0.2.3 documentation</title>
     <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css" />
     <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
@@ -428,8 +428,9 @@
 
         <span class="c1"># make sure the time column is handled as pandas datetime</span>
         <span class="c1"># objects</span>
-        <span class="n">scenes_df</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">time_column</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span>
-            <span class="n">scenes_df</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">time_column</span><span class="p">],</span> <span class="n">utc</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">scenes_df</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="n">scenes_df</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">time_column</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span>
+                <span class="n">scenes_df</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">time_column</span><span class="p">],</span> <span class="n">utc</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="c1"># populate the metadata attribute</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span> <span class="o">=</span> <span class="n">scenes_df</span></div>
@@ -487,11 +488,18 @@
             <span class="n">scene</span> <span class="o">=</span> <span class="n">scene_modifier</span><span class="o">.</span><span class="fm">__call__</span><span class="p">(</span><span class="n">scene</span><span class="p">,</span> <span class="o">**</span><span class="n">scene_modifier_kwargs</span><span class="p">)</span>
 
         <span class="c1"># reproject scene if necessary</span>
-        <span class="n">scene</span><span class="o">.</span><span class="n">reproject</span><span class="p">(</span>
-            <span class="n">target_crs</span><span class="o">=</span><span class="n">item</span><span class="o">.</span><span class="n">target_epsg</span><span class="p">,</span>
-            <span class="n">interpolation_method</span><span class="o">=</span><span class="n">reprojection_method</span><span class="p">,</span>
-            <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span>
-        <span class="p">)</span>
+        <span class="c1"># ..versionadd 0.2.3 check for the EPSG to make sure no unnecessary</span>
+        <span class="c1"># operations are undertaken to save runtime and avoid floating</span>
+        <span class="c1"># point inaccuracies</span>
+        <span class="n">epsg_scene</span> <span class="o">=</span> <span class="p">[</span><span class="n">b</span><span class="o">.</span><span class="n">geo_info</span><span class="o">.</span><span class="n">epsg</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">scene</span><span class="p">]</span>
+        <span class="n">intersection</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">epsg_scene</span><span class="p">)</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="nb">set</span><span class="p">([</span><span class="n">item</span><span class="o">.</span><span class="n">target_epsg</span><span class="p">]))</span>
+        <span class="c1"># we need to reproject only if the intersection returns an empty set.</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">intersection</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> 
+            <span class="n">scene</span><span class="o">.</span><span class="n">reproject</span><span class="p">(</span>
+                <span class="n">target_crs</span><span class="o">=</span><span class="n">item</span><span class="o">.</span><span class="n">target_epsg</span><span class="p">,</span>
+                <span class="n">interpolation_method</span><span class="o">=</span><span class="n">reprojection_method</span><span class="p">,</span>
+                <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span>
 
         <span class="k">return</span> <span class="n">scene</span>
 
@@ -739,12 +747,34 @@
             <span class="p">))</span>
         <span class="n">bounds_gdf</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">bounds_list</span><span class="p">)</span>
         <span class="n">total_bounds</span> <span class="o">=</span> <span class="n">bounds_gdf</span><span class="o">.</span><span class="n">total_bounds</span>
+
+        <span class="c1"># ..versionadd 0.2.3 (https://github.com/EOA-team/eodal/issues/90)</span>
+        <span class="c1"># we need to ensure that all scenes have not only the same extent but</span>
+        <span class="c1"># also the same pixel size and, hence, number of rows and columns</span>
+        <span class="c1"># The heuristic is:</span>
+        <span class="c1"># 1) is there a since that was not reprojected (_duplicated is False)</span>
+        <span class="c1"># 2) If no: use the first scene as reference scene</span>
+        <span class="c1"># 3) If yes: use the first scene that was not reprojected</span>
+
+        <span class="c1"># is there at a least a single scene that was not reprojected</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">_duplicated</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+            <span class="n">reference_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span>
+                <span class="o">~</span><span class="bp">self</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">_duplicated</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">time_column</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">timestamps</span> <span class="o">=</span> <span class="n">scoll</span><span class="o">.</span><span class="n">timestamps</span>
+            <span class="n">reference_timestamp_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> <span class="n">reference_time</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">timestamps</span><span class="p">])</span>
+            <span class="n">reference_scene</span> <span class="o">=</span> <span class="n">scoll</span><span class="p">[</span>
+                <span class="n">timestamps</span><span class="p">[</span><span class="n">reference_timestamp_idx</span><span class="p">]]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">reference_scene</span> <span class="o">=</span> <span class="n">scoll</span><span class="p">[</span><span class="n">scoll</span><span class="o">.</span><span class="n">timestamps</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
         
         <span class="c1"># loop over scenes and project them onto the total bounds</span>
         <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">scene</span> <span class="ow">in</span> <span class="n">scoll</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">scene</span><span class="o">.</span><span class="n">is_bandstack</span><span class="p">():</span>
-                <span class="c1"># get a band of the SceneCollection</span>
-                <span class="n">reference_band</span> <span class="o">=</span> <span class="n">scene</span><span class="p">[</span><span class="n">scene</span><span class="o">.</span><span class="n">band_names</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+            <span class="c1"># loop over the bands and reproject them</span>
+            <span class="c1"># onto the target grid</span>
+            <span class="k">for</span> <span class="n">band_name</span><span class="p">,</span> <span class="n">band</span> <span class="ow">in</span> <span class="n">scene</span><span class="p">:</span>
+                <span class="c1"># get the reference band</span>
+                <span class="n">reference_band</span> <span class="o">=</span> <span class="n">reference_scene</span><span class="p">[</span><span class="n">band_name</span><span class="p">]</span>
                 <span class="n">geo_info</span> <span class="o">=</span> <span class="n">reference_band</span><span class="o">.</span><span class="n">geo_info</span>
                 <span class="c1"># get the transform of the destination extent</span>
                 <span class="n">minx</span><span class="p">,</span> <span class="n">maxy</span> <span class="o">=</span> <span class="n">total_bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">total_bounds</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
@@ -755,28 +785,25 @@
                     <span class="n">d</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
                     <span class="n">e</span><span class="o">=</span><span class="n">geo_info</span><span class="o">.</span><span class="n">pixres_y</span><span class="p">,</span>
                     <span class="n">f</span><span class="o">=</span><span class="n">maxy</span><span class="p">)</span>
-
-                <span class="c1"># loop over the bands and reproject them</span>
-                <span class="c1"># onto the target grid</span>
-                <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">band</span> <span class="ow">in</span> <span class="n">scene</span><span class="p">:</span>
-                    <span class="n">dst_shape</span> <span class="o">=</span> <span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">nrows</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="n">ncols</span><span class="p">))</span>
-                    <span class="n">destination</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
-                        <span class="n">dst_shape</span><span class="p">,</span>
-                        <span class="n">dtype</span><span class="o">=</span><span class="n">band</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">dtype</span>
-                    <span class="p">)</span>
-                    <span class="c1"># determine nodata</span>
-                    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">band</span><span class="o">.</span><span class="n">nodata</span><span class="p">):</span>
-                        <span class="n">dst_nodata</span> <span class="o">=</span> <span class="n">band</span><span class="o">.</span><span class="n">nodata</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="c1"># if band nodata is NaN we set</span>
-                        <span class="c1"># no-data to None (rasterio default)</span>
-                        <span class="n">dst_nodata</span> <span class="o">=</span> <span class="kc">None</span>
-                    <span class="n">band</span><span class="o">.</span><span class="n">reproject</span><span class="p">(</span>
-                        <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                        <span class="n">target_crs</span><span class="o">=</span><span class="n">reference_band</span><span class="o">.</span><span class="n">crs</span><span class="p">,</span>
-                        <span class="n">dst_transform</span><span class="o">=</span><span class="n">dst_transform</span><span class="p">,</span>
-                        <span class="n">destination</span><span class="o">=</span><span class="n">destination</span><span class="p">,</span>
-                        <span class="n">dst_nodata</span><span class="o">=</span><span class="n">dst_nodata</span><span class="p">)</span>
+                
+                <span class="n">dst_shape</span> <span class="o">=</span> <span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">nrows</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="n">ncols</span><span class="p">))</span>
+                <span class="n">destination</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+                    <span class="n">dst_shape</span><span class="p">,</span>
+                    <span class="n">dtype</span><span class="o">=</span><span class="n">band</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">dtype</span>
+                <span class="p">)</span>
+                <span class="c1"># determine nodata</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">band</span><span class="o">.</span><span class="n">nodata</span><span class="p">):</span>
+                    <span class="n">dst_nodata</span> <span class="o">=</span> <span class="n">band</span><span class="o">.</span><span class="n">nodata</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># if band nodata is NaN we set</span>
+                    <span class="c1"># no-data to None (rasterio default)</span>
+                    <span class="n">dst_nodata</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="n">band</span><span class="o">.</span><span class="n">reproject</span><span class="p">(</span>
+                    <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">target_crs</span><span class="o">=</span><span class="n">reference_band</span><span class="o">.</span><span class="n">crs</span><span class="p">,</span>
+                    <span class="n">dst_transform</span><span class="o">=</span><span class="n">dst_transform</span><span class="p">,</span>
+                    <span class="n">destination</span><span class="o">=</span><span class="n">destination</span><span class="p">,</span>
+                    <span class="n">dst_nodata</span><span class="o">=</span><span class="n">dst_nodata</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">scoll</span>
 

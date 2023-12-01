@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Changelog &#8212; eodal 0.2.2 documentation</title>
+    <title>Changelog &#8212; eodal 0.2.3 documentation</title>
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/alabaster.css" />
     <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
@@ -39,9 +39,17 @@
 <p>All notable changes to package_name will be documented here.</p>
 <p>The format is based on <a class="reference external" href="https://keepachangelog.com/en/1.0.0/">Keep a Changelog</a>, and this project adheres to <a class="reference external" href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.</p>
 <p>Categories for changes are: Added, Changed, Deprecated, Removed, Fixed, Security.</p>
+<div class="section" id="version-0-2-3-https-github-com-eoa-team-eodal-releases-tag-v0-2-4">
+<h2>Version <a href="#id1"><span class="problematic" id="id2">`0.2.3 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.2.4&gt;`__</span></a><a class="headerlink" href="#version-0-2-3-https-github-com-eoa-team-eodal-releases-tag-v0-2-4" title="Permalink to this heading">¶</a></h2>
+<p>Release date: 2023-12-01</p>
+<ul class="simple">
+<li><p>Fixed: selection of reference bands fixed for Landsat (different sensors have different quality bands). Now, only those quality bands available for all sensor generations are retained in case there are multiple different Landsat sensor generation involved.</p></li>
+<li><p>Fixed: sign of offset changed from - to + to be consistent with QGIS when scaling data.</p></li>
+</ul>
+</div>
 <div class="section" id="version-0-2-3-https-github-com-eoa-team-eodal-releases-tag-v0-2-3">
-<h2>Version <a href="#id1"><span class="problematic" id="id2">`0.2.3 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.2.3&gt;`__</span></a><a class="headerlink" href="#version-0-2-3-https-github-com-eoa-team-eodal-releases-tag-v0-2-3" title="Permalink to this heading">¶</a></h2>
-<p>Release date: 2023-10-XX</p>
+<h2>Version <a href="#id1"><span class="problematic" id="id3">`0.2.3 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.2.3&gt;`__</span></a><a class="headerlink" href="#version-0-2-3-https-github-com-eoa-team-eodal-releases-tag-v0-2-3" title="Permalink to this heading">¶</a></h2>
+<p>Release date: 2023-11-24</p>
 <ul class="simple">
 <li><p>Fixed: a fill value is now explicitly set to each <cite>np.ma.masked_array</cite>. If not (previous behavior) numpy would interfere a fill value that would often not be the no-data type of the raster. In the forthcoming release of EOdal, the fill-value will now equal the nodata value.</p></li>
 <li><p>Fixed: the inference of the highest data type in a <cite>RasterCollection</cite> has been improved and extended to all <cite>INT</cite>,  <cite>FLOAT</cite>, and <cite>COMPLEX</cite> data types currently supported by numpy. In the previous version, all data types were cast to <cite>numpy.float32</cite> or even <cite>numpy.float64</cite> leading to an unnecessary high consumption of memory.</p></li>
@@ -54,7 +62,7 @@
 </ul>
 </div>
 <div class="section" id="version-0-2-2-https-github-com-eoa-team-eodal-releases-tag-v0-2-2">
-<h2>Version <a href="#id1"><span class="problematic" id="id3">`0.2.2 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.2.2&gt;`__</span></a><a class="headerlink" href="#version-0-2-2-https-github-com-eoa-team-eodal-releases-tag-v0-2-2" title="Permalink to this heading">¶</a></h2>
+<h2>Version <a href="#id1"><span class="problematic" id="id4">`0.2.2 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.2.2&gt;`__</span></a><a class="headerlink" href="#version-0-2-2-https-github-com-eoa-team-eodal-releases-tag-v0-2-2" title="Permalink to this heading">¶</a></h2>
 <p>Release date: 2023-08-19</p>
 <ul class="simple">
 <li><p>Added: Full support for USGS Landsat Collection-2 data given access to data &gt;50 years of data starting with Landsat-1 (#66).</p></li>
@@ -65,7 +73,7 @@
 </ul>
 </div>
 <div class="section" id="version-0-2-1-https-github-com-eoa-team-eodal-releases-tag-v0-2-1">
-<h2>Version <a href="#id1"><span class="problematic" id="id4">`0.2.1 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.2.1&gt;`__</span></a><a class="headerlink" href="#version-0-2-1-https-github-com-eoa-team-eodal-releases-tag-v0-2-1" title="Permalink to this heading">¶</a></h2>
+<h2>Version <a href="#id1"><span class="problematic" id="id5">`0.2.1 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.2.1&gt;`__</span></a><a class="headerlink" href="#version-0-2-1-https-github-com-eoa-team-eodal-releases-tag-v0-2-1" title="Permalink to this heading">¶</a></h2>
 <p>Release date: 2023-06-05</p>
 <ul class="simple">
 <li><p>Fixed: Small bugs when loading the EOdal SceneCollection from a pickled binary object (thanks to &#64;atoparseks) (#55).</p></li>
@@ -78,7 +86,7 @@
 </ul>
 </div>
 <div class="section" id="version-0-2-0-https-github-com-eoa-team-eodal-releases-tag-v0-2-0">
-<h2>Version <a href="#id1"><span class="problematic" id="id5">`0.2.0 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.2.0&gt;`__</span></a><a class="headerlink" href="#version-0-2-0-https-github-com-eoa-team-eodal-releases-tag-v0-2-0" title="Permalink to this heading">¶</a></h2>
+<h2>Version <a href="#id1"><span class="problematic" id="id6">`0.2.0 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.2.0&gt;`__</span></a><a class="headerlink" href="#version-0-2-0-https-github-com-eoa-team-eodal-releases-tag-v0-2-0" title="Permalink to this heading">¶</a></h2>
 <p>Release date: 2023-04-03</p>
 <ul class="simple">
 <li><p>Added: the new EOdal Mapper class has been fully implemented and replaces the old mapper version. Scripts calling the Mapper must be updated.</p></li>
@@ -92,7 +100,7 @@
 </ul>
 </div>
 <div class="section" id="version-0-1-1-https-github-com-eoa-team-eodal-releases-tag-v0-1-1">
-<h2>Version <a href="#id1"><span class="problematic" id="id6">`0.1.1 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.1.1&gt;`__</span></a><a class="headerlink" href="#version-0-1-1-https-github-com-eoa-team-eodal-releases-tag-v0-1-1" title="Permalink to this heading">¶</a></h2>
+<h2>Version <a href="#id1"><span class="problematic" id="id7">`0.1.1 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.1.1&gt;`__</span></a><a class="headerlink" href="#version-0-1-1-https-github-com-eoa-team-eodal-releases-tag-v0-1-1" title="Permalink to this heading">¶</a></h2>
 <p>Release date: 2022-12-13</p>
 <ul class="simple">
 <li><p>Fixed: Band.clip() now has a optional keyword “full_bounding_box_only” (default: False) allowing to mask pixels outside the feature geometry.</p></li>
@@ -102,7 +110,7 @@
 </ul>
 </div>
 <div class="section" id="version-0-1-0-https-github-com-eoa-team-eodal-releases-tag-v0-1-0">
-<h2>Version <a href="#id1"><span class="problematic" id="id7">`0.1.0 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.1.0&gt;`__</span></a><a class="headerlink" href="#version-0-1-0-https-github-com-eoa-team-eodal-releases-tag-v0-1-0" title="Permalink to this heading">¶</a></h2>
+<h2>Version <a href="#id1"><span class="problematic" id="id8">`0.1.0 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.1.0&gt;`__</span></a><a class="headerlink" href="#version-0-1-0-https-github-com-eoa-team-eodal-releases-tag-v0-1-0" title="Permalink to this heading">¶</a></h2>
 <p>Release date: 2022-12-08</p>
 <ul class="simple">
 <li><p>Added: RasterCollection objects are now iterable (iterate over bands in collection)</p></li>
@@ -116,7 +124,7 @@
 </ul>
 </div>
 <div class="section" id="version-0-0-1-https-github-com-eoa-team-eodal-releases-tag-v0-0-1">
-<h2>Version <a href="#id1"><span class="problematic" id="id8">`0.0.1 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.0.1&gt;`__</span></a><a class="headerlink" href="#version-0-0-1-https-github-com-eoa-team-eodal-releases-tag-v0-0-1" title="Permalink to this heading">¶</a></h2>
+<h2>Version <a href="#id1"><span class="problematic" id="id9">`0.0.1 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.0.1&gt;`__</span></a><a class="headerlink" href="#version-0-0-1-https-github-com-eoa-team-eodal-releases-tag-v0-0-1" title="Permalink to this heading">¶</a></h2>
 <p>Release date: 2022-10-31.</p>
 <ul class="simple">
 <li><p>Added: Support for Microsoft Planetary Computer (using its STAC)</p></li>
@@ -151,6 +159,7 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../packages/modules.html">API Reference</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Changelog</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#version-0-2-3-https-github-com-eoa-team-eodal-releases-tag-v0-2-4">Version `0.2.3 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.2.4&gt;`__</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#version-0-2-3-https-github-com-eoa-team-eodal-releases-tag-v0-2-3">Version `0.2.3 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.2.3&gt;`__</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#version-0-2-2-https-github-com-eoa-team-eodal-releases-tag-v0-2-2">Version `0.2.2 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.2.2&gt;`__</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#version-0-2-1-https-github-com-eoa-team-eodal-releases-tag-v0-2-1">Version `0.2.1 &lt; https://github.com/EOA-team/eodal/releases/tag/v0.2.1&gt;`__</a></li>

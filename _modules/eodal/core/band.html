@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>eodal.core.band &#8212; eodal 0.2.2 documentation</title>
+    <title>eodal.core.band &#8212; eodal 0.2.3 documentation</title>
     <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css" />
     <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
@@ -824,6 +824,18 @@
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">area_or_point</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;area_or_point&quot;</span><span class="p">]</span>
                 <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;area_or_point&quot;</span><span class="p">)</span>
+            <span class="c1"># check no data value</span>
+            <span class="k">if</span> <span class="s2">&quot;nodata&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">src</span><span class="o">.</span><span class="n">nodata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">nodata</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">src</span><span class="o">.</span><span class="n">nodata</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span>
+                        <span class="n">src</span><span class="o">.</span><span class="n">dtypes</span><span class="p">[</span><span class="mi">0</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                        <span class="s1">&#39;Nodata must not be None. Please pass &#39;</span> <span class="o">+</span>
+                        <span class="s1">&#39;`nodata` argument&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">nodata</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;nodata&quot;</span><span class="p">]</span>
+                <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;nodata&quot;</span><span class="p">)</span>
 
             <span class="c1"># overwrite band_idx if band_name_src is provided</span>
             <span class="n">band_names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">src</span><span class="o">.</span><span class="n">descriptions</span><span class="p">)</span>
@@ -889,13 +901,13 @@
             <span class="k">if</span> <span class="n">units</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">unit</span> <span class="o">=</span> <span class="n">units</span><span class="p">[</span><span class="n">band_idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
 
-        <span class="k">if</span> <span class="s2">&quot;nodata&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-            <span class="n">nodata</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;nodata&quot;</span><span class="p">]</span>
-            <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;nodata&quot;</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">nodata</span><span class="p">,</span> <span class="n">nodata_vals</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;nodatavals&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">nodata_vals</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">nodata</span> <span class="o">=</span> <span class="n">nodata_vals</span><span class="p">[</span><span class="n">band_idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="c1"># make sure the nodata type matches the datatype of the</span>
+        <span class="c1"># band values</span>
+        <span class="k">if</span> <span class="n">band_data</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">kind</span> <span class="ow">not</span> <span class="ow">in</span> <span class="s1">&#39;fc&#39;</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">nodata</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;The datatype of the band data is </span><span class="si">{</span><span class="n">band_data</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2"> &quot;</span> <span class="o">+</span>
+                <span class="sa">f</span><span class="s2">&quot;while the nodata value (</span><span class="si">{</span><span class="n">nodata</span><span class="si">}</span><span class="s2">) is float.</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span>
+                <span class="s2">&quot;Please provide an appropriate nodata value&quot;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">masking</span><span class="p">:</span>
             <span class="c1"># make sure to set the EPSG code</span>
@@ -1393,11 +1405,13 @@
 <span class="sd">            name of the ``rasterio`` driver. `gTiff` (GeoTiff) by default</span>
 <span class="sd">        :param kwargs:</span>
 <span class="sd">            additional keyword arguments to append to metadata dictionary</span>
+<span class="sd">            or to overwrite defaults such as the &quot;compress&quot; attribute.</span>
 <span class="sd">        :returns:</span>
 <span class="sd">            ``rasterio`` compatible metadata dictionary to be used for</span>
 <span class="sd">            writing new raster datasets</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">meta</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># set defaults</span>
         <span class="n">meta</span><span class="p">[</span><span class="s2">&quot;height&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nrows</span>
         <span class="n">meta</span><span class="p">[</span><span class="s2">&quot;width&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ncols</span>
         <span class="n">meta</span><span class="p">[</span><span class="s2">&quot;crs&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">crs</span>
@@ -1407,6 +1421,11 @@
         <span class="n">meta</span><span class="p">[</span><span class="s2">&quot;transform&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span>
         <span class="n">meta</span><span class="p">[</span><span class="s2">&quot;is_tile&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_tiled</span>
         <span class="n">meta</span><span class="p">[</span><span class="s2">&quot;driver&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">driver</span>
+        <span class="c1"># &quot;compress&quot; as suggested here:</span>
+        <span class="c1"># https://github.com/rasterio/rasterio/discussions/2933#discussioncomment-7208578</span>
+        <span class="n">meta</span><span class="p">[</span><span class="s2">&quot;compress&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;DEFLATE&quot;</span>
+
+        <span class="c1"># defaults can be overwritten using custom kwargs</span>
         <span class="n">meta</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">meta</span></div>
@@ -1537,7 +1556,7 @@
 
 <div class="viewcode-block" id="Band.plot"><a class="viewcode-back" href="../../../packages/eodal.core.band.html#eodal.core.band.Band.plot">[docs]</a>    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
-        <span class="n">colormap</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;gray&quot;</span><span class="p">,</span>
+        <span class="n">colormap</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;viridis&quot;</span><span class="p">,</span>
         <span class="n">discrete_values</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">user_defined_colors</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ListedColormap</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">user_defined_ticks</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -1552,7 +1571,7 @@
 
 <span class="sd">        :param colormap:</span>
 <span class="sd">            String identifying one of matplotlib&#39;s colormaps.</span>
-<span class="sd">            The default will plot the band in gray values.</span>
+<span class="sd">            The default will plot the band using the viridis colormap.</span>
 <span class="sd">        :param discrete_values:</span>
 <span class="sd">            if True (Default) assumes that the band has continuous values</span>
 <span class="sd">            (i.e., ordinary spectral data). If False assumes that the</span>
@@ -1734,10 +1753,18 @@
                     <span class="c1"># ignore pixels already masked</span>
                     <span class="k">if</span> <span class="ow">not</span> <span class="n">orig_mask</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">]:</span>
                         <span class="n">orig_mask</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">mask</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">]</span>
+            <span class="c1"># re-use original fill value</span>
+            <span class="n">fill_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">fill_value</span>
             <span class="c1"># update band data array</span>
-            <span class="n">masked_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">MaskedArray</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">orig_mask</span><span class="p">)</span>
+            <span class="n">masked_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">MaskedArray</span><span class="p">(</span>
+                <span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">data</span><span class="p">,</span>
+                <span class="n">mask</span><span class="o">=</span><span class="n">orig_mask</span><span class="p">,</span>
+                <span class="n">fill_value</span><span class="o">=</span><span class="n">fill_value</span><span class="p">)</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_ndarray</span><span class="p">:</span>
-            <span class="n">masked_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">MaskedArray</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">)</span>
+            <span class="c1"># determine fill value from nodata value</span>
+            <span class="n">fill_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodata</span>
+            <span class="n">masked_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">MaskedArray</span><span class="p">(</span>
+                <span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="n">fill_value</span><span class="p">)</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_zarr</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
 
@@ -1925,8 +1952,10 @@
             <span class="n">out_mask</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">in_mask</span><span class="p">,</span> <span class="n">dim_resampled</span><span class="p">,</span> <span class="n">cv2</span><span class="o">.</span><span class="n">INTER_NEAREST_EXACT</span><span class="p">)</span>
             <span class="c1"># convert mask back to boolean array</span>
             <span class="n">out_mask</span> <span class="o">=</span> <span class="n">out_mask</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
+            <span class="c1"># re-use fill value of the original array</span>
+            <span class="n">fill_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">fill_value</span>
             <span class="c1"># save as masked array</span>
-            <span class="n">res</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_array</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">res</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">out_mask</span><span class="p">)</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">masked_array</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">res</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">out_mask</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="n">fill_value</span><span class="p">)</span>
 
         <span class="c1"># update the geo_info with new pixel resolution. The upper left x and y</span>
         <span class="c1"># coordinate must be changed if the pixel coordinates refer to the center</span>
@@ -1997,6 +2026,7 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_masked_array</span><span class="p">:</span>
             <span class="n">band_data</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
             <span class="n">band_mask</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">mask</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+            <span class="n">fill_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">fill_value</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_ndarray</span><span class="p">:</span>
             <span class="n">band_data</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_zarr</span><span class="p">:</span>
@@ -2039,7 +2069,8 @@
             <span class="c1"># due to the raster alignment</span>
             <span class="n">nodata</span> <span class="o">=</span> <span class="n">reprojection_options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;src_nodata&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
             <span class="n">out_mask</span><span class="p">[</span><span class="n">out_data</span> <span class="o">==</span> <span class="n">nodata</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
-            <span class="n">out_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">MaskedArray</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">out_data</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">out_mask</span><span class="p">)</span>
+            <span class="n">out_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">MaskedArray</span><span class="p">(</span>
+                <span class="n">data</span><span class="o">=</span><span class="n">out_data</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">out_mask</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="n">fill_value</span><span class="p">)</span>
 
         <span class="n">new_geo_info</span> <span class="o">=</span> <span class="n">GeoInfo</span><span class="o">.</span><span class="n">from_affine</span><span class="p">(</span><span class="n">affine</span><span class="o">=</span><span class="n">out_transform</span><span class="p">,</span> <span class="n">epsg</span><span class="o">=</span><span class="n">target_crs</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">inplace</span><span class="p">:</span>
@@ -2209,41 +2240,49 @@
 <div class="viewcode-block" id="Band.scale_data"><a class="viewcode-back" href="../../../packages/eodal.core.band.html#eodal.core.band.Band.scale_data">[docs]</a>    <span class="k">def</span> <span class="nf">scale_data</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">inplace</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-        <span class="n">pixel_values_to_ignore</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">pixel_values_to_ignore</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[],</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Applies scale and offset factors to the data.</span>
+
+<span class="sd">        .. versionadded:: 0.2.3</span>
+<span class="sd">            No-data values are ignored when applying scale and offset.</span>
 
 <span class="sd">        :param inplace:</span>
 <span class="sd">            if False (default) returns a copy of the ``Band`` instance</span>
 <span class="sd">            with the changes applied. If True overwrites the values</span>
 <span class="sd">            in the current instance.</span>
 <span class="sd">        :param pixel_values_to_ignore:</span>
-<span class="sd">            optional list of pixel values (e.g., nodata values) to ignore,</span>
-<span class="sd">            i.e., where scaling has no effect</span>
+<span class="sd">            optional list of pixel values to ignore, i.e., where scaling</span>
+<span class="sd">            has no effect. From version 0.2.3 onwards, no-data values</span>
+<span class="sd">            are *always* ignored.</span>
 <span class="sd">        :returns:</span>
 <span class="sd">            ``Band`` instance if `inplace` is False, None instead.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># add no-data to the `pixel_values_to_ignore` list</span>
+        <span class="n">pixel_values_to_ignore</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodata</span><span class="p">)</span>
+
         <span class="n">scale</span><span class="p">,</span> <span class="n">offset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">offset</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_masked_array</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">pixel_values_to_ignore</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">scaled_array</span> <span class="o">=</span> <span class="n">scale</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">data</span> <span class="o">+</span> <span class="n">offset</span><span class="p">)</span>
+                <span class="n">scaled_array</span> <span class="o">=</span> <span class="n">scale</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">data</span> <span class="o">-</span> <span class="n">offset</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">scaled_array</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
-                <span class="n">scaled_array</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">scaled_array</span><span class="p">,</span> <span class="n">pixel_values_to_ignore</span><span class="p">)]</span> <span class="o">=</span> <span class="n">scale</span> <span class="o">*</span> <span class="p">(</span>
-                    <span class="n">scaled_array</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">scaled_array</span><span class="p">,</span> <span class="n">pixel_values_to_ignore</span><span class="p">)]</span>
-                    <span class="o">+</span> <span class="n">offset</span>
-                <span class="p">)</span>
-            <span class="n">scaled_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">MaskedArray</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">scaled_array</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">mask</span><span class="p">)</span>
+                <span class="n">scaled_array</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">scaled_array</span><span class="p">,</span> <span class="n">pixel_values_to_ignore</span><span class="p">)]</span> <span class="o">=</span> <span class="n">scale</span> <span class="o">*</span> \
+                    <span class="n">scaled_array</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">scaled_array</span><span class="p">,</span> <span class="n">pixel_values_to_ignore</span><span class="p">)]</span> \
+                    <span class="o">-</span> <span class="n">offset</span>
+            <span class="c1"># reuse fill value</span>
+            <span class="n">fill_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">fill_value</span>
+            <span class="n">scaled_array</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ma</span><span class="o">.</span><span class="n">MaskedArray</span><span class="p">(</span>
+                <span class="n">data</span><span class="o">=</span><span class="n">scaled_array</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">mask</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="n">fill_value</span><span class="p">)</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_ndarray</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">pixel_values_to_ignore</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">scaled_array</span> <span class="o">=</span> <span class="n">scale</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">values</span> <span class="o">+</span> <span class="n">offset</span><span class="p">)</span>
+                <span class="n">scaled_array</span> <span class="o">=</span> <span class="n">scale</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">values</span> <span class="o">-</span> <span class="n">offset</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">scaled_array</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
-                <span class="n">scaled_array</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">scaled_array</span><span class="p">,</span> <span class="n">pixel_values_to_ignore</span><span class="p">)]</span> <span class="o">=</span> <span class="n">scale</span> <span class="o">*</span> <span class="p">(</span>
-                    <span class="n">scaled_array</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">scaled_array</span><span class="p">,</span> <span class="n">pixel_values_to_ignore</span><span class="p">)]</span>
-                    <span class="o">+</span> <span class="n">offset</span>
-                <span class="p">)</span>
+                <span class="n">scaled_array</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">scaled_array</span><span class="p">,</span> <span class="n">pixel_values_to_ignore</span><span class="p">)]</span> <span class="o">=</span> <span class="n">scale</span> <span class="o">*</span> \
+                    <span class="n">scaled_array</span><span class="p">[</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">scaled_array</span><span class="p">,</span> <span class="n">pixel_values_to_ignore</span><span class="p">)]</span> \
+                    <span class="o">-</span> <span class="n">offset</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_zarr</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
 
@@ -2391,6 +2430,9 @@
         <span class="k">with</span> <span class="n">rio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">fpath_raster</span><span class="p">,</span> <span class="s2">&quot;w+&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">meta</span><span class="p">)</span> <span class="k">as</span> <span class="n">dst</span><span class="p">:</span>
             <span class="c1"># set band name</span>
             <span class="n">dst</span><span class="o">.</span><span class="n">set_band_description</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">band_name</span><span class="p">)</span>
+            <span class="c1"># set scale and offset</span>
+            <span class="n">dst</span><span class="o">.</span><span class="n">_set_all_scales</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">scale</span><span class="p">])</span>
+            <span class="n">dst</span><span class="o">.</span><span class="n">_set_all_offsets</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">offset</span><span class="p">])</span>
             <span class="c1"># write band data</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_masked_array</span><span class="p">:</span>
                 <span class="n">vals</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">data</span>
