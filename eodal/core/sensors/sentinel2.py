@@ -117,7 +117,7 @@ class Sentinel2(RasterCollection):
         # actual reflectance factor values.
         s2_offset = 0
         if baseline >= 400:
-            s2_offset = 0.1
+            s2_offset = -0.1
         return (s2_gain_factor, s2_offset)
 
     @staticmethod
