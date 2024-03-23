@@ -5,7 +5,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>eodal.mapper.mapper &#8212; eodal 0.2.3 documentation</title>
+    <title>eodal.mapper.mapper &#8212; eodal 0.2.4 documentation</title>
     <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css" />
     <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
@@ -772,9 +772,20 @@
         <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">scene</span> <span class="ow">in</span> <span class="n">scoll</span><span class="p">:</span>
             <span class="c1"># loop over the bands and reproject them</span>
             <span class="c1"># onto the target grid</span>
+            <span class="n">bands_to_remove</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">for</span> <span class="n">band_name</span><span class="p">,</span> <span class="n">band</span> <span class="ow">in</span> <span class="n">scene</span><span class="p">:</span>
-                <span class="c1"># get the reference band</span>
-                <span class="n">reference_band</span> <span class="o">=</span> <span class="n">reference_scene</span><span class="p">[</span><span class="n">band_name</span><span class="p">]</span>
+                <span class="c1"># get the reference band. For some platforms, there</span>
+                <span class="c1"># might be different bands in the scene (different Landsat</span>
+                <span class="c1"># generations of sensors). In this case we have to continue.</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">reference_band</span> <span class="o">=</span> <span class="n">reference_scene</span><span class="p">[</span><span class="n">band_name</span><span class="p">]</span>
+                <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                    <span class="c1"># if band is not in reference scene, we memorize</span>
+                    <span class="c1"># the band name and continue. We delete the band</span>
+                    <span class="c1"># later to make sure the scenes in the collection</span>
+                    <span class="c1"># all have the same number of bands</span>
+                    <span class="n">bands_to_remove</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">band_name</span><span class="p">)</span>
+                    <span class="k">continue</span>
                 <span class="n">geo_info</span> <span class="o">=</span> <span class="n">reference_band</span><span class="o">.</span><span class="n">geo_info</span>
                 <span class="c1"># get the transform of the destination extent</span>
                 <span class="n">minx</span><span class="p">,</span> <span class="n">maxy</span> <span class="o">=</span> <span class="n">total_bounds</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">total_bounds</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
@@ -804,6 +815,12 @@
                     <span class="n">dst_transform</span><span class="o">=</span><span class="n">dst_transform</span><span class="p">,</span>
                     <span class="n">destination</span><span class="o">=</span><span class="n">destination</span><span class="p">,</span>
                     <span class="n">dst_nodata</span><span class="o">=</span><span class="n">dst_nodata</span><span class="p">)</span>
+            <span class="c1"># remove bands if any</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">bands_to_remove</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">band_to_remove</span> <span class="ow">in</span> <span class="n">bands_to_remove</span><span class="p">:</span>
+                    <span class="k">del</span> <span class="n">scene</span><span class="p">[</span><span class="n">band_to_remove</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">band_to_remove</span> <span class="ow">in</span> <span class="n">scene</span><span class="o">.</span><span class="n">band_aliases</span><span class="p">:</span>
+                        <span class="n">scene</span><span class="o">.</span><span class="n">band_aliases</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">band_to_remove</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">scoll</span>
 
@@ -983,7 +1000,7 @@
       <div class="clearer"></div>
     </div>
     <div class="footer">
-      &copy;2023, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
+      &copy;2024, Crop Science, Institute of Agricultural Sciences, D-USYS, ETH Zurich, Zurich, Switzerland;
 Earth Observation of Agroecosystems Team, Division Agroecology and Environment, Agroscope, Zurich, Switzerland.
       
       |
