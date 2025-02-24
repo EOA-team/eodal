@@ -199,7 +199,10 @@ def sentinel2(metadata_filters: List[Filter], **kwargs) -> gpd.GeoDataFrame:
         except KeyError:
             epsg = props['proj:code']
             # eliminate the 'EPSG:' part of the string
-            epsg = epsg.split(":")[-1]
+            try:
+                epsg = int(epsg.split(":")[-1])
+            except ValueError:
+                raise ValueError(f"Could not extract EPSG code from {epsg}")
 
         # TODO: think about a more generic way to do this. The problem is:
         # we need to map the different STAC provider settings into EOdals
