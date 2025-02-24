@@ -192,6 +192,18 @@ def sentinel2(metadata_filters: List[Filter], **kwargs) -> gpd.GeoDataFrame:
             scene_id = props[s2.scene_id]
         except KeyError:
             scene_id = scene[s2.scene_id]
+
+        # there are two different keys for the EPSG code
+        try:
+            epsg = props[s2.epsg]
+        except KeyError:
+            epsg = props['proj:code']
+            # eliminate the 'EPSG:' part of the string
+            try:
+                epsg = int(epsg.split(":")[-1])
+            except ValueError:
+                raise ValueError(f"Could not extract EPSG code from {epsg}")
+
         # TODO: think about a more generic way to do this. The problem is:
         # we need to map the different STAC provider settings into EOdals
         # metadata model to avoid having the user to think about it
@@ -202,7 +214,7 @@ def sentinel2(metadata_filters: List[Filter], **kwargs) -> gpd.GeoDataFrame:
             "tile_id": tile_id,
             "sensing_date": datetime_to_date(props[s2.sensing_time]),
             "cloudy_pixel_percentage": props[s2.cloud_cover],
-            "epsg": props[s2.epsg],
+            "epsg": epsg,
             "sensing_time": datetime.strptime(
                 props[s2.sensing_time], s2.sensing_time_fmt
             ),

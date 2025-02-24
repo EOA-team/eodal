@@ -586,7 +586,7 @@ class Band(object):
     @property
     def is_zarr(self) -> bool:
         """Checks if the band values are a zarr array"""
-        return isinstance(self.values, zarr.core.Array)
+        return isinstance(self.values, zarr.core.array.Array)
 
     @property
     def is_ndarray(self) -> bool:
