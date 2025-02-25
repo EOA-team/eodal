@@ -134,7 +134,7 @@ def merge_datasets(
     dst_kwds = {"QUALITY": "100", "REVERSIBLE": "YES"}
     try:
         res = merge(
-            datasets=datasets, dst_path=out_file, dst_kwds=dst_kwds,
+            sources=datasets, dst_path=out_file, dst_kwds=dst_kwds,
             dtype=dtype, **kwargs)
         if res is not None:
             out_ds, out_transform = res[0], res[1]
