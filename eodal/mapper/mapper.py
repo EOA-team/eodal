@@ -635,7 +635,7 @@ class Mapper:
                 try:
                     scoll.add_scene(scene)
                 except KeyError:
-                    logger.warn(
+                    logger.warning(
                         f"Scene with ID {merged_scene_properties.product_uri} "
                         "already added to SceneCollection - continue"
                     )
@@ -732,7 +732,7 @@ class Mapper:
                 timestamps[reference_timestamp_idx]]
         else:
             reference_scene = scoll[scoll.timestamps[0]]
-        
+
         # loop over scenes and project them onto the total bounds
         for _, scene in scoll:
             # loop over the bands and reproject them
@@ -761,7 +761,7 @@ class Mapper:
                     d=0,
                     e=geo_info.pixres_y,
                     f=maxy)
-                
+
                 dst_shape = (max(nrows), max(ncols))
                 destination = np.zeros(
                     dst_shape,
@@ -864,7 +864,7 @@ class Mapper:
             if scene_kwargs is None:
                 raise ValueError(
                     "Since Polygon/MultiPolygon geometries are provided "
-                    + "`pixel_kwargs` must not be empty"
+                    + "`scene_kwargs` must not be empty"
                 )
 
         # check if scenes have been queried and found
@@ -907,3 +907,60 @@ class Mapper:
                 round_time_stamps_to_freq=round_time_stamps_to_freq,
                 **scene_kwargs
             )
+
+
+if __name__ == "__main__":
+
+    from eodal.core.sensors.sentinel2 import Sentinel2
+    from eodal.config import get_settings
+
+    settings = get_settings()
+    settings.USE_STAC = True
+
+    def preprocess_sentinel2_scenes(
+        ds: Sentinel2,
+    ) -> Sentinel2:
+        """
+        Resample Sentinel-2 scenes to a spatial resolution of 10 m.
+
+        :returns:
+            resampled Sentinel-2 scene (10 m spatial resolution).
+        """
+        # resample scene
+        ds.resample(inplace=True, target_resolution=10)
+        return ds
+
+    fpath = Path('/Users/graflu/Documents/schaffhausen/aoi.gpkg')
+    gdf = gpd.read_file(fpath)
+
+    SCENE_KWARGS: dict = {
+        'scene_constructor': Sentinel2.from_safe,
+        'scene_constructor_kwargs': {
+            'band_selection': ['B02', 'B03', 'B04', 'B08'],
+            'read_scl': True,
+            'apply_scaling': False},
+        'scene_modifier': preprocess_sentinel2_scenes
+    }
+
+    feature = Feature.from_geoseries(gdf.geometry)
+    time_start = datetime(2025, 2, 1)
+    time_end = datetime(2025, 2, 15)
+
+    mapper_configs = MapperConfigs(
+        collection="sentinel2-msi",
+        feature=feature,
+        time_start=time_start,
+        time_end=time_end,
+        metadata_filters=[
+            Filter("cloudy_pixel_percentage", "<", 90),
+            Filter('processing_level', '==', 'Level-2A')
+        ]
+    )
+
+    mapper = Mapper(mapper_configs)
+
+    # query scenes
+    mapper.query_scenes()
+
+    # load scenes
+    mapper.load_scenes(scene_kwargs=SCENE_KWARGS)

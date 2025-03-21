@@ -40,8 +40,8 @@ Settings = get_settings()
     'collection,time_start,time_end,geom,metadata_filters,apply_scaling',
     [(
         'sentinel2-msi',
-        datetime(2022,7,1),
-        datetime(2022,7,15),
+        datetime(2025,2,1),
+        datetime(2025,2,15),
         Polygon(
             [[7.04229, 47.01202],
             [7.08525, 47.01202],
@@ -54,8 +54,8 @@ Settings = get_settings()
     ),
         (
         'sentinel2-msi',
-        datetime(2022,7,1),
-        datetime(2022,7,15),
+        datetime(2025,2,1),
+        datetime(2025,2,15),
         Polygon(
             [[7.04229, 47.01202],
             [7.08525, 47.01202],
