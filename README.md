@@ -129,7 +129,7 @@ We have compiled a set of [Jupyter notebooks](https://github.com/EOA-team/eodal_
 
 ## Contributing
 
-Contributions to E:earth_africa:dal are welcome. Please make sure to read the [contribution guidelines](https://github.com/EOA-team/eodal/tree/master/Contributing.rst) first.
+Contributions to E:earth_africa:dal are welcome. Please make sure to read the [contribution guidelines](contributing.rst) first.
 
 ## Code Coverage
 The inner-most circle is the entire project, moving away from the center are folders then, finally, a single file. The size and color of each slice is representing the number of statements and the coverage, respectively.
